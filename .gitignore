@@ -1,0 +1,33 @@
+# Java / Spring Boot
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# Maven
+.mvn/wrapper/maven-wrapper.jar
+
+# Node / React Native / Expo
+node_modules/
+.expo/
+dist/
+web-build/
+
+# Environment variables
+.env
+.env.*
+application-local.properties
+application-dev.properties
+
+# Logs
+*.log
+logs/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
