@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { Button, StyleSheet, Text, View } from "react-native";
-import axios from "axios";
+import { api } from "../../src/api/api";
 
 export default function HomeScreen() {
 	const [message, setMessage] = useState("Sin conectar con el backend");
 
 	const checkBackend = async () => {
 		try {
-			const response = await axios.get("http://localhost:8080/api/health");
+			const response = await api.get("/health");
 			setMessage(response.data.message);
 		} catch (error) {
 			setMessage("Error conectando con el backend");
