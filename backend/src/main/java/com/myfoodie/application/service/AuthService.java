@@ -8,6 +8,7 @@ import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.UsuarioRepository;
 import com.myfoodie.exception.ApiException;
+import com.myfoodie.infrastructure.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -20,6 +21,7 @@ public class AuthService {
     private final UsuarioRepository usuarioRepository;
     private final PreferenciasRepository preferenciasRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider jwtTokenProvider;
 
     public AuthResponseDTO register(RegisterRequestDTO request) {
         if (usuarioRepository.existsByEmail(request.email())) {
@@ -57,9 +59,13 @@ public class AuthService {
     }
 
     private AuthResponseDTO buildResponse(Usuario usuario) {
-        // Token vacío hasta commit 3 (JwtTokenProvider)
-        return new AuthResponseDTO("", usuario.getId(), usuario.getEmail(),
-                usuario.getNombreUsuario(), usuario.getNombre());
+        return new AuthResponseDTO(
+                jwtTokenProvider.generateToken(usuario),
+                usuario.getId(),
+                usuario.getEmail(),
+                usuario.getNombreUsuario(),
+                usuario.getNombre()
+        );
     }
 
 }
