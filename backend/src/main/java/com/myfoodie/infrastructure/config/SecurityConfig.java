@@ -1,4 +1,4 @@
-package com.tfg.backend.config;
+package com.myfoodie.infrastructure.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,8 +13,8 @@ public class SecurityConfig {
 		http
 			.csrf(csrf -> csrf.disable())
 			.authorizeHttpRequests(auth -> auth
-				.requestMatchers("/api/health").permitAll()
-				.anyRequest().permitAll()
+				.requestMatchers("/api/health", "/api/auth/**").permitAll()
+				.anyRequest().authenticated()
 			);
 
 		return http.build();
