@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Button, StyleSheet, Text, View } from "react-native";
-import { api } from "../../src/api/api";
+import { api } from "@/services/api";
 
 export default function HomeScreen() {
 	const [message, setMessage] = useState("Sin conectar con el backend");

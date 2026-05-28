@@ -1,7 +1,7 @@
-import { create } from "axios";
+import axios from "axios";
 import Constants from "expo-constants";
 
-const getApiBaseUrl = () => {
+const getApiBaseUrl = (): string => {
 	const configuredUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
 	if (configuredUrl) {
 		return configuredUrl;
@@ -20,7 +20,7 @@ const getApiBaseUrl = () => {
 
 export const API_BASE_URL = getApiBaseUrl();
 
-export const api = create({
+export const api = axios.create({
 	baseURL: API_BASE_URL,
 	timeout: 10000,
 });
