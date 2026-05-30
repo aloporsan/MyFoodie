@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -61,29 +62,36 @@ export function LoginScreen() {
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      {/* Cabecera verde con logo */}
+      <View style={[styles.header, { height: height * 0.38 }]}>
+        <View style={styles.logoWrapper}>
+          <Image
+            source={require('@/assets/images/logo-myfoodie.png')}
+            style={styles.logoIcon}
+            resizeMode="contain"
+          />
+          <Image
+            source={require('@/assets/images/logo-texto.png')}
+            style={styles.logoText}
+            resizeMode="contain"
+          />
+        </View>
+        <Text style={styles.tagline}>Tu despensa inteligente</Text>
+      </View>
+
+      {/* Gradiente visible entre cabecera y formulario */}
+      <LinearGradient
+        colors={[colors.primary, colors.white]}
+        style={styles.gradientStrip}
+      />
+
+      {/* Formulario scrollable */}
       <ScrollView
+        style={styles.formScroll}
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Cabecera verde con logo */}
-        <View style={[styles.header, { minHeight: height * 0.32 }]}>
-          <View style={styles.logoWrapper}>
-            <Image
-              source={require('@/assets/images/logo-myfoodie.png')}
-              style={styles.logoIcon}
-              resizeMode="contain"
-            />
-            <Image
-              source={require('@/assets/images/logo-texto.png')}
-              style={styles.logoText}
-              resizeMode="contain"
-            />
-          </View>
-          <Text style={styles.tagline}>Tu despensa inteligente</Text>
-        </View>
-
-        {/* Tarjeta blanca con el formulario */}
         <View style={styles.card}>
           <Text style={styles.welcomeTitle}>¡Bienvenido a MyFoodie!</Text>
           <Text style={styles.welcomeSubtitle}>Accede a tu cuenta para continuar</Text>
@@ -161,10 +169,18 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.white,
+  },
+  gradientStrip: {
+    height: 56,
+  },
+  formScroll: {
+    flex: 1,
+    backgroundColor: colors.white,
   },
   scroll: {
     flexGrow: 1,
+    paddingBottom: spacing.xxxl,
   },
 
   // Cabecera verde
@@ -182,7 +198,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     alignItems: 'center',
-    gap: 2,
+    gap: 1,
   },
   logoIcon: {
     width: 80,
@@ -201,11 +217,8 @@ const styles = StyleSheet.create({
   // Tarjeta blanca
   card: {
     backgroundColor: colors.white,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    flex: 1,
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xxl,
+    paddingTop: spacing.lg,
     paddingBottom: spacing.xxxl,
   },
   welcomeTitle: {

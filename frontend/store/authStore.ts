@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { authService } from '@/services/authService';
 
 export interface Usuario {
   userId: string;
@@ -40,11 +41,16 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       isLoading: false,
       error: null,
 
-      login: async (_email, _password) => {
+      login: async (email, password) => {
         set({ isLoading: true, error: null });
         try {
-          // Placeholder — se implementa en commit 4 con authService
-          set({ isLoading: false });
+          const res = await authService.login(email, password);
+          set({
+            token: res.token,
+            usuario: { userId: res.userId, email: res.email, nombreUsuario: res.nombreUsuario, nombre: res.nombre },
+            isAuthenticated: true,
+            isLoading: false,
+          });
         } catch (e: unknown) {
           const msg = e instanceof Error ? e.message : 'Credenciales incorrectas';
           set({ isLoading: false, error: msg });
@@ -52,11 +58,16 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         }
       },
 
-      register: async (_datos) => {
+      register: async (datos) => {
         set({ isLoading: true, error: null });
         try {
-          // Placeholder — se implementa en commit 4 con authService
-          set({ isLoading: false });
+          const res = await authService.register(datos);
+          set({
+            token: res.token,
+            usuario: { userId: res.userId, email: res.email, nombreUsuario: res.nombreUsuario, nombre: res.nombre },
+            isAuthenticated: true,
+            isLoading: false,
+          });
         } catch (e: unknown) {
           const msg = e instanceof Error ? e.message : 'Error al registrarse';
           set({ isLoading: false, error: msg });
