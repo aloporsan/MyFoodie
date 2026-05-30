@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { authService } from '@/services/authService';
+import { setTokenGetter } from '@/services/apiClient';
 
 export interface Usuario {
   userId: string;
@@ -92,3 +93,5 @@ export const useAuthStore = create<AuthState & AuthActions>()(
     }
   )
 );
+
+setTokenGetter(() => useAuthStore.getState().token);

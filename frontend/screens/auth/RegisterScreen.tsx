@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 import { Button, Input } from '@/components/ui';
-import { useAuth } from '@/context/AuthContext';
+import { useAuthStore } from '@/store/authStore';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
@@ -23,7 +23,7 @@ const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,30}$/;
 
 export function RegisterScreen() {
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { register, isLoading, error, clearError } = useAuthStore();
   const { height } = useWindowDimensions();
 
   const [nombre, setNombre] = useState('');
@@ -33,7 +33,6 @@ export function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
   const [errors, setErrors] = useState({
     nombre: '',
@@ -78,11 +77,11 @@ export function RegisterScreen() {
 
   const handleRegister = async () => {
     if (!validateAll()) return;
-    setIsLoading(true);
+    clearError();
     try {
-      signIn(); // placeholder — se reemplaza en commit 5 con authStore
-    } finally {
-      setIsLoading(false);
+      await register({ nombre, nombreUsuario, email, password });
+    } catch {
+      // error state is set in authStore
     }
   };
 
@@ -116,6 +115,13 @@ export function RegisterScreen() {
         <View style={styles.card}>
           <Text style={styles.title}>Crear cuenta</Text>
           <Text style={styles.subtitle}>Únete a la comunidad MyFoodie</Text>
+
+          {error ? (
+            <View style={styles.errorBanner}>
+              <Ionicons name="alert-circle-outline" size={16} color={colors.error} />
+              <Text style={styles.errorBannerText}>{error}</Text>
+            </View>
+          ) : null}
 
           <View style={styles.form}>
             <Input
@@ -253,6 +259,20 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text.secondary,
     marginBottom: spacing.xl,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: '#FDECEA',
+    borderRadius: 10,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  errorBannerText: {
+    ...typography.body,
+    color: colors.error,
+    flex: 1,
   },
   form: {
     gap: spacing.lg,

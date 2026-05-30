@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -14,7 +13,7 @@ import {
   View,
 } from 'react-native';
 import { Button, Input } from '@/components/ui';
-import { useAuth } from '@/context/AuthContext';
+import { useAuthStore } from '@/store/authStore';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
@@ -23,14 +22,12 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function LoginScreen() {
   const router = useRouter();
-  const { signIn } = useAuth();
+  const { login, isLoading, error, clearError } = useAuthStore();
   const { height } = useWindowDimensions();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [globalError, setGlobalError] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
 
@@ -38,7 +35,7 @@ export function LoginScreen() {
     let valid = true;
     setEmailError('');
     setPasswordError('');
-    setGlobalError('');
+    clearError();
     if (!email.trim()) { setEmailError('El email es obligatorio'); valid = false; }
     else if (!EMAIL_REGEX.test(email)) { setEmailError('Email no válido'); valid = false; }
     if (!password) { setPasswordError('La contraseña es obligatoria'); valid = false; }
@@ -47,13 +44,10 @@ export function LoginScreen() {
 
   const handleLogin = async () => {
     if (!validate()) return;
-    setIsLoading(true);
     try {
-      signIn();
+      await login(email, password);
     } catch {
-      setGlobalError('Credenciales incorrectas. Inténtalo de nuevo.');
-    } finally {
-      setIsLoading(false);
+      // error state is set in authStore
     }
   };
 
@@ -79,12 +73,6 @@ export function LoginScreen() {
         <Text style={styles.tagline}>Tu despensa inteligente</Text>
       </View>
 
-      {/* Gradiente visible entre cabecera y formulario */}
-      <LinearGradient
-        colors={[colors.primary, colors.white]}
-        style={styles.gradientStrip}
-      />
-
       {/* Formulario scrollable */}
       <ScrollView
         style={styles.formScroll}
@@ -96,10 +84,10 @@ export function LoginScreen() {
           <Text style={styles.welcomeTitle}>¡Bienvenido a MyFoodie!</Text>
           <Text style={styles.welcomeSubtitle}>Accede a tu cuenta para continuar</Text>
 
-          {globalError ? (
+          {error ? (
             <View style={styles.errorBanner}>
               <Ionicons name="alert-circle-outline" size={16} color={colors.error} />
-              <Text style={styles.errorBannerText}>{globalError}</Text>
+              <Text style={styles.errorBannerText}>{error}</Text>
             </View>
           ) : null}
 
@@ -169,14 +157,10 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
-    backgroundColor: colors.white,
-  },
-  gradientStrip: {
-    height: 56,
+    backgroundColor: colors.primary,
   },
   formScroll: {
     flex: 1,
-    backgroundColor: colors.white,
   },
   scroll: {
     flexGrow: 1,
@@ -217,8 +201,11 @@ const styles = StyleSheet.create({
   // Tarjeta blanca
   card: {
     backgroundColor: colors.white,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    flex: 1,
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.xxl,
     paddingBottom: spacing.xxxl,
   },
   welcomeTitle: {
