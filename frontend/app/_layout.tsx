@@ -33,7 +33,7 @@ function useAuthGuard(isAuthenticated: boolean, ready: boolean) {
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isReady } = useAuth();
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -41,7 +41,7 @@ function RootLayoutNav() {
     Poppins_600SemiBold,
   });
 
-  useAuthGuard(isAuthenticated, fontsLoaded);
+  useAuthGuard(isAuthenticated, fontsLoaded && isReady);
 
   useEffect(() => {
     if (fontsLoaded) SplashScreen.hideAsync();
