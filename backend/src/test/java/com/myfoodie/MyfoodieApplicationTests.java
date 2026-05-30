@@ -1,10 +1,10 @@
-package com.tfg.backend;
+package com.myfoodie;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class BackendApplicationTests {
+class MyfoodieApplicationTests {
 
 	@Test
 	void contextLoads() {

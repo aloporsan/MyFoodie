@@ -1,4 +1,4 @@
-package com.tfg.backend.controller;
+package com.myfoodie.api.controller;
 
 import java.util.Map;
 
@@ -12,7 +12,7 @@ public class HealthController {
 	public Map<String, String> health() {
 		return Map.of(
 			"status", "OK",
-			"message", "Spring Boot backend running"
+			"message", "MyFoodie backend running"
 		);
 	}
 
