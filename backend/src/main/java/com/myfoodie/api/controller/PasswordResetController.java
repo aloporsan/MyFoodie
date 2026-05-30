@@ -2,6 +2,7 @@ package com.myfoodie.api.controller;
 
 import com.myfoodie.application.dto.auth.ForgotPasswordRequestDTO;
 import com.myfoodie.application.dto.auth.ResetPasswordRequestDTO;
+import com.myfoodie.application.dto.auth.ValidateTokenRequestDTO;
 import com.myfoodie.application.service.PasswordResetService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,13 @@ public class PasswordResetController {
             @Valid @RequestBody ForgotPasswordRequestDTO request) {
         passwordResetService.forgotPassword(request.email());
         return ResponseEntity.ok(Map.of("message", "Si el email existe, recibirás un enlace en breve"));
+    }
+
+    @PostMapping("/validate-token")
+    public ResponseEntity<Map<String, String>> validateToken(
+            @Valid @RequestBody ValidateTokenRequestDTO request) {
+        passwordResetService.validateToken(request.token());
+        return ResponseEntity.ok(Map.of("message", "Token válido"));
     }
 
     @PostMapping("/reset-password")

@@ -161,6 +161,7 @@ const styles = StyleSheet.create({
   },
   formScroll: {
     flex: 1,
+    backgroundColor: colors.white,
   },
   scroll: {
     flexGrow: 1,

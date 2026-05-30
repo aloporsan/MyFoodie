@@ -60,6 +60,19 @@ public class PasswordResetService {
         emailService.sendPasswordResetEmail(email, tokenValue);
     }
 
+    public void validateToken(String tokenValue) {
+        PasswordResetToken resetToken = tokenRepository.findByToken(tokenValue)
+                .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "Token de recuperación no válido"));
+
+        if (resetToken.getUsado()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Este enlace ya ha sido utilizado");
+        }
+
+        if (resetToken.getExpiresAt().before(new Date())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "El enlace de recuperación ha expirado");
+        }
+    }
+
     public void resetPassword(String tokenValue, String nuevaPassword) {
         PasswordResetToken resetToken = tokenRepository.findByToken(tokenValue)
                 .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "Token de recuperación no válido"));

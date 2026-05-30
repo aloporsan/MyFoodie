@@ -35,14 +35,14 @@ public class EmailService {
                 .build();
     }
 
-    public void sendPasswordResetEmail(String to, String token) {
-        String link = resetPasswordUrl + "?token=" + token;
+    public void sendPasswordResetEmail(String to, String tokenValue) {
+        String link = resetPasswordUrl + "?token=" + tokenValue;
 
         Map<String, Object> body = Map.of(
                 "from", from,
                 "to", List.of(to),
                 "subject", "Restablecer contraseña · MyFoodie",
-                "html", buildHtml(link)
+                "html", buildHtml(link, tokenValue)
         );
 
         try {
@@ -59,7 +59,7 @@ public class EmailService {
         }
     }
 
-    private String buildHtml(String link) {
+    private String buildHtml(String link, String token) {
         return """
                 <!DOCTYPE html>
                 <html lang="es">
@@ -90,8 +90,15 @@ public class EmailService {
                                 </td>
                               </tr>
                             </table>
-                            <p style="margin:24px 0 0;font-size:13px;color:#999999;">
+                            <p style="margin:24px 0 8px;font-size:13px;color:#999999;">
                               Este enlace expira en <strong>30 minutos</strong>.
+                            </p>
+                            <p style="margin:16px 0 4px;font-size:12px;color:#bbbbbb;">
+                              ¿El botón no funciona? Introduce este código manualmente en la app:
+                            </p>
+                            <p style="margin:0 0 12px;font-size:13px;font-family:monospace;background-color:#f5f5f5;padding:10px 14px;border-radius:6px;word-break:break-all;color:#333;">%s</p>
+                            <p style="margin:0;font-size:11px;color:#cccccc;word-break:break-all;">
+                              O copia este enlace en Safari/Chrome: <a href="%s" style="color:#4CAF50;">%s</a>
                             </p>
                           </td>
                         </tr>
@@ -107,6 +114,6 @@ public class EmailService {
                   </table>
                 </body>
                 </html>
-                """.formatted(link);
+                """.formatted(link, token, link, link);
     }
 }
