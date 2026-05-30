@@ -9,26 +9,31 @@ interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
   containerStyle?: ViewStyle;
+  rightElement?: React.ReactNode;
 }
 
-export function Input({ label, error, containerStyle, style, ...props }: InputProps) {
+export function Input({ label, error, containerStyle, style, rightElement, ...props }: InputProps) {
   const [focused, setFocused] = useState(false);
 
   return (
     <View style={[styles.container, containerStyle]}>
       {label && <Text style={styles.label}>{label}</Text>}
-      <TextInput
-        style={[
-          styles.input,
-          focused && styles.inputFocused,
-          !!error && styles.inputError,
-          style,
-        ]}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        placeholderTextColor={colors.grayMid}
-        {...props}
-      />
+      <View style={[
+        styles.inputRow,
+        focused && styles.inputFocused,
+        !!error && styles.inputError,
+      ]}>
+        <TextInput
+          style={[styles.input, rightElement ? styles.inputWithRight : null, style]}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          placeholderTextColor={colors.grayMid}
+          {...props}
+        />
+        {rightElement && (
+          <View style={styles.rightElement}>{rightElement}</View>
+        )}
+      </View>
       {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
@@ -42,16 +47,15 @@ const styles = StyleSheet.create({
     ...typography.label,
     color: colors.text.primary,
   },
-  input: {
-    ...typography.body,
-    color: colors.text.primary,
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.grayLight,
     borderRadius: borderRadius.md,
     borderWidth: 1.5,
     borderColor: 'transparent',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
     minHeight: 44,
+    paddingHorizontal: spacing.lg,
   },
   inputFocused: {
     borderColor: colors.primary,
@@ -59,6 +63,19 @@ const styles = StyleSheet.create({
   },
   inputError: {
     borderColor: colors.error,
+  },
+  input: {
+    ...typography.body,
+    color: colors.text.primary,
+    flex: 1,
+    paddingVertical: spacing.md,
+  },
+  inputWithRight: {
+    paddingRight: spacing.sm,
+  },
+  rightElement: {
+    paddingLeft: spacing.sm,
+    justifyContent: 'center',
   },
   errorText: {
     ...typography.caption,
