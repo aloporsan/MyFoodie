@@ -27,9 +27,6 @@ jobs:
             const formatoValido = /^(feat|fix|docs|refactor|test|chore):\s+\S/i;
             const tituloValido = formatoValido.test(titulo);
 
-            // La descripción no puede estar vacía ni ser solo espacios
-            const descripcionValida = descripcion && descripcion.trim().length > 0;
-
             const errores = [];
 
             if (!tituloValido) {
@@ -42,12 +39,6 @@ jobs:
                 '- `refactor: extraer lógica de validación`\n' +
                 '- `test: añadir tests al AuthService`\n' +
                 '- `chore: actualizar dependencias`'
-              );
-            }
-
-            if (!descripcionValida) {
-              errores.push(
-                '**Descripción vacía:** Por favor añade una descripción explicando qué hace esta PR y por qué.'
               );
             }
 

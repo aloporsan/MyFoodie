@@ -37,7 +37,8 @@ jobs:
             ${{ runner.os }}-node-
 
       - name: Instalar dependencias (npm ci)
-        run: npm ci
+        # --legacy-peer-deps necesario por conflicto entre jest-expo@56 y react@19.1
+        run: npm ci --legacy-peer-deps
 
       - name: Ejecutar ESLint
         run: npm run lint
