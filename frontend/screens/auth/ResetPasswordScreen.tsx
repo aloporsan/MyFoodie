@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   Image,
@@ -14,40 +14,43 @@ import {
 } from 'react-native';
 import { Button, Input } from '@/components/ui';
 import { authService } from '@/services/authService';
-
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-export function ForgotPasswordScreen() {
+export function ResetPasswordScreen() {
   const router = useRouter();
+  const { token } = useLocalSearchParams<{ token: string }>();
   const { height } = useWindowDimensions();
 
-  const [email, setEmail] = useState('');
-  const [emailError, setEmailError] = useState('');
-  const [globalError, setGlobalError] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [token, setToken] = useState('');
-  const [tokenError, setTokenError] = useState('');
-  const [isValidating, setIsValidating] = useState(false);
+  const [globalError, setGlobalError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [confirmError, setConfirmError] = useState('');
+  const [done, setDone] = useState(false);
 
   const validate = () => {
-    setEmailError('');
+    let valid = true;
+    setPasswordError('');
+    setConfirmError('');
     setGlobalError('');
-    if (!email.trim()) { setEmailError('El email es obligatorio'); return false; }
-    if (!EMAIL_REGEX.test(email)) { setEmailError('Email no válido'); return false; }
-    return true;
+    if (!password) { setPasswordError('La contraseña es obligatoria'); valid = false; }
+    else if (password.length < 8) { setPasswordError('Mínimo 8 caracteres'); valid = false; }
+    if (!confirmPassword) { setConfirmError('Confirma tu contraseña'); valid = false; }
+    else if (password !== confirmPassword) { setConfirmError('Las contraseñas no coinciden'); valid = false; }
+    return valid;
   };
 
   const handleSubmit = async () => {
     if (!validate()) return;
     setIsLoading(true);
     try {
-      await authService.forgotPassword(email);
-      setSent(true);
+      await authService.resetPassword(token!, password);
+      setDone(true);
     } catch (e: unknown) {
       setGlobalError(e instanceof Error ? e.message : 'Algo ha salido mal. Inténtalo de nuevo.');
     } finally {
@@ -83,59 +86,29 @@ export function ForgotPasswordScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.card}>
-          {sent ? (
+          {done ? (
             /* Estado de éxito */
             <View style={styles.successContainer}>
               <View style={styles.successIcon}>
-                <Ionicons name="mail-outline" size={40} color={colors.primary} />
+                <Ionicons name="checkmark-circle-outline" size={40} color={colors.primary} />
               </View>
-              <Text style={styles.successTitle}>Revisa tu email</Text>
+              <Text style={styles.successTitle}>¡Contraseña cambiada!</Text>
               <Text style={styles.successBody}>
-                Si el email existe en MyFoodie, habrás recibido un código. Introdúcelo aquí para continuar.
+                Tu contraseña se ha actualizado correctamente. Ya puedes iniciar sesión con tu nueva contraseña.
               </Text>
-
-              <View style={styles.tokenForm}>
-                <Input
-                  label="Código de verificación"
-                  placeholder="Pega aquí el código del email"
-                  value={token}
-                  onChangeText={(t) => { setToken(t); setTokenError(''); }}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="off"
-                  error={tokenError}
-                />
-                <Button
-                  label="Continuar"
-                  loading={isValidating}
-                  onPress={async () => {
-                    if (!token.trim()) { setTokenError('Introduce el código del email'); return; }
-                    setTokenError('');
-                    setIsValidating(true);
-                    try {
-                      await authService.validateToken(token.trim());
-                      router.push({ pathname: '/(auth)/reset-password', params: { token: token.trim() } });
-                    } catch (e: unknown) {
-                      setTokenError(e instanceof Error ? e.message : 'Código no válido');
-                    } finally {
-                      setIsValidating(false);
-                    }
-                  }}
-                  fullWidth
-                />
-              </View>
-
-              <Pressable onPress={() => router.replace('/(auth)/login')} style={styles.backLink}>
-                <Ionicons name="arrow-back-outline" size={16} color={colors.primary} />
-                <Text style={styles.backLinkText}>Volver al inicio de sesión</Text>
-              </Pressable>
+              <Button
+                label="Iniciar sesión"
+                onPress={() => router.replace('/(auth)/login')}
+                fullWidth
+                style={styles.loginButton}
+              />
             </View>
           ) : (
             /* Formulario */
             <>
-              <Text style={styles.title}>Recuperar contraseña</Text>
+              <Text style={styles.title}>Restablecer contraseña</Text>
               <Text style={styles.subtitle}>
-                Introduce tu email y te enviaremos un enlace para restablecer tu contraseña.
+                Introduce el código que recibiste en tu email y elige una nueva contraseña.
               </Text>
 
               {globalError ? (
@@ -147,24 +120,49 @@ export function ForgotPasswordScreen() {
 
               <View style={styles.form}>
                 <Input
-                  label="Email"
-                  placeholder="hola@myfoodie.app"
-                  value={email}
-                  onChangeText={(t) => { setEmail(t); setEmailError(''); setGlobalError(''); }}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  error={emailError}
+                  label="Nueva contraseña"
+                  placeholder="Mínimo 8 caracteres"
+                  value={password}
+                  onChangeText={(t) => { setPassword(t); setPasswordError(''); setGlobalError(''); }}
+                  secureTextEntry={!showPassword}
+                  error={passwordError}
+                  rightElement={
+                    <Pressable onPress={() => setShowPassword(v => !v)} hitSlop={8}>
+                      <Ionicons
+                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                        size={20}
+                        color={colors.grayDark}
+                      />
+                    </Pressable>
+                  }
+                />
+
+                <Input
+                  label="Confirmar contraseña"
+                  placeholder="Repite la contraseña"
+                  value={confirmPassword}
+                  onChangeText={(t) => { setConfirmPassword(t); setConfirmError(''); }}
+                  secureTextEntry={!showConfirm}
+                  error={confirmError}
+                  rightElement={
+                    <Pressable onPress={() => setShowConfirm(v => !v)} hitSlop={8}>
+                      <Ionicons
+                        name={showConfirm ? 'eye-off-outline' : 'eye-outline'}
+                        size={20}
+                        color={colors.grayDark}
+                      />
+                    </Pressable>
+                  }
                 />
 
                 <Button
-                  label="Enviar enlace"
+                  label="Cambiar contraseña"
                   onPress={handleSubmit}
                   loading={isLoading}
                   fullWidth
                 />
 
-                <Pressable onPress={() => router.back()} style={styles.backLink}>
+                <Pressable onPress={() => router.replace('/(auth)/login')} style={styles.backLink}>
                   <Ionicons name="arrow-back-outline" size={16} color={colors.primary} />
                   <Text style={styles.backLinkText}>Volver al inicio de sesión</Text>
                 </Pressable>
@@ -265,10 +263,6 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xl,
     gap: spacing.lg,
   },
-  tokenForm: {
-    width: '100%',
-    gap: spacing.md,
-  },
   successIcon: {
     width: 80,
     height: 80,
@@ -287,7 +281,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
-  backButton: {
+  loginButton: {
     marginTop: spacing.md,
     width: '100%',
   },
