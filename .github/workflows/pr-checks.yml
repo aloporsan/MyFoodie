@@ -1,0 +1,149 @@
+name: Validación de Pull Requests
+
+on:
+  pull_request:
+    branches: [develop, main]
+    types: [opened, edited, synchronize]
+
+jobs:
+  validar-pr:
+    name: Validar título, descripción, commits y asignado
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write  # Para comentar y asignar en la PR
+
+    steps:
+      - name: Validar título y descripción de la PR
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            const titulo = pr.title;
+            const descripcion = pr.body;
+            const numero = pr.number;
+
+            // Formato obligatorio: prefijo + ': ' + descripción (con espacio y contenido)
+            const formatoValido = /^(feat|fix|docs|refactor|test|chore):\s+\S/i;
+            const tituloValido = formatoValido.test(titulo);
+
+            // La descripción no puede estar vacía ni ser solo espacios
+            const descripcionValida = descripcion && descripcion.trim().length > 0;
+
+            const errores = [];
+
+            if (!tituloValido) {
+              errores.push(
+                '**Título inválido:** `' + titulo + '`\n\n' +
+                'El título debe seguir el formato `prefijo: descripción`:\n' +
+                '- `feat: añadir pantalla de perfil`\n' +
+                '- `fix: corregir crash al hacer logout`\n' +
+                '- `docs: actualizar README`\n' +
+                '- `refactor: extraer lógica de validación`\n' +
+                '- `test: añadir tests al AuthService`\n' +
+                '- `chore: actualizar dependencias`'
+              );
+            }
+
+            if (!descripcionValida) {
+              errores.push(
+                '**Descripción vacía:** Por favor añade una descripción explicando qué hace esta PR y por qué.'
+              );
+            }
+
+            if (errores.length > 0) {
+              const cuerpoComentario =
+                '## ⚠️ Validación de PR fallida\n\n' +
+                errores.map(e => '- ' + e).join('\n\n') +
+                '\n\n---\n*Corrígelo y la validación se volverá a ejecutar automáticamente.*';
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: numero,
+                body: cuerpoComentario
+              });
+
+              core.setFailed('La PR no cumple el formato requerido. Revisa el comentario en la PR.');
+            } else {
+              console.log('✅ Título y descripción de la PR son correctos.');
+            }
+
+      - name: Validar mensajes de los commits de la PR
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const numero = context.payload.pull_request.number;
+
+            // Obtener todos los commits de la PR
+            const commits = await github.paginate(
+              github.rest.pulls.listCommits,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: numero
+              }
+            );
+
+            // Formato válido: 'feat: descripción', 'fix: algo', etc.
+            const formatoValido = /^(feat|fix|docs|refactor|test|chore):\s+\S/i;
+
+            const commitsFallidos = [];
+
+            for (const { sha, commit } of commits) {
+              const lineaTitulo = commit.message.split('\n')[0].trim();
+
+              // Ignorar commits de merge automáticos de Git/GitHub
+              if (lineaTitulo.startsWith('Merge ')) continue;
+
+              if (!formatoValido.test(lineaTitulo)) {
+                commitsFallidos.push({ sha: sha.substring(0, 7), mensaje: lineaTitulo });
+              }
+            }
+
+            if (commitsFallidos.length > 0) {
+              const lista = commitsFallidos
+                .map(c => `- \`${c.sha}\` — \`${c.mensaje}\``)
+                .join('\n');
+
+              const comentario =
+                '## ⚠️ Commits con formato incorrecto\n\n' +
+                'Los siguientes commits no siguen el formato `prefijo: descripción`:\n\n' +
+                lista + '\n\n' +
+                '**Prefijos válidos:** `feat`, `fix`, `docs`, `refactor`, `test`, `chore`\n\n' +
+                'Ejemplos correctos:\n' +
+                '- `feat: añadir validación del formulario`\n' +
+                '- `fix: corregir error 401 en login`\n\n' +
+                '*Puedes corregirlos con `git rebase -i` y luego `git push --force-with-lease`.*\n\n' +
+                '---\n*Corrígelo y la validación se volverá a ejecutar automáticamente.*';
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: numero,
+                body: comentario
+              });
+
+              core.setFailed(`${commitsFallidos.length} commit(s) no siguen el formato de mensajes requerido.`);
+            } else {
+              console.log(`✅ Los ${commits.length} commit(s) de la PR tienen formato correcto.`);
+            }
+
+      - name: Asignar el autor de la PR como responsable
+        uses: actions/github-script@v7
+        if: github.event.action == 'opened'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const autor = context.payload.pull_request.user.login;
+            const numero = context.payload.pull_request.number;
+
+            await github.rest.issues.addAssignees({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: numero,
+              assignees: [autor]
+            });
+
+            console.log(`✅ Asignado ${autor} como responsable de la PR #${numero}`);

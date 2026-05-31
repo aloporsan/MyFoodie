@@ -1,0 +1,69 @@
+name: CI — Backend Spring Boot
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - 'backend/**'
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'backend/**'
+
+jobs:
+  build:
+    name: Compilar y testear backend
+    runs-on: ubuntu-latest
+
+    services:
+      # MongoDB necesario para los tests de integración
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout del código fuente
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Cache de dependencias Maven
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('backend/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Verificar estilo de código con Checkstyle
+        # Requiere configurar el plugin maven-checkstyle-plugin en pom.xml
+        run: mvn checkstyle:check --batch-mode
+        continue-on-error: true
+
+      - name: Ejecutar tests unitarios e integración
+        run: mvn test --batch-mode
+        env:
+          # Apuntar al MongoDB del servicio de CI
+          SPRING_DATA_MONGODB_URI: mongodb://localhost:27017/myfoodie_test
+          # Clave ficticia para que el EmailService arranque sin fallar
+          RESEND_API_KEY: ci-dummy-key-not-used-in-tests
+
+      - name: Compilar artefacto JAR (sin ejecutar tests)
+        run: mvn package -DskipTests --batch-mode
+
+      - name: Publicar resultados de tests como artefacto
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: resultados-tests-backend
+          path: backend/target/surefire-reports/
+          retention-days: 7
