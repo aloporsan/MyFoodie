@@ -27,6 +27,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@DisplayName("AuthService — registro y login")
 class AuthServiceTest {
 
     @Mock private UsuarioRepository usuarioRepository;
