@@ -1,0 +1,93 @@
+name: Cierre automático de issues por commit
+
+on:
+  push:
+    branches: [develop, main]
+
+jobs:
+  cerrar-issues:
+    name: Detectar y cerrar issues referenciados en commits
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write  # Para cerrar issues y añadir comentarios
+
+    steps:
+      - name: Buscar referencias a issues en los commits del push
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // Detecta: closes #XX, fixes #XX, resolves #XX (insensible a mayúsculas)
+            const regex = /(?:closes|fixes|resolves)\s+#(\d+)/gi;
+
+            const commits = context.payload.commits || [];
+            console.log(`Analizando ${commits.length} commit(s)...`);
+
+            // Recopilar issues únicos a cerrar (puede haber duplicados entre commits)
+            const issuesACerrar = new Map(); // número → datos del commit
+
+            for (const commit of commits) {
+              const mensaje = commit.message;
+              const coincidencias = [...mensaje.matchAll(regex)];
+
+              for (const coincidencia of coincidencias) {
+                const numeroIssue = parseInt(coincidencia[1], 10);
+                if (!issuesACerrar.has(numeroIssue)) {
+                  issuesACerrar.set(numeroIssue, {
+                    sha: commit.id,
+                    mensajeCorto: mensaje.split('\n')[0]
+                  });
+                }
+              }
+            }
+
+            if (issuesACerrar.size === 0) {
+              console.log('Ningún commit referencia issues para cerrar.');
+              return;
+            }
+
+            console.log(`Issues a cerrar: ${[...issuesACerrar.keys()].join(', ')}`);
+
+            // Cerrar cada issue y añadir un comentario explicativo
+            for (const [numero, datos] of issuesACerrar) {
+              const shaCorto = datos.sha.substring(0, 7);
+              const rama = context.ref.replace('refs/heads/', '');
+
+              try {
+                // Verificar que el issue existe y no está ya cerrado
+                const { data: issue } = await github.rest.issues.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: numero
+                });
+
+                if (issue.state === 'closed') {
+                  console.log(`Issue #${numero} ya estaba cerrado. Omitiendo.`);
+                  continue;
+                }
+
+                // Cerrar el issue
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: numero,
+                  state: 'closed'
+                });
+
+                // Añadir comentario con el commit que lo cerró
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: numero,
+                  body:
+                    `✅ **Issue cerrado automáticamente** por el commit [\`${shaCorto}\`](${context.payload.repository.html_url}/commit/${datos.sha}) en la rama \`${rama}\`.\n\n` +
+                    `> ${datos.mensajeCorto}`
+                });
+
+                console.log(`✅ Issue #${numero} cerrado (commit ${shaCorto}).`);
+
+              } catch (error) {
+                // El issue puede no existir o no ser accesible — no bloquear el workflow
+                console.log(`⚠️  No se pudo cerrar el issue #${numero}: ${error.message}`);
+              }
+            }

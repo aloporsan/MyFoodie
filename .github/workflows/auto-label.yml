@@ -1,0 +1,104 @@
+name: Etiquetado automático de PRs
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  etiquetar:
+    name: Asignar etiquetas según rama y ficheros
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - name: Etiquetar según rama origen y ficheros modificados
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            const ramaOrigen = pr.head.ref;
+            const numeroPr = pr.number;
+            const etiquetasAAplicar = new Set();
+
+            // --- Etiquetas según el nombre de la rama origen ---
+            if (ramaOrigen.startsWith('feature/')) {
+              etiquetasAAplicar.add('enhancement');
+            } else if (ramaOrigen.startsWith('fix/')) {
+              etiquetasAAplicar.add('bug');
+            } else if (ramaOrigen.startsWith('test/')) {
+              etiquetasAAplicar.add('testing');
+            }
+
+            // --- Etiquetas según los ficheros modificados ---
+            // Obtener la lista completa de ficheros de la PR (paginado)
+            const ficheros = await github.paginate(
+              github.rest.pulls.listFiles,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: numeroPr
+              }
+            );
+
+            for (const fichero of ficheros) {
+              const ruta = fichero.filename;
+
+              if (ruta.startsWith('backend/')) {
+                etiquetasAAplicar.add('backend');
+              }
+              if (ruta.startsWith('frontend/')) {
+                etiquetasAAplicar.add('frontend');
+              }
+              if (ruta.startsWith('.github/')) {
+                etiquetasAAplicar.add('ci/cd');
+              }
+            }
+
+            if (etiquetasAAplicar.size === 0) {
+              console.log('No se encontraron etiquetas aplicables para esta PR.');
+              return;
+            }
+
+            const listaEtiquetas = [...etiquetasAAplicar];
+            console.log('Etiquetas a aplicar:', listaEtiquetas.join(', '));
+
+            // Asegurarse de que las etiquetas existen antes de aplicarlas
+            for (const nombre of listaEtiquetas) {
+              try {
+                await github.rest.issues.getLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: nombre
+                });
+              } catch {
+                // La etiqueta no existe — crearla con colores por defecto
+                const colores = {
+                  'enhancement': '84b6eb',
+                  'bug':         'fc2929',
+                  'testing':     'bfd4f2',
+                  'backend':     '0075ca',
+                  'frontend':    'e4e669',
+                  'ci/cd':       'f9d0c4'
+                };
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: nombre,
+                  color: colores[nombre] || 'ededed'
+                });
+                console.log(`Etiqueta '${nombre}' creada automáticamente.`);
+              }
+            }
+
+            // Aplicar las etiquetas a la PR
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: numeroPr,
+              labels: listaEtiquetas
+            });
+
+            console.log(`✅ Etiquetas aplicadas a la PR #${numeroPr}:`, listaEtiquetas.join(', '));
