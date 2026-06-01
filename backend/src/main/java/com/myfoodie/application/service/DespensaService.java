@@ -1,5 +1,6 @@
 package com.myfoodie.application.service;
 
+import com.myfoodie.application.dto.despensa.ProductoFiltroDTO;
 import com.myfoodie.application.dto.despensa.ProductoRequestDTO;
 import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.despensa.ProductoUpdateCantidadDTO;
@@ -106,6 +107,34 @@ public class DespensaService {
         Producto saved = productoRepository.save(p);
         actualizarDespensa(despensa);
         return toDTO(saved, null);
+    }
+
+    // -------------------------------------------------------------------------
+    // Búsqueda y filtrado
+    // -------------------------------------------------------------------------
+
+    public List<ProductoResponseDTO> buscarProductos(String usuarioId, String texto) {
+        Despensa despensa = getDespensaDeUsuario(usuarioId);
+        return productoRepository
+                .findByDespensaIdAndNombreContainingIgnoreCase(despensa.getId(), texto.trim())
+                .stream()
+                .map(p -> toDTO(p, null))
+                .toList();
+    }
+
+    public List<ProductoResponseDTO> filtrarProductos(String usuarioId, ProductoFiltroDTO filtro) {
+        Despensa despensa = getDespensaDeUsuario(usuarioId);
+        return productoRepository.findByDespensaId(despensa.getId())
+                .stream()
+                .filter(p -> filtro.categoria() == null
+                        || filtro.categoria().equalsIgnoreCase(p.getCategoria()))
+                .filter(p -> filtro.estado() == null
+                        || filtro.estado().equals(calcularEstado(p)))
+                .filter(p -> filtro.caducaAntesDe() == null
+                        || (p.getFechaCaducidad() != null
+                            && p.getFechaCaducidad().isBefore(filtro.caducaAntesDe())))
+                .map(p -> toDTO(p, null))
+                .toList();
     }
 
     // -------------------------------------------------------------------------
