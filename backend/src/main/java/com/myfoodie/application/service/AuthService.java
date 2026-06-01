@@ -3,8 +3,10 @@ package com.myfoodie.application.service;
 import com.myfoodie.application.dto.auth.AuthResponseDTO;
 import com.myfoodie.application.dto.auth.LoginRequestDTO;
 import com.myfoodie.application.dto.auth.RegisterRequestDTO;
+import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.Preferencias;
 import com.myfoodie.domain.model.Usuario;
+import com.myfoodie.domain.repository.DespensaRepository;
 import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.UsuarioRepository;
 import com.myfoodie.exception.ApiException;
@@ -20,6 +22,7 @@ public class AuthService {
 
     private final UsuarioRepository usuarioRepository;
     private final PreferenciasRepository preferenciasRepository;
+    private final DespensaRepository despensaRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -42,6 +45,9 @@ public class AuthService {
 
         preferenciasRepository.save(
                 Preferencias.builder().usuarioId(saved.getId()).build()
+        );
+        despensaRepository.save(
+                Despensa.builder().usuarioId(saved.getId()).build()
         );
 
         return buildResponse(saved);
