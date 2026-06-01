@@ -20,7 +20,7 @@ const mockClearError = jest.fn();
 beforeEach(() => {
   jest.clearAllMocks();
   (useRouter as jest.Mock).mockReturnValue({ push: jest.fn(), back: jest.fn(), replace: jest.fn() });
-  (useAuthStore as jest.Mock).mockReturnValue({
+  (useAuthStore as unknown as jest.Mock).mockReturnValue({
     register: mockRegister,
     isLoading: false,
     error: null,

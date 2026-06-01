@@ -21,7 +21,7 @@ const mockPush = jest.fn();
 beforeEach(() => {
   jest.clearAllMocks();
   (useRouter as jest.Mock).mockReturnValue({ push: mockPush, back: jest.fn(), replace: jest.fn() });
-  (useAuthStore as jest.Mock).mockReturnValue({
+  (useAuthStore as unknown as jest.Mock).mockReturnValue({
     login: mockLogin,
     isLoading: false,
     error: null,
@@ -63,7 +63,7 @@ it('navega_a_home_tras_login_exitoso', async () => {
 // -------------------------------------------------------------------------
 
 it('muestra_error_si_credenciales_incorrectas', () => {
-  (useAuthStore as jest.Mock).mockReturnValue({
+  (useAuthStore as unknown as jest.Mock).mockReturnValue({
     login: mockLogin,
     isLoading: false,
     error: 'Credenciales incorrectas',
