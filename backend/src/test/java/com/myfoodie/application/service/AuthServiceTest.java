@@ -3,8 +3,10 @@ package com.myfoodie.application.service;
 import com.myfoodie.application.dto.auth.AuthResponseDTO;
 import com.myfoodie.application.dto.auth.LoginRequestDTO;
 import com.myfoodie.application.dto.auth.RegisterRequestDTO;
+import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.Preferencias;
 import com.myfoodie.domain.model.Usuario;
+import com.myfoodie.domain.repository.DespensaRepository;
 import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.UsuarioRepository;
 import com.myfoodie.exception.ApiException;
@@ -32,6 +34,7 @@ class AuthServiceTest {
 
     @Mock private UsuarioRepository usuarioRepository;
     @Mock private PreferenciasRepository preferenciasRepository;
+    @Mock private DespensaRepository despensaRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtTokenProvider jwtTokenProvider;
 
@@ -68,6 +71,7 @@ class AuthServiceTest {
         assertThat(respuesta.nombreUsuario()).isEqualTo("alonso_test");
         assertThat(respuesta.userId()).isEqualTo("user-1");
         verify(preferenciasRepository).save(any(Preferencias.class));
+        verify(despensaRepository).save(any(Despensa.class));
     }
 
     @Test
