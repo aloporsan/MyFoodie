@@ -1,0 +1,76 @@
+import { apiClient } from './apiClient';
+
+export interface DashboardResumen {
+  totalProductos: number;
+  proximosCaducar: number;
+  caducados: number;
+  bajoStock: number;
+}
+
+export interface AlertaCaducidad {
+  id: string;
+  nombre: string;
+  cantidad: number;
+  unidad: string;
+  fechaCaducidad: string | null;
+  estado: 'caducado' | 'proximoCaducar';
+  diasParaCaducar: number;
+}
+
+export interface ProductoPrioritario {
+  id: string;
+  nombre: string;
+  cantidad: number;
+  unidad: string;
+  estado: string;
+  motivo: string;
+}
+
+export interface Estadisticas {
+  totalRegistrados: number;
+  consumidos: number;
+  caducadosHistorico: number;
+  categoriaLider: string;
+  aprovechamiento: number;
+}
+
+export interface CarritoResumen {
+  disponible: boolean;
+  productosRecomendados: number;
+  sugeridos: string[];
+}
+
+export interface RecetaRecomendada {
+  disponible: boolean;
+}
+
+export interface Dashboard {
+  resumen: DashboardResumen;
+  alertas: AlertaCaducidad[];
+  prioritarios: ProductoPrioritario[];
+  estadisticas: Estadisticas;
+  carrito: CarritoResumen;
+  recetas: RecetaRecomendada;
+}
+
+export const dashboardService = {
+  obtenerDashboard: async (): Promise<Dashboard> => {
+    const { data } = await apiClient.get<Dashboard>('/dashboard');
+    return data;
+  },
+
+  obtenerAlertas: async (): Promise<AlertaCaducidad[]> => {
+    const { data } = await apiClient.get<AlertaCaducidad[]>('/dashboard/alertas');
+    return data;
+  },
+
+  obtenerPrioritarios: async (): Promise<ProductoPrioritario[]> => {
+    const { data } = await apiClient.get<ProductoPrioritario[]>('/dashboard/prioritarios');
+    return data;
+  },
+
+  obtenerEstadisticas: async (): Promise<Estadisticas> => {
+    const { data } = await apiClient.get<Estadisticas>('/dashboard/estadisticas');
+    return data;
+  },
+};
