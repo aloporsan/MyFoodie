@@ -1,16 +1,30 @@
 package com.myfoodie.application.service;
 
+import com.myfoodie.application.dto.perfil.EliminarCuentaDTO;
+import com.myfoodie.application.dto.perfil.EstadisticasPerfilDTO;
 import com.myfoodie.application.dto.perfil.PerfilResponseDTO;
 import com.myfoodie.application.dto.perfil.PerfilUpdateDTO;
 import com.myfoodie.application.dto.perfil.PreferenciasUpdateDTO;
+import com.myfoodie.application.dto.perfil.PrivacidadUpdateDTO;
+import com.myfoodie.domain.model.ConfiguracionPrivacidad;
+import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.Preferencias;
+import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.model.Usuario;
+import com.myfoodie.domain.repository.DespensaRepository;
 import com.myfoodie.domain.repository.PreferenciasRepository;
+import com.myfoodie.domain.repository.ProductoRepository;
 import com.myfoodie.domain.repository.UsuarioRepository;
 import com.myfoodie.exception.ApiException;
+import com.myfoodie.infrastructure.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -18,6 +32,10 @@ public class PerfilService {
 
     private final UsuarioRepository usuarioRepository;
     private final PreferenciasRepository preferenciasRepository;
+    private final DespensaRepository despensaRepository;
+    private final ProductoRepository productoRepository;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final RedisTemplate<String, String> redisTemplate;
 
     public PerfilResponseDTO obtenerPerfil(String usuarioId) {
         Usuario usuario = usuarioRepository.findById(usuarioId)
@@ -59,6 +77,73 @@ public class PerfilService {
         if (dto.tiempoCoccionMax() != null) pref.setTiempoCoccionMax(dto.tiempoCoccionMax());
 
         return toPreferenciasDTO(preferenciasRepository.save(pref));
+    }
+
+    public void actualizarPrivacidad(String usuarioId, PrivacidadUpdateDTO dto) {
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        ConfiguracionPrivacidad cfg = usuario.getConfiguracionPrivacidad();
+        if (dto.perfilPublico() != null) cfg.setPerfilPublico(dto.perfilPublico());
+        if (dto.mostrarRecetas() != null) cfg.setMostrarRecetas(dto.mostrarRecetas());
+        if (dto.mostrarEstadisticas() != null) cfg.setMostrarEstadisticas(dto.mostrarEstadisticas());
+        if (dto.permitirMensajes() != null) cfg.setPermitirMensajes(dto.permitirMensajes());
+
+        usuarioRepository.save(usuario);
+    }
+
+    public EstadisticasPerfilDTO obtenerEstadisticasPerfil(String usuarioId) {
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        int totalProductos = 0;
+        int productosConsumidos = 0;
+        int productosCaducados = 0;
+
+        Despensa despensa = despensaRepository.findByUsuarioId(usuarioId).orElse(null);
+        if (despensa != null) {
+            List<Producto> productos = productoRepository.findByDespensaId(despensa.getId());
+            LocalDate hoy = LocalDate.now();
+            totalProductos = productos.size();
+            for (Producto p : productos) {
+                if (p.getCantidad() <= 0) productosConsumidos++;
+                if (p.getFechaCaducidad() != null && p.getFechaCaducidad().isBefore(hoy)) productosCaducados++;
+            }
+        }
+
+        return new EstadisticasPerfilDTO(
+                totalProductos,
+                productosConsumidos,
+                productosCaducados,
+                0, // Recetas publicadas — Fase 2
+                0, // Recetas guardadas — Fase 2
+                usuario.getFechaRegistro()
+        );
+    }
+
+    public void cerrarSesion(String usuarioId, String token) {
+        if (token == null) return;
+        long ttlMs = jwtTokenProvider.getExpirationFromToken(token).getTime() - System.currentTimeMillis();
+        if (ttlMs > 0) {
+            redisTemplate.opsForValue().set("blacklist:" + token, usuarioId, ttlMs, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    // La eliminación de cuenta es irreversible: anonimiza datos personales y desasocia al autor de sus recetas publicadas
+    public void eliminarCuenta(String usuarioId, EliminarCuentaDTO dto) {
+        if (dto.confirmar() == null || !dto.confirmar()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Debes confirmar la eliminación con confirmar: true");
+        }
+
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        usuario.setEmail("deleted_" + usuarioId + "@myfoodie.com");
+        usuario.setNombre("Usuario eliminado");
+        usuario.setNombreUsuario("deleted_" + usuarioId);
+        usuario.setFotoPerfil(null);
+        usuario.setBiografia(null);
+        usuarioRepository.save(usuario);
     }
 
     private PerfilResponseDTO toPerfilResponse(Usuario usuario) {

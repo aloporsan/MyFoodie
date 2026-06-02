@@ -38,6 +38,9 @@ public class Usuario {
     private Privacidad privacidad = Privacidad.PUBLICA;
 
     @Builder.Default
+    private ConfiguracionPrivacidad configuracionPrivacidad = ConfiguracionPrivacidad.builder().build();
+
+    @Builder.Default
     private LocalDateTime fechaRegistro = LocalDateTime.now();
 
 }
