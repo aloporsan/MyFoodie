@@ -9,7 +9,7 @@ import { typography } from '@/theme/typography';
 const CONFIG: Record<EstadoProducto, { bg: string; text: string; label: string }> = {
   caducado:       { bg: colors.error,         text: colors.white,        label: 'Caducado' },
   proximoCaducar: { bg: colors.secondary,      text: colors.white,        label: 'Caduca pronto' },
-  bajoStock:      { bg: colors.secondaryLight, text: colors.text.primary, label: 'Bajo stock' },
+  bajoStock:      { bg: '#F5D800',             text: '#5C4200',           label: 'Bajo stock' },
   normal:         { bg: '#E8F5D0',             text: colors.primaryDark,  label: 'En stock' },
 };
 

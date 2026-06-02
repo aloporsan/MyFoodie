@@ -6,6 +6,7 @@ import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
+import { getCategoriaConfig } from '@/utils/categoriaConfig';
 import { ProductoEstadoBadge } from './ProductoEstadoBadge';
 
 interface Props {
@@ -18,15 +19,10 @@ interface Props {
 }
 
 export function ProductoCard({
-  producto,
-  onEditar,
-  onEliminar,
-  onIncrementar,
-  onDecrementar,
-  onPress,
+  producto, onEditar, onEliminar, onIncrementar, onDecrementar, onPress,
 }: Props) {
-  const tieneDuplicados =
-    producto.posiblesDuplicados && producto.posiblesDuplicados.length > 0;
+  const tieneDuplicados = producto.posiblesDuplicados && producto.posiblesDuplicados.length > 0;
+  const cat = getCategoriaConfig(producto.categoria);
 
   return (
     <Pressable style={styles.card} onPress={onPress}>
@@ -38,14 +34,23 @@ export function ProductoCard({
       )}
 
       <View style={styles.row}>
+        {/* Icono de categoría */}
+        <View style={[styles.iconCircle, { backgroundColor: cat.bg }]}>
+          <Ionicons name={cat.icon as any} size={22} color={cat.fg} />
+        </View>
+
+        {/* Info */}
         <View style={styles.info}>
           <Text style={styles.nombre} numberOfLines={1}>{producto.nombre}</Text>
           <Text style={styles.detalle}>
             {producto.cantidad} {producto.unidad}
-            {producto.categoria ? ` · ${producto.categoria}` : ''}
             {producto.marca ? ` · ${producto.marca}` : ''}
           </Text>
+          {producto.categoria && (
+            <Text style={[styles.categoria, { color: cat.fg }]}>{producto.categoria}</Text>
+          )}
         </View>
+
         <ProductoEstadoBadge estado={producto.estado} size="sm" />
       </View>
 
@@ -62,7 +67,7 @@ export function ProductoCard({
 
         <View style={styles.iconBtns}>
           <Pressable style={styles.iconBtn} onPress={onEditar} hitSlop={8}>
-            <Ionicons name="pencil-outline" size={18} color={colors.grayDark} />
+            <Ionicons name="pencil" size={22} color={colors.primary} />
           </Pressable>
           <Pressable style={styles.iconBtn} onPress={onEliminar} hitSlop={8}>
             <Ionicons name="trash-outline" size={18} color={colors.error} />
@@ -101,27 +106,42 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
+    alignItems: 'center',
+    gap: spacing.md,
     marginBottom: spacing.sm,
+  },
+  iconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   info: {
     flex: 1,
+    gap: 2,
   },
   nombre: {
     ...typography.label,
     color: colors.text.primary,
-    marginBottom: 2,
   },
   detalle: {
     ...typography.caption,
     color: colors.text.secondary,
   },
+  categoria: {
+    ...typography.caption,
+    fontWeight: '600',
+    fontSize: 10,
+  },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingTop: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: colors.grayLight,
   },
   cantidadControls: {
     flexDirection: 'row',
