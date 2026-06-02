@@ -123,9 +123,13 @@ public class PerfilService {
 
     public void cerrarSesion(String usuarioId, String token) {
         if (token == null) return;
-        long ttlMs = jwtTokenProvider.getExpirationFromToken(token).getTime() - System.currentTimeMillis();
-        if (ttlMs > 0) {
-            redisTemplate.opsForValue().set("blacklist:" + token, usuarioId, ttlMs, TimeUnit.MILLISECONDS);
+        try {
+            long ttlMs = jwtTokenProvider.getExpirationFromToken(token).getTime() - System.currentTimeMillis();
+            if (ttlMs > 0) {
+                redisTemplate.opsForValue().set("blacklist:" + token, usuarioId, ttlMs, TimeUnit.MILLISECONDS);
+            }
+        } catch (Exception e) {
+            // Si Redis no está disponible, el cierre de sesión se completa igualmente en el cliente
         }
     }
 
