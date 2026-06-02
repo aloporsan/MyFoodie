@@ -28,7 +28,7 @@ function useAuthGuard(isAuthenticated: boolean, ready: boolean) {
     } else if (isAuthenticated && inAuthGroup) {
       router.replace('/(tabs)');
     }
-  }, [isAuthenticated, segments, ready]);
+  }, [isAuthenticated, segments, ready, router]);
 }
 
 function RootLayoutNav() {
@@ -54,6 +54,8 @@ function RootLayoutNav() {
       <Stack>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="despensa/form" options={{ headerShown: false }} />
+        <Stack.Screen name="despensa/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
       <StatusBar style="auto" />

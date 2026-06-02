@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\alons\\\\OneDrive\\\\Documentos\\\\Estudios\\\\Uni\\\\TFG\\\\WS\\\\MyFoodie\\\\frontend\" -Directory)"
+    ]
+  }
+}
