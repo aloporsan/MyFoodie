@@ -1,9 +1,11 @@
 package com.myfoodie.application.service;
 
 import com.myfoodie.application.dto.dashboard.AlertaCaducidadDTO;
+import com.myfoodie.application.dto.dashboard.CarritoResumenDTO;
 import com.myfoodie.application.dto.dashboard.DashboardResumenDTO;
 import com.myfoodie.application.dto.dashboard.EstadisticasDTO;
 import com.myfoodie.application.dto.dashboard.ProductoPrioritarioDTO;
+import com.myfoodie.application.dto.dashboard.RecetaRecomendadaDTO;
 import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -108,6 +110,20 @@ public class DashboardService {
                 caducados,  // caducadosHistorico: proxy con actuales (histórico en Fase 2)
                 categoriaLider,
                 aprovechamiento);
+    }
+
+    // -------------------------------------------------------------------------
+    // COMMIT 3 — Placeholders de carrito y recetas (Fase 2)
+    // -------------------------------------------------------------------------
+
+    // Placeholder — se conectará a CarritoService en Fase 2
+    public CarritoResumenDTO obtenerResumenCarrito(String usuarioId) {
+        return new CarritoResumenDTO(false, 0, List.of());
+    }
+
+    // Placeholder — se conectará a RecetaService en Fase 2
+    public RecetaRecomendadaDTO obtenerRecetasRecomendadas(String usuarioId) {
+        return new RecetaRecomendadaDTO(false);
     }
 
     // -------------------------------------------------------------------------
