@@ -70,8 +70,8 @@ const styles = StyleSheet.create({
   },
   sheet: {
     backgroundColor: colors.white,
-    borderTopLeftRadius: borderRadius.xxl,
-    borderTopRightRadius: borderRadius.xxl,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
     padding: spacing.xl,
     paddingBottom: spacing.xxxl,
   },
