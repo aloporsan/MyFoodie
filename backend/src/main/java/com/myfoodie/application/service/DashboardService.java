@@ -101,8 +101,9 @@ public class DashboardService {
                 .map(Map.Entry::getKey)
                 .orElse("-");
 
+        // Aprovechamiento = productos no caducados / total (bajoStock y proximoCaducar siguen siendo utilizables)
         double aprovechamiento = total == 0 ? 100.0
-                : Math.round((double) contarPorEstado(productos, "normal") / total * 1000.0) / 10.0;
+                : Math.round((double) (total - caducados) / total * 1000.0) / 10.0;
 
         return new EstadisticasDTO(
                 total,
