@@ -45,7 +45,7 @@ export function BuscadorDespensa({ value, onSearch, placeholder = 'Buscar produc
         returnKeyType="search"
       />
       {texto.length > 0 && (
-        <Pressable onPress={handleClear} hitSlop={8}>
+        <Pressable onPress={handleClear} hitSlop={8} testID="btn-limpiar">
           <Ionicons name="close-circle" size={18} color={colors.grayMid} />
         </Pressable>
       )}
