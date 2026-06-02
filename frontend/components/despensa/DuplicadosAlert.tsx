@@ -34,7 +34,7 @@ export function DuplicadosAlert({
 
           <Text style={styles.titulo}>Producto similar detectado</Text>
           <Text style={styles.subtitulo}>
-            Ya tienes "{primerDuplicado?.nombre}" en tu despensa
+            Ya tienes &quot;{primerDuplicado?.nombre}&quot; en tu despensa
             {primerDuplicado ? ` (${primerDuplicado.cantidad} ${primerDuplicado.unidad})` : ''}.
           </Text>
 

@@ -28,7 +28,7 @@ function useAuthGuard(isAuthenticated: boolean, ready: boolean) {
     } else if (isAuthenticated && inAuthGroup) {
       router.replace('/(tabs)');
     }
-  }, [isAuthenticated, segments, ready]);
+  }, [isAuthenticated, segments, ready, router]);
 }
 
 function RootLayoutNav() {
