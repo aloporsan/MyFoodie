@@ -39,4 +39,12 @@ public class Preferencias {
     @Builder.Default
     private List<String> cocinasFavoritas = new ArrayList<>();
 
+    private String tipoDieta;
+
+    private List<String> ingredientesNoDeseados;
+
+    private String nivelDificultad;
+
+    private Integer tiempoCoccionMax;
+
 }
