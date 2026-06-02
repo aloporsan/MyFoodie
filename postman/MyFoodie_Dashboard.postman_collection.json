@@ -1,0 +1,297 @@
+{
+  "info": {
+    "name": "MyFoodie — Dashboard API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "token",   "value": "" }
+  ],
+  "item": [
+    {
+      "name": "🔧 Setup",
+      "item": [
+        {
+          "name": "Registrar usuario",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) {",
+                  "  pm.collectionVariables.set('token', json.token);",
+                  "  console.log('Token guardado:', json.token.substring(0, 20) + '...');",
+                  "}",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Tiene token', () => pm.expect(json.token).to.not.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Test User\",\n  \"nombreUsuario\": \"testuser\",\n  \"email\": \"test@test.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api","auth","register"] }
+          }
+        },
+        {
+          "name": "Login (alternativa)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.collectionVariables.set('token', json.token);",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiene token', () => pm.expect(json.token).to.not.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@test.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api","auth","login"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "✅ Positivos",
+      "item": [
+        {
+          "name": "1. Dashboard completo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Contiene resumen',      () => pm.expect(json).to.have.property('resumen'));",
+                  "pm.test('Contiene alertas',      () => pm.expect(json).to.have.property('alertas'));",
+                  "pm.test('Contiene prioritarios', () => pm.expect(json).to.have.property('prioritarios'));",
+                  "pm.test('Contiene estadisticas', () => pm.expect(json).to.have.property('estadisticas'));",
+                  "pm.test('Contiene carrito',      () => pm.expect(json).to.have.property('carrito'));",
+                  "pm.test('Contiene recetas',      () => pm.expect(json).to.have.property('recetas'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/dashboard", "host": ["{{baseUrl}}"], "path": ["api","dashboard"] }
+          }
+        },
+        {
+          "name": "2. Resumen de despensa",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiene totalProductos',  () => pm.expect(json).to.have.property('totalProductos'));",
+                  "pm.test('Tiene proximosCaducar', () => pm.expect(json).to.have.property('proximosCaducar'));",
+                  "pm.test('Tiene caducados',       () => pm.expect(json).to.have.property('caducados'));",
+                  "pm.test('Tiene bajoStock',       () => pm.expect(json).to.have.property('bajoStock'));",
+                  "pm.test('Valores numéricos', () => {",
+                  "  pm.expect(json.totalProductos).to.be.a('number');",
+                  "  pm.expect(json.caducados).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/dashboard/resumen", "host": ["{{baseUrl}}"], "path": ["api","dashboard","resumen"] }
+          }
+        },
+        {
+          "name": "3. Alertas de caducidad",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Es array', () => pm.expect(json).to.be.an('array'));",
+                  "pm.test('Solo caducados y próximos', () => json.forEach(a => pm.expect(['caducado','proximoCaducar']).to.include(a.estado)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/dashboard/alertas", "host": ["{{baseUrl}}"], "path": ["api","dashboard","alertas"] }
+          }
+        },
+        {
+          "name": "4. Productos prioritarios",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Es array', () => pm.expect(json).to.be.an('array'));",
+                  "pm.test('Máximo 5 productos', () => pm.expect(json.length).to.be.at.most(5));",
+                  "pm.test('Cada uno tiene motivo', () => json.forEach(p => pm.expect(p).to.have.property('motivo')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/dashboard/prioritarios", "host": ["{{baseUrl}}"], "path": ["api","dashboard","prioritarios"] }
+          }
+        },
+        {
+          "name": "5. Estadísticas de uso",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiene totalRegistrados',   () => pm.expect(json).to.have.property('totalRegistrados'));",
+                  "pm.test('Tiene consumidos',         () => pm.expect(json).to.have.property('consumidos'));",
+                  "pm.test('Tiene caducadosHistorico', () => pm.expect(json).to.have.property('caducadosHistorico'));",
+                  "pm.test('Tiene aprovechamiento',    () => pm.expect(json).to.have.property('aprovechamiento'));",
+                  "pm.test('Aprovechamiento entre 0 y 100', () => {",
+                  "  pm.expect(json.aprovechamiento).to.be.at.least(0);",
+                  "  pm.expect(json.aprovechamiento).to.be.at.most(100);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/dashboard/estadisticas", "host": ["{{baseUrl}}"], "path": ["api","dashboard","estadisticas"] }
+          }
+        },
+        {
+          "name": "6. Carrito inteligente (placeholder)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('disponible es false', () => pm.expect(json.disponible).to.be.false);",
+                  "pm.test('productosRecomendados = 0', () => pm.expect(json.productosRecomendados).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/dashboard/carrito", "host": ["{{baseUrl}}"], "path": ["api","dashboard","carrito"] }
+          }
+        },
+        {
+          "name": "7. Recetas recomendadas (placeholder)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('disponible es false', () => pm.expect(json.disponible).to.be.false);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/dashboard/recetas", "host": ["{{baseUrl}}"], "path": ["api","dashboard","recetas"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "❌ Negativos",
+      "item": [
+        {
+          "name": "8. Sin token → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/dashboard", "host": ["{{baseUrl}}"], "path": ["api","dashboard"] }
+          }
+        },
+        {
+          "name": "9. Resumen sin token → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/dashboard/resumen", "host": ["{{baseUrl}}"], "path": ["api","dashboard","resumen"] }
+          }
+        },
+        {
+          "name": "10. Token inválido → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer token.invalido.aqui" }],
+            "url": { "raw": "{{baseUrl}}/api/dashboard", "host": ["{{baseUrl}}"], "path": ["api","dashboard"] }
+          }
+        }
+      ]
+    }
+  ]
+}
