@@ -35,29 +35,32 @@ export function EstadisticasCard({ estadisticas }: Props) {
         </View>
       </View>
 
-      {/* Contadores y categoría */}
-      <View style={styles.fila}>
-        {categoriaLider !== '-' && (
+      {/* Categoría más frecuente */}
+      {categoriaLider !== '-' && (
+        <View style={styles.categoriaWrapper}>
+          <Text style={styles.categoriaEtiqueta}>Categoría más frecuente</Text>
           <View style={styles.chip}>
             <Ionicons name="pricetag-outline" size={12} color={colors.primary} />
             <Text style={styles.chipTexto} numberOfLines={1}>{categoriaLider}</Text>
           </View>
-        )}
-        <View style={styles.contadores}>
-          <View style={styles.contador}>
-            <Text style={[styles.contadorNum, { color: colors.grayDark }]}>{totalRegistrados}</Text>
-            <Text style={styles.contadorLabel}>Total</Text>
-          </View>
-          <View style={styles.separador} />
-          <View style={styles.contador}>
-            <Text style={[styles.contadorNum, { color: colors.error }]}>{caducadosHistorico}</Text>
-            <Text style={styles.contadorLabel}>Caducados</Text>
-          </View>
-          <View style={styles.separador} />
-          <View style={styles.contador}>
-            <Text style={[styles.contadorNum, { color: colors.primary }]}>{consumidos}</Text>
-            <Text style={styles.contadorLabel}>Consumidos</Text>
-          </View>
+        </View>
+      )}
+
+      {/* Contadores */}
+      <View style={styles.contadores}>
+        <View style={styles.contador}>
+          <Text style={[styles.contadorNum, { color: colors.grayDark }]}>{totalRegistrados}</Text>
+          <Text style={styles.contadorLabel}>Total</Text>
+        </View>
+        <View style={styles.separador} />
+        <View style={styles.contador}>
+          <Text style={[styles.contadorNum, { color: colors.error }]}>{caducadosHistorico}</Text>
+          <Text style={styles.contadorLabel}>Caducados</Text>
+        </View>
+        <View style={styles.separador} />
+        <View style={styles.contador}>
+          <Text style={[styles.contadorNum, { color: colors.primary }]}>{consumidos}</Text>
+          <Text style={styles.contadorLabel}>Consumidos</Text>
         </View>
       </View>
     </View>
@@ -107,11 +110,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: borderRadius.full,
   },
-  fila: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
+  categoriaWrapper: {
+    gap: 4,
+  },
+  categoriaEtiqueta: {
+    ...typography.caption,
+    color: colors.text.secondary,
+    fontSize: 11,
   },
   chip: {
     flexDirection: 'row',
@@ -121,13 +126,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     borderRadius: borderRadius.full,
-    flexShrink: 1,
+    alignSelf: 'flex-start',
   },
   chipTexto: {
     ...typography.caption,
     color: colors.primaryDark,
     fontWeight: '600',
-    flexShrink: 1,
   },
   contadores: {
     flexDirection: 'row',

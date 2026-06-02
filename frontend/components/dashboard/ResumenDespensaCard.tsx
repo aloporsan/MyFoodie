@@ -17,8 +17,8 @@ const CONTADORES = [
     key: 'totalProductos' as const,
     label: 'Total',
     icon: 'basket-outline',
-    color: colors.grayDark,
-    bg: colors.grayLight,
+    color: colors.primary,
+    bg: '#E8F5D0',
     filtro: null,
   },
   {
@@ -49,35 +49,33 @@ const CONTADORES = [
 
 export function ResumenDespensaCard({ resumen }: Props) {
   const router = useRouter();
-  const todoVacio = resumen.totalProductos === 0;
+
+  const handlePress = (filtro: string | null) => {
+    if (filtro) {
+      router.push({ pathname: '/despensa/filtrada', params: { filtro } });
+    } else {
+      router.push('/(tabs)/despensa');
+    }
+  };
 
   return (
     <View style={styles.card}>
       <Text style={styles.titulo}>Mi despensa</Text>
-
-      {todoVacio ? (
-        <Text style={styles.vacio}>Tu despensa está vacía</Text>
-      ) : (
-        <View style={styles.grid}>
-          {CONTADORES.map(({ key, label, icon, color, bg, filtro }) => (
-            <Pressable
-              key={key}
-              style={[styles.celda, { backgroundColor: bg }]}
-              onPress={() =>
-                router.push(filtro
-                  ? { pathname: '/(tabs)/despensa', params: { filtroInicial: filtro } }
-                  : '/(tabs)/despensa')
-              }
-            >
-              <View style={[styles.iconCircle, { backgroundColor: color + '22' }]}>
-                <Ionicons name={icon as any} size={20} color={color} />
-              </View>
+      <View style={styles.grid}>
+        {CONTADORES.map(({ key, label, icon, color, bg, filtro }) => (
+          <Pressable
+            key={key}
+            style={[styles.celda, { backgroundColor: bg }]}
+            onPress={() => handlePress(filtro)}
+          >
+            <View style={styles.celdaTop}>
+              <Ionicons name={icon as any} size={16} color={color} />
               <Text style={[styles.numero, { color }]}>{resumen[key]}</Text>
-              <Text style={styles.celdaLabel}>{label}</Text>
-            </Pressable>
-          ))}
-        </View>
-      )}
+            </View>
+            <Text style={styles.celdaLabel}>{label}</Text>
+          </Pressable>
+        ))}
+      </View>
     </View>
   );
 }
@@ -94,17 +92,11 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   titulo: {
-    ...typography.label,
-    color: colors.text.secondary,
-    marginBottom: spacing.md,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  vacio: {
-    ...typography.body,
-    color: colors.text.secondary,
+    ...typography.heading2,
+    color: colors.text.primary,
+    fontWeight: '700',
     textAlign: 'center',
-    paddingVertical: spacing.md,
+    marginBottom: spacing.md,
   },
   grid: {
     flexDirection: 'row',
@@ -112,26 +104,27 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   celda: {
-    flex: 1,
-    minWidth: '45%',
+    width: '48%',
+    flexGrow: 1,
     borderRadius: borderRadius.md,
     padding: spacing.md,
     gap: spacing.xs,
-  },
-  iconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
     alignItems: 'center',
-    justifyContent: 'center',
+  },
+  celdaTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   numero: {
     ...typography.heading1,
-    fontSize: 28,
-    lineHeight: 32,
+    fontSize: 36,
+    lineHeight: 40,
   },
   celdaLabel: {
-    ...typography.caption,
+    ...typography.body,
     color: colors.text.secondary,
+    fontSize: 14,
+    textAlign: 'center',
   },
 });
