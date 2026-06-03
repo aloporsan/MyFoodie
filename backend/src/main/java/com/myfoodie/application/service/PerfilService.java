@@ -47,6 +47,9 @@ public class PerfilService {
         Usuario usuario = usuarioRepository.findById(usuarioId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
 
+        if (dto.nombre() != null && dto.nombre().trim().isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "El nombre no puede estar vacío");
+        }
         if (dto.nombreUsuario() != null && !dto.nombreUsuario().equals(usuario.getNombreUsuario())) {
             if (usuarioRepository.existsByNombreUsuario(dto.nombreUsuario())) {
                 throw new ApiException(HttpStatus.CONFLICT, "El nombre de usuario ya está en uso");
