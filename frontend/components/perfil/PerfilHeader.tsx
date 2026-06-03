@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { borderRadius, colors, spacing, typography } from '@/theme';
@@ -25,56 +26,89 @@ export function PerfilHeader({ perfil }: Props) {
 
   return (
     <View style={styles.container}>
-      {perfil.fotoPerfil ? (
-        <Image source={{ uri: perfil.fotoPerfil }} style={styles.foto} />
-      ) : (
-        <View style={styles.fotoPlaceholder}>
-          <Text style={styles.iniciales}>{iniciales}</Text>
+      <LinearGradient
+        colors={[colors.primary, colors.primaryDark]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.banner}
+      />
+
+      <View style={styles.contenido}>
+        <View style={styles.fotoWrapper}>
+          {perfil.fotoPerfil ? (
+            <Image source={{ uri: perfil.fotoPerfil }} style={styles.foto} />
+          ) : (
+            <View style={styles.fotoPlaceholder}>
+              <Text style={styles.iniciales}>{iniciales}</Text>
+            </View>
+          )}
         </View>
-      )}
 
-      <Text style={styles.nombre}>{perfil.nombre}</Text>
-      <Text style={styles.nombreUsuario}>@{perfil.nombreUsuario}</Text>
+        <Text style={styles.nombre}>{perfil.nombre}</Text>
+        <Text style={styles.nombreUsuario}>@{perfil.nombreUsuario}</Text>
 
-      {perfil.biografia ? (
-        <Text style={styles.biografia}>{perfil.biografia}</Text>
-      ) : null}
+        {perfil.biografia ? (
+          <Text style={styles.biografia}>{perfil.biografia}</Text>
+        ) : null}
 
-      <Text style={styles.fechaRegistro}>{formatFechaRegistro(perfil.fechaRegistro)}</Text>
+        <View style={styles.footerRow}>
+          <Ionicons name="calendar-outline" size={13} color={colors.grayMid} />
+          <Text style={styles.fechaRegistro}>{formatFechaRegistro(perfil.fechaRegistro)}</Text>
+        </View>
 
-      <Pressable
-        style={styles.editarBtn}
-        onPress={() => router.push('/perfil/editar')}
-        hitSlop={8}
-      >
-        <Ionicons name="pencil-outline" size={15} color={colors.primary} />
-        <Text style={styles.editarTexto}>Editar perfil</Text>
-      </Pressable>
+        <Pressable
+          style={styles.editarBtn}
+          onPress={() => router.push('/perfil/editar')}
+          hitSlop={8}
+        >
+          <Ionicons name="pencil-outline" size={15} color={colors.white} />
+          <Text style={styles.editarTexto}>Editar perfil</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center',
-    paddingVertical: spacing.xl,
-    paddingHorizontal: spacing.lg,
     backgroundColor: colors.white,
+    overflow: 'hidden',
+  },
+  banner: {
+    height: 80,
+    width: '100%',
+  },
+  contenido: {
+    alignItems: 'center',
+    paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    marginTop: -44,
+  },
+  fotoWrapper: {
+    borderWidth: 4,
+    borderColor: colors.white,
+    borderRadius: borderRadius.full,
+    marginBottom: spacing.md,
+    ...{
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.12,
+      shadowRadius: 6,
+      elevation: 4,
+    },
   },
   foto: {
     width: 88,
     height: 88,
     borderRadius: borderRadius.full,
-    marginBottom: spacing.md,
   },
   fotoPlaceholder: {
     width: 88,
     height: 88,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.secondary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
   },
   iniciales: {
     ...typography.heading1,
@@ -97,23 +131,27 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     paddingHorizontal: spacing.xl,
   },
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.lg,
+  },
   fechaRegistro: {
     ...typography.caption,
     color: colors.grayMid,
-    marginBottom: spacing.lg,
   },
   editarBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
+    backgroundColor: colors.primary,
     borderRadius: borderRadius.full,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
   },
   editarTexto: {
     ...typography.label,
-    color: colors.primary,
+    color: colors.white,
   },
 });

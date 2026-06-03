@@ -1,55 +1,172 @@
+import { useEffect } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useAuthStore } from '@/store/authStore';
-import { colors } from '@/theme/colors';
-import { spacing } from '@/theme/spacing';
-import { typography } from '@/theme/typography';
+import { EstadisticaItem } from '@/components/perfil/EstadisticaItem';
+import { MenuPerfil } from '@/components/perfil/MenuPerfil';
+import { PerfilHeader } from '@/components/perfil/PerfilHeader';
+import { usePerfilStore } from '@/store/perfilStore';
+import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
 
 export function PerfilScreen() {
-  const logout = useAuthStore(s => s.logout);
+  const { perfil, estadisticas, isLoading, error, cargarPerfil, cargarEstadisticas } =
+    usePerfilStore();
+
+  useEffect(() => {
+    cargarPerfil();
+    cargarEstadisticas();
+  }, []);
+
+  const onRefresh = () => {
+    cargarPerfil();
+    cargarEstadisticas();
+  };
+
+  if (isLoading && perfil === null) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error && perfil === null) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.centered}>
+          <Ionicons name="cloud-offline-outline" size={56} color={colors.grayMid} />
+          <Text style={styles.errorTitulo}>No se pudo cargar el perfil</Text>
+          <Text style={styles.errorSubtitulo}>{error}</Text>
+          <Pressable style={styles.reintentarBtn} onPress={onRefresh}>
+            <Text style={styles.reintentarTexto}>Reintentar</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!perfil) return null;
+
+  const diasMiembro = Math.floor(
+    (Date.now() - new Date(perfil.fechaRegistro).getTime()) / (1000 * 60 * 60 * 24)
+  );
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Perfil</Text>
-      <Text style={styles.subtitle}>Tu cuenta y configuración</Text>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
+        }
+      >
+        <PerfilHeader perfil={perfil} />
 
-      <Pressable style={styles.logoutButton} onPress={logout}>
-        <Ionicons name="log-out-outline" size={20} color={colors.error} />
-        <Text style={styles.logoutText}>Cerrar sesión</Text>
-      </Pressable>
-    </View>
+        <View style={styles.seccion}>
+          <Text style={styles.seccionTitulo}>Resumen</Text>
+          <View style={styles.statsGrid}>
+            <EstadisticaItem
+              icono="basket-outline"
+              valor={estadisticas?.totalProductosRegistrados ?? 0}
+              etiqueta="Productos en despensa"
+              color={colors.primary}
+            />
+            <EstadisticaItem
+              icono="book-outline"
+              valor={estadisticas?.totalRecetasPublicadas ?? 0}
+              etiqueta="Recetas publicadas"
+              color={colors.secondary}
+            />
+          </View>
+          <View style={styles.statsGrid}>
+            <EstadisticaItem
+              icono="bookmark-outline"
+              valor={estadisticas?.totalRecetasGuardadas ?? 0}
+              etiqueta="Recetas guardadas"
+              color="#F8B133"
+            />
+            <EstadisticaItem
+              icono="calendar-outline"
+              valor={diasMiembro}
+              etiqueta="Días en MyFoodie"
+              color={colors.primaryDark}
+            />
+          </View>
+        </View>
+
+        <View style={styles.seccion}>
+          <Text style={styles.seccionTitulo}>Cuenta</Text>
+          <MenuPerfil />
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background.surface,
+  },
+  centered: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background.default,
+    padding: spacing.xl,
+    gap: spacing.md,
   },
-  title: {
-    ...typography.heading1,
+  scroll: {
+    paddingBottom: spacing.xxxl,
+  },
+  seccion: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    gap: spacing.md,
+  },
+  seccionTitulo: {
+    fontSize: 12,
+    fontFamily: 'Poppins_600SemiBold',
+    color: colors.text.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  errorTitulo: {
+    ...typography.heading3,
     color: colors.text.primary,
+    textAlign: 'center',
   },
-  subtitle: {
+  errorSubtitulo: {
     ...typography.body,
     color: colors.text.secondary,
-    marginTop: 8,
+    textAlign: 'center',
   },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.xxl,
-    paddingVertical: spacing.md,
+  reintentarBtn: {
+    backgroundColor: colors.primary,
     paddingHorizontal: spacing.xl,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.error,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    marginTop: spacing.md,
   },
-  logoutText: {
-    ...typography.label,
-    color: colors.error,
+  reintentarTexto: {
+    ...typography.button,
+    color: colors.white,
   },
 });

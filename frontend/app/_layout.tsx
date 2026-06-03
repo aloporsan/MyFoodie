@@ -54,9 +54,15 @@ function RootLayoutNav() {
       <Stack>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="despensa/form"      options={{ headerShown: false }} />
-        <Stack.Screen name="despensa/[id]"      options={{ headerShown: false }} />
-        <Stack.Screen name="despensa/filtrada"  options={{ headerShown: false }} />
+        <Stack.Screen name="despensa/form"              options={{ headerShown: false }} />
+        <Stack.Screen name="despensa/[id]"              options={{ headerShown: false }} />
+        <Stack.Screen name="despensa/filtrada"          options={{ headerShown: false }} />
+        <Stack.Screen name="perfil/editar"              options={{ headerShown: false }} />
+        <Stack.Screen name="perfil/estadisticas"        options={{ headerShown: false }} />
+        <Stack.Screen name="perfil/preferencias"        options={{ headerShown: false }} />
+        <Stack.Screen name="perfil/privacidad"          options={{ headerShown: false }} />
+        <Stack.Screen name="perfil/recetas-guardadas"   options={{ headerShown: false }} />
+        <Stack.Screen name="perfil/recetas-publicadas"  options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
       <StatusBar style="auto" />
