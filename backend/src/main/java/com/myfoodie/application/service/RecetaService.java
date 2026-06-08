@@ -105,6 +105,106 @@ public class RecetaService {
     }
 
     // -------------------------------------------------------------------------
+    // Ingredientes
+    // -------------------------------------------------------------------------
+
+    public RecetaResponseDTO añadirIngrediente(String usuarioId, String recetaId, IngredienteRequestDTO dto) {
+        getRecetaDelAutor(recetaId, usuarioId);
+
+        IngredienteReceta ingrediente = IngredienteReceta.builder()
+                .recetaId(recetaId)
+                .nombre(dto.nombre())
+                .cantidad(dto.cantidad())
+                .unidad(dto.unidad())
+                .observacion(dto.observacion())
+                .build();
+
+        ingredienteRepository.save(ingrediente);
+        actualizarTimestamp(recetaId);
+        return toDTO(getReceta(recetaId));
+    }
+
+    public void eliminarIngrediente(String usuarioId, String recetaId, String ingredienteId) {
+        getRecetaDelAutor(recetaId, usuarioId);
+        IngredienteReceta ingrediente = ingredienteRepository.findByRecetaIdAndId(recetaId, ingredienteId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Ingrediente no encontrado"));
+        ingredienteRepository.delete(ingrediente);
+        actualizarTimestamp(recetaId);
+    }
+
+    // -------------------------------------------------------------------------
+    // Pasos
+    // -------------------------------------------------------------------------
+
+    public RecetaResponseDTO añadirPaso(String usuarioId, String recetaId, PasoRequestDTO dto) {
+        getRecetaDelAutor(recetaId, usuarioId);
+
+        List<Paso> pasos = pasoRepository.findByRecetaIdOrderByOrdenAsc(recetaId);
+        int siguienteOrden = pasos.size() + 1;
+
+        Paso paso = Paso.builder()
+                .recetaId(recetaId)
+                .orden(siguienteOrden)
+                .descripcion(dto.descripcion())
+                .imagenUrl(dto.imagenUrl())
+                .build();
+
+        pasoRepository.save(paso);
+        actualizarTimestamp(recetaId);
+        return toDTO(getReceta(recetaId));
+    }
+
+    public RecetaResponseDTO reordenarPasos(String usuarioId, String recetaId, List<String> ordenIds) {
+        getRecetaDelAutor(recetaId, usuarioId);
+
+        List<Paso> pasos = pasoRepository.findByRecetaIdOrderByOrdenAsc(recetaId);
+        for (Paso p : pasos) {
+            int nuevoOrden = ordenIds.indexOf(p.getId());
+            if (nuevoOrden >= 0) {
+                p.setOrden(nuevoOrden + 1);
+            }
+        }
+        pasoRepository.saveAll(pasos);
+        actualizarTimestamp(recetaId);
+        return toDTO(getReceta(recetaId));
+    }
+
+    public void eliminarPaso(String usuarioId, String recetaId, String pasoId) {
+        getRecetaDelAutor(recetaId, usuarioId);
+        Paso paso = pasoRepository.findByRecetaIdAndId(recetaId, pasoId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Paso no encontrado"));
+        int ordenEliminado = paso.getOrden();
+        pasoRepository.delete(paso);
+
+        List<Paso> restantes = pasoRepository.findByRecetaIdOrderByOrdenAsc(recetaId);
+        for (Paso p : restantes) {
+            if (p.getOrden() > ordenEliminado) {
+                p.setOrden(p.getOrden() - 1);
+            }
+        }
+        pasoRepository.saveAll(restantes);
+        actualizarTimestamp(recetaId);
+    }
+
+    // -------------------------------------------------------------------------
+    // Etiquetas e imagen
+    // -------------------------------------------------------------------------
+
+    public RecetaResponseDTO actualizarEtiquetas(String usuarioId, String recetaId, List<String> etiquetas) {
+        Receta receta = getRecetaDelAutor(recetaId, usuarioId);
+        receta.setEtiquetas(etiquetas);
+        receta.setUpdatedAt(LocalDateTime.now());
+        return toDTO(recetaRepository.save(receta));
+    }
+
+    public RecetaResponseDTO subirImagenReceta(String usuarioId, String recetaId, String imageUrl) {
+        Receta receta = getRecetaDelAutor(recetaId, usuarioId);
+        receta.setImagenUrl(imageUrl);
+        receta.setUpdatedAt(LocalDateTime.now());
+        return toDTO(recetaRepository.save(receta));
+    }
+
+    // -------------------------------------------------------------------------
     // Helpers privados
     // -------------------------------------------------------------------------
 
