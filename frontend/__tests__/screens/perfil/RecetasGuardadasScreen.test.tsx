@@ -23,10 +23,10 @@ it('renderiza_lista_de_recetas_guardadas', () => {
 
 it('muestra_empty_state_si_lista_vacia', () => {
   const realUseState = React.useState;
-  jest
-    .spyOn(React, 'useState')
+  const useStateSpy = jest.spyOn(React, 'useState') as unknown as jest.SpyInstance<any, any[]>;
+  useStateSpy
     .mockImplementationOnce((init: any) => realUseState(init))
-    .mockImplementationOnce((_: any) => [[], jest.fn()] as any)
+    .mockImplementationOnce(() => [[], jest.fn()])
     .mockImplementation((init: any) => realUseState(init));
 
   const { getByText } = render(<RecetasGuardadasScreen />);

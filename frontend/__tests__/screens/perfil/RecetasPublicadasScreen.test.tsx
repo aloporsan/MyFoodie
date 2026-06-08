@@ -31,10 +31,10 @@ it('renderiza_lista_de_recetas_publicadas', () => {
 
 it('muestra_empty_state_con_boton_crear_si_lista_vacia', () => {
   const realUseState = React.useState;
-  jest
-    .spyOn(React, 'useState')
+  const useStateSpy = jest.spyOn(React, 'useState') as unknown as jest.SpyInstance<any, any[]>;
+  useStateSpy
     .mockImplementationOnce((init: any) => realUseState(init))
-    .mockImplementationOnce((_: any) => [[], jest.fn()] as any)
+    .mockImplementationOnce(() => [[], jest.fn()])
     .mockImplementation((init: any) => realUseState(init));
 
   const { getByText } = render(<RecetasPublicadasScreen />);
