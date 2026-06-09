@@ -1,6 +1,7 @@
+import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -13,133 +14,117 @@ interface Props {
 }
 
 export function ImagenReceta({ imagenUrl, onActualizar, isLoading = false }: Props) {
-  const [editando, setEditando] = useState(false);
-  const [urlBorrador, setUrlBorrador] = useState(imagenUrl ?? '');
+  const [cargando, setCargando] = useState(false);
 
-  const handleGuardar = async () => {
-    const url = urlBorrador.trim();
-    if (!url) return;
-    await onActualizar(url);
-    setEditando(false);
+  const procesarImagen = async (result: ImagePicker.ImagePickerResult) => {
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    const uri = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
+    setCargando(true);
+    try {
+      await onActualizar(uri);
+    } finally {
+      setCargando(false);
+    }
   };
 
-  const handleCancelar = () => {
-    setUrlBorrador(imagenUrl ?? '');
-    setEditando(false);
+  const abrirGaleria = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso necesario', 'Necesitamos acceso a tu galería para seleccionar una imagen.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'] as ImagePicker.MediaType[],
+      quality: 0.7,
+      base64: true,
+    });
+    await procesarImagen(result);
   };
+
+  const abrirCamara = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso necesario', 'Necesitamos acceso a tu cámara para tomar una foto.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.7,
+      base64: true,
+    });
+    await procesarImagen(result);
+  };
+
+  const ocupado = cargando || isLoading;
 
   return (
     <View style={styles.container}>
-      {imagenUrl ? (
-        <Image source={{ uri: imagenUrl }} style={styles.imagen} resizeMode="cover" />
-      ) : (
-        <View style={styles.placeholder}>
-          <Ionicons name="image-outline" size={48} color={colors.grayMid} />
-          <Text style={styles.placeholderText}>Sin imagen</Text>
-        </View>
-      )}
+      <Pressable style={styles.imagenWrapper} onPress={abrirGaleria}>
+        {imagenUrl ? (
+          <Image source={{ uri: imagenUrl }} style={styles.imagen} resizeMode="cover" />
+        ) : (
+          <View style={styles.placeholder}>
+            <Ionicons name="image-outline" size={48} color={colors.grayMid} />
+            <Text style={styles.placeholderText}>Toca para añadir imagen</Text>
+          </View>
+        )}
+        {ocupado && (
+          <View style={styles.overlay}>
+            <ActivityIndicator size="large" color={colors.white} />
+          </View>
+        )}
+      </Pressable>
 
-      {editando ? (
-        <View style={styles.editRow}>
-          <TextInput
-            style={styles.input}
-            value={urlBorrador}
-            onChangeText={setUrlBorrador}
-            placeholder="https://..."
-            placeholderTextColor={colors.grayMid}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="url"
-          />
-          <Pressable
-            style={[styles.btnGuardar, isLoading && styles.btnDisabled]}
-            onPress={handleGuardar}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator size="small" color={colors.white} />
-            ) : (
-              <Ionicons name="checkmark" size={18} color={colors.white} />
-            )}
-          </Pressable>
-          <Pressable style={styles.btnCancelar} onPress={handleCancelar}>
-            <Ionicons name="close" size={18} color={colors.grayDark} />
-          </Pressable>
-        </View>
-      ) : (
-        <Pressable style={styles.btnCambiar} onPress={() => setEditando(true)}>
-          <Ionicons name="pencil-outline" size={16} color={colors.primary} />
-          <Text style={styles.btnCambiarText}>
-            {imagenUrl ? 'Cambiar imagen' : 'Añadir imagen'}
-          </Text>
+      <View style={styles.botones}>
+        <Pressable style={styles.btn} onPress={abrirGaleria} disabled={ocupado}>
+          <Ionicons name="images-outline" size={18} color={colors.primary} />
+          <Text style={styles.btnText}>Galería</Text>
         </Pressable>
-      )}
+        <View style={styles.separador} />
+        <Pressable style={styles.btn} onPress={abrirCamara} disabled={ocupado}>
+          <Ionicons name="camera-outline" size={18} color={colors.primary} />
+          <Text style={styles.btnText}>Cámara</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { gap: spacing.sm },
-  imagen: {
-    width: '100%',
-    height: 200,
+  imagenWrapper: {
     borderRadius: borderRadius.lg,
+    overflow: 'hidden',
     backgroundColor: colors.grayLight,
   },
+  imagen: { width: '100%', height: 200 },
   placeholder: {
-    width: '100%',
-    height: 200,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.grayLight,
+    height: 160,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
   },
-  placeholderText: {
-    ...typography.body,
-    color: colors.grayMid,
-  },
-  editRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
+  placeholderText: { ...typography.body, color: colors.grayMid },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  input: {
-    ...typography.body,
-    color: colors.text.primary,
+  botones: {
+    flexDirection: 'row',
+    backgroundColor: colors.grayLight,
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+  },
+  btn: {
     flex: 1,
-    backgroundColor: colors.grayLight,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-  },
-  btnGuardar: {
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.md,
-    padding: spacing.sm,
-    minWidth: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnDisabled: { opacity: 0.5 },
-  btnCancelar: {
-    backgroundColor: colors.gray,
-    borderRadius: borderRadius.md,
-    padding: spacing.sm,
-    minWidth: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnCambiar: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.xs,
-    alignSelf: 'flex-start',
+    paddingVertical: spacing.sm,
   },
-  btnCambiarText: {
-    ...typography.label,
-    color: colors.primary,
-  },
+  btnText: { ...typography.label, color: colors.primary },
+  separador: { width: 1, backgroundColor: colors.gray },
 });
