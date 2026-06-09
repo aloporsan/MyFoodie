@@ -163,6 +163,8 @@ export function EditarRecetaScreen() {
     try { await actualizarEtiquetas(id, etiquetas); } catch { /* error en store */ }
   };
 
+  const esPublicada = recetaActual?.estado === 'publicada';
+
   const handlePublicar = async () => {
     clearError();
     setErrorPublicar(null);
@@ -175,33 +177,70 @@ export function EditarRecetaScreen() {
     }
   };
 
+  const handleConfirmarCambios = async () => {
+    clearError();
+    setErrorPublicar(null);
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    const e = validarForm(form);
+    if (Object.keys(e).length > 0) { setErroresForm(e); return; }
+    try {
+      await editarReceta(id, {
+        titulo: form.titulo.trim(),
+        descripcion: form.descripcion.trim(),
+        tiempoEstimado: parseInt(form.tiempoEstimado),
+        dificultad: form.dificultad,
+        categoria: form.categoria,
+        etiquetas: recetaActual?.etiquetas ?? [],
+      });
+      if (router.canGoBack()) router.back();
+      else router.replace('/(tabs)');
+    } catch { /* error en store */ }
+  };
+
   const confirmarSalida = () => {
-    Alert.alert(
-      '¿Salir de la receta?',
-      'La receta quedará guardada como borrador y podrás continuarla más tarde desde la pestaña Crear.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar borrador',
-          style: 'destructive',
-          onPress: async () => {
-            if (recetaActual) {
-              try { await recetaService.eliminarReceta(recetaActual.id); } catch {}
-              useRecetaStore.getState().reset();
-            }
-            if (router.canGoBack()) router.back();
-            else router.replace('/(tabs)');
+    if (esPublicada) {
+      Alert.alert(
+        '¿Salir de la edición?',
+        'Los cambios no guardados se perderán.',
+        [
+          { text: 'Seguir editando', style: 'cancel' },
+          {
+            text: 'Salir sin guardar',
+            onPress: () => {
+              if (router.canGoBack()) router.back();
+              else router.replace('/(tabs)');
+            },
           },
-        },
-        {
-          text: 'Guardar borrador',
-          onPress: () => {
-            if (router.canGoBack()) router.back();
-            else router.replace('/(tabs)');
+        ]
+      );
+    } else {
+      Alert.alert(
+        '¿Salir de la receta?',
+        'La receta quedará guardada como borrador y podrás continuarla más tarde desde la pestaña Crear.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Eliminar borrador',
+            style: 'destructive',
+            onPress: async () => {
+              if (recetaActual) {
+                try { await recetaService.eliminarReceta(recetaActual.id); } catch {}
+                useRecetaStore.getState().reset();
+              }
+              if (router.canGoBack()) router.back();
+              else router.replace('/(tabs)');
+            },
           },
-        },
-      ]
-    );
+          {
+            text: 'Guardar borrador',
+            onPress: () => {
+              if (router.canGoBack()) router.back();
+              else router.replace('/(tabs)');
+            },
+          },
+        ]
+      );
+    }
   };
 
   if (!recetaActual && isLoading) {
@@ -233,8 +272,10 @@ export function EditarRecetaScreen() {
             </Text>
           )}
         </View>
-        <View style={styles.badgeBorrador}>
-          <Text style={styles.badgeText}>Borrador</Text>
+        <View style={[styles.badgeBorrador, esPublicada && styles.badgePublicada]}>
+          <Text style={[styles.badgeText, esPublicada && styles.badgeTextPublicada]}>
+            {esPublicada ? 'Publicada' : 'Borrador'}
+          </Text>
         </View>
       </View>
 
@@ -370,24 +411,43 @@ export function EditarRecetaScreen() {
       {/* CTA fijo abajo */}
       <View style={styles.bottomBar}>
         <ValidacionReceta mensaje={errorPublicar} />
-        <Pressable
-          style={[styles.btnPublicar, (isLoading || completitud < 100) && styles.btnPublicarMuted]}
-          onPress={handlePublicar}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color={colors.white} />
-          ) : (
-            <>
-              <Ionicons name="checkmark-circle-outline" size={20} color={colors.white} />
-              <Text style={styles.btnPublicarText}>Publicar receta</Text>
-            </>
-          )}
-        </Pressable>
-        {completitud < 100 && (
-          <Text style={styles.btnPublicarHint}>
-            Completa el formulario al 100% para publicar
-          </Text>
+        {esPublicada ? (
+          <Pressable
+            style={[styles.btnPublicar, isLoading && styles.btnPublicarMuted]}
+            onPress={handleConfirmarCambios}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <>
+                <Ionicons name="checkmark-done-outline" size={20} color={colors.white} />
+                <Text style={styles.btnPublicarText}>Confirmar cambios</Text>
+              </>
+            )}
+          </Pressable>
+        ) : (
+          <>
+            <Pressable
+              style={[styles.btnPublicar, (isLoading || completitud < 100) && styles.btnPublicarMuted]}
+              onPress={handlePublicar}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color={colors.white} />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-circle-outline" size={20} color={colors.white} />
+                  <Text style={styles.btnPublicarText}>Publicar receta</Text>
+                </>
+              )}
+            </Pressable>
+            {completitud < 100 && (
+              <Text style={styles.btnPublicarHint}>
+                Completa el formulario al 100% para publicar
+              </Text>
+            )}
+          </>
         )}
       </View>
     </SafeAreaView>
@@ -425,7 +485,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.grayLight, borderRadius: borderRadius.full,
     paddingHorizontal: spacing.sm, paddingVertical: 3,
   },
+  badgePublicada: { backgroundColor: '#E8F5D0' },
   badgeText: { ...typography.caption, color: colors.grayDark, fontWeight: '600' },
+  badgeTextPublicada: { color: colors.primaryDark },
   scroll: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.lg },
   card: {
     backgroundColor: colors.white, borderRadius: borderRadius.lg,

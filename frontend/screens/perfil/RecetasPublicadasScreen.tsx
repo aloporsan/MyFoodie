@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import {
   FlatList,
+  Image,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -8,55 +11,41 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
+import { RecetaResumen, recetaService } from '@/services/recetaService';
+import { borderRadius } from '@/theme/borderRadius';
+import { colors } from '@/theme/colors';
+import { shadows } from '@/theme/shadows';
+import { spacing } from '@/theme/spacing';
+import { typography } from '@/theme/typography';
 
-interface RecetaPlaceholder {
-  id: string;
-  titulo: string;
-  tiempo: number;
-  dificultad: string;
-  vistas: number;
-  gradiente: [string, string];
-}
-
-const RECETAS_MOCK: RecetaPlaceholder[] = [
-  {
-    id: '1',
-    titulo: 'Tortilla española clásica',
-    tiempo: 25,
-    dificultad: 'Fácil',
-    vistas: 142,
-    gradiente: [colors.primary, colors.primaryDark],
-  },
-  {
-    id: '2',
-    titulo: 'Lentejas con chorizo',
-    tiempo: 50,
-    dificultad: 'Fácil',
-    vistas: 89,
-    gradiente: ['#F4A000', '#E8890A'],
-  },
-  {
-    id: '3',
-    titulo: 'Paella valenciana',
-    tiempo: 90,
-    dificultad: 'Difícil',
-    vistas: 317,
-    gradiente: ['#FF6B6B', '#C0392B'],
-  },
-];
+const DIFICULTAD_COLOR: Record<string, string> = {
+  Fácil: colors.primary,
+  Media: colors.secondary,
+  Difícil: colors.error,
+};
 
 export function RecetasPublicadasScreen() {
   const router = useRouter();
+  const [recetas, setRecetas] = useState<RecetaResumen[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [recetas] = useState<RecetaPlaceholder[]>(RECETAS_MOCK);
+  const [cargando, setCargando] = useState(true);
+
+  const cargar = async () => {
+    try {
+      const todas = await recetaService.misRecetas();
+      setRecetas(todas.filter((r) => r.estado === 'publicada'));
+    } catch {
+      // mantener lista vacía en error
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  useEffect(() => { cargar(); }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await new Promise((r) => setTimeout(r, 800));
+    await cargar();
     setRefreshing(false);
   };
 
@@ -68,44 +57,44 @@ export function RecetasPublicadasScreen() {
         </Pressable>
         <Text style={styles.headerTitulo}>Mis recetas</Text>
         <View style={styles.headerRight}>
-          <View style={styles.contador}>
-            <Text style={styles.contadorTexto}>{recetas.length}</Text>
-          </View>
+          {recetas.length > 0 && (
+            <View style={styles.contador}>
+              <Text style={styles.contadorTexto}>{recetas.length}</Text>
+            </View>
+          )}
         </View>
       </View>
 
       <FlatList
         data={recetas}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={recetas.length === 0 ? styles.centrado : styles.lista}
+        contentContainerStyle={recetas.length === 0 && !cargando ? styles.centrado : styles.lista}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
+            refreshing={refreshing || cargando}
             onRefresh={onRefresh}
-            tintColor={colors.secondary}
-            colors={[colors.secondary]}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
           />
         }
         ListEmptyComponent={
-          <View style={styles.emptyWrapper}>
-            <View style={styles.emptyIcono}>
-              <Ionicons name="book-outline" size={48} color={colors.secondary} />
+          cargando ? null : (
+            <View style={styles.emptyWrapper}>
+              <View style={styles.emptyIcono}>
+                <Ionicons name="book-outline" size={48} color={colors.primary} />
+              </View>
+              <Text style={styles.emptyTitulo}>Aún no has publicado ninguna receta</Text>
+              <Text style={styles.emptySubtitulo}>
+                Crea tu primera receta desde la pestaña Crear
+              </Text>
             </View>
-            <Text style={styles.emptyTitulo}>Aún no has publicado ninguna receta</Text>
-            <Text style={styles.emptySubtitulo}>
-              Tus recetas publicadas aparecerán aquí
-            </Text>
-          </View>
+          )
         }
         renderItem={({ item }) => (
-          <RecetaCard
-            titulo={item.titulo}
-            tiempo={item.tiempo}
-            dificultad={item.dificultad}
-            gradiente={item.gradiente}
-            vistas={item.vistas}
-          />
+          <Pressable onPress={() => router.push(`/receta/${item.id}`)}>
+            <RecetaCard receta={item} />
+          </Pressable>
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
       />
@@ -113,45 +102,36 @@ export function RecetasPublicadasScreen() {
   );
 }
 
-function RecetaCard({
-  titulo,
-  tiempo,
-  dificultad,
-  gradiente,
-  vistas,
-}: {
-  titulo: string;
-  tiempo: number;
-  dificultad: string;
-  gradiente: [string, string];
-  vistas: number;
-}) {
-  const dificultadColor: Record<string, string> = {
-    Fácil: colors.primary,
-    Media: colors.secondary,
-    Difícil: colors.error,
-  };
+function RecetaCard({ receta }: { receta: RecetaResumen }) {
+  const dificultadColor = DIFICULTAD_COLOR[receta.dificultad] ?? colors.grayMid;
 
   return (
     <View style={cardStyles.container}>
-      <LinearGradient colors={gradiente} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cardStyles.imagen}>
-        <View style={cardStyles.imagenIcono}>
-          <Ionicons name="restaurant-outline" size={36} color="rgba(255,255,255,0.8)" />
+      {receta.imagenUrl ? (
+        <Image
+          source={{ uri: receta.imagenUrl }}
+          style={cardStyles.imagen}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={[cardStyles.imagen, cardStyles.imagenPlaceholder]}>
+          <Ionicons name="restaurant-outline" size={36} color="rgba(255,255,255,0.7)" />
         </View>
-        <View style={[cardStyles.dificultadBadge, { backgroundColor: dificultadColor[dificultad] ?? colors.grayMid }]}>
-          <Text style={cardStyles.dificultadTexto}>{dificultad}</Text>
-        </View>
-      </LinearGradient>
+      )}
+      <View style={[cardStyles.dificultadBadge, { backgroundColor: dificultadColor }]}>
+        <Text style={cardStyles.dificultadTexto}>{receta.dificultad}</Text>
+      </View>
       <View style={cardStyles.cuerpo}>
-        <Text style={cardStyles.titulo} numberOfLines={2}>{titulo}</Text>
+        <Text style={cardStyles.titulo} numberOfLines={2}>{receta.titulo}</Text>
+        <Text style={cardStyles.descripcion} numberOfLines={2}>{receta.descripcion}</Text>
         <View style={cardStyles.metaRow}>
           <View style={cardStyles.metaItem}>
-            <Ionicons name="time-outline" size={14} color={colors.text.secondary} />
-            <Text style={cardStyles.metaTexto}>{tiempo} min</Text>
+            <Ionicons name="time-outline" size={13} color={colors.text.secondary} />
+            <Text style={cardStyles.metaTexto}>{receta.tiempoEstimado} min</Text>
           </View>
           <View style={cardStyles.metaItem}>
-            <Ionicons name="eye-outline" size={14} color={colors.text.secondary} />
-            <Text style={cardStyles.metaTexto}>{vistas} vistas</Text>
+            <Ionicons name="restaurant-outline" size={13} color={colors.text.secondary} />
+            <Text style={cardStyles.metaTexto}>{receta.categoria}</Text>
           </View>
         </View>
       </View>
@@ -175,7 +155,7 @@ const styles = StyleSheet.create({
   headerTitulo: { ...typography.heading3, color: colors.text.primary },
   headerRight: { width: 40, alignItems: 'flex-end' },
   contador: {
-    backgroundColor: colors.secondary,
+    backgroundColor: colors.primary,
     borderRadius: borderRadius.full,
     minWidth: 24,
     height: 24,
@@ -183,7 +163,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.sm,
   },
-  contadorTexto: { fontSize: 12, fontFamily: 'Poppins_700Bold', color: colors.white },
+  contadorTexto: { ...typography.caption, color: colors.white, fontWeight: '700' },
   lista: { padding: spacing.lg, paddingBottom: spacing.xxxl },
   centrado: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   emptyWrapper: { alignItems: 'center', gap: spacing.md },
@@ -191,7 +171,7 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: borderRadius.full,
-    backgroundColor: colors.secondary + '20',
+    backgroundColor: colors.primary + '20',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -206,12 +186,9 @@ const cardStyles = StyleSheet.create({
     overflow: 'hidden',
     ...shadows.sm,
   },
-  imagen: { height: 130, alignItems: 'center', justifyContent: 'center' },
-  imagenIcono: {
-    width: 72,
-    height: 72,
-    borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  imagen: { width: '100%', height: 140 },
+  imagenPlaceholder: {
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -223,10 +200,11 @@ const cardStyles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: borderRadius.full,
   },
-  dificultadTexto: { fontSize: 11, fontFamily: 'Poppins_600SemiBold', color: colors.white },
+  dificultadTexto: { ...typography.caption, color: colors.white, fontWeight: '700' },
   cuerpo: { padding: spacing.lg, gap: spacing.sm },
   titulo: { ...typography.heading3, color: colors.text.primary },
-  metaRow: { flexDirection: 'row', gap: spacing.lg },
+  descripcion: { ...typography.body, color: colors.text.secondary },
+  metaRow: { flexDirection: 'row', gap: spacing.lg, marginTop: spacing.xs },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   metaTexto: { ...typography.caption, color: colors.text.secondary },
 });

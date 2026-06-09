@@ -63,6 +63,7 @@ function RootLayoutNav() {
         <Stack.Screen name="perfil/privacidad"          options={{ headerShown: false }} />
         <Stack.Screen name="perfil/recetas-guardadas"   options={{ headerShown: false }} />
         <Stack.Screen name="perfil/recetas-publicadas"  options={{ headerShown: false }} />
+        <Stack.Screen name="receta/[id]"                options={{ headerShown: false }} />
         <Stack.Screen name="receta/editar"              options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
