@@ -10,4 +10,6 @@ public interface RecetaRepository extends MongoRepository<Receta, String> {
     List<Receta> findByAutorId(String autorId);
 
     List<Receta> findByAutorIdAndEstado(String autorId, String estado);
+
+    long countByAutorIdAndEstado(String autorId, String estado);
 }
