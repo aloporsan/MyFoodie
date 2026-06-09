@@ -72,7 +72,7 @@ export function EditarRecetaScreen() {
   const [errorPublicar, setErrorPublicar] = useState<string | null>(null);
   const [autoGuardando, setAutoGuardando] = useState(false);
   const [ultimoGuardado, setUltimoGuardado] = useState<Date | null>(null);
-  const autoSaveTimer = useRef<ReturnType<typeof setTimeout>>();
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     if (id) cargarReceta(id);

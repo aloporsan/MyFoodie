@@ -92,7 +92,7 @@ export function RecetasPublicadasScreen() {
           )
         }
         renderItem={({ item }) => (
-          <Pressable onPress={() => router.push(`/receta/${item.id}`)}>
+          <Pressable onPress={() => router.push({ pathname: '/receta/[id]', params: { id: item.id } })}>
             <RecetaCard receta={item} />
           </Pressable>
         )}
