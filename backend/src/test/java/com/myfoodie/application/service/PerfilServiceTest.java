@@ -11,6 +11,7 @@ import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.DespensaRepository;
 import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.ProductoRepository;
+import com.myfoodie.domain.repository.RecetaRepository;
 import com.myfoodie.domain.repository.UsuarioRepository;
 import com.myfoodie.exception.ApiException;
 import com.myfoodie.infrastructure.security.JwtTokenProvider;
@@ -48,6 +49,7 @@ class PerfilServiceTest {
     @Mock private PreferenciasRepository preferenciasRepository;
     @Mock private DespensaRepository despensaRepository;
     @Mock private ProductoRepository productoRepository;
+    @Mock private RecetaRepository recetaRepository;
     @Mock private JwtTokenProvider jwtTokenProvider;
     @Mock private RedisTemplate<String, String> redisTemplate;
 
@@ -158,6 +160,7 @@ class PerfilServiceTest {
     void obtenerEstadisticasPerfil_devuelve_contadores_correctos() {
         when(usuarioRepository.findById("user-123")).thenReturn(Optional.of(usuarioMock));
         when(despensaRepository.findByUsuarioId("user-123")).thenReturn(Optional.empty());
+        when(recetaRepository.countByAutorIdAndEstado("user-123", "publicada")).thenReturn(0L);
 
         EstadisticasPerfilDTO result = perfilService.obtenerEstadisticasPerfil("user-123");
 

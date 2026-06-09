@@ -14,6 +14,7 @@ import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.DespensaRepository;
 import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.ProductoRepository;
+import com.myfoodie.domain.repository.RecetaRepository;
 import com.myfoodie.domain.repository.UsuarioRepository;
 import com.myfoodie.exception.ApiException;
 import com.myfoodie.infrastructure.security.JwtTokenProvider;
@@ -34,6 +35,7 @@ public class PerfilService {
     private final PreferenciasRepository preferenciasRepository;
     private final DespensaRepository despensaRepository;
     private final ProductoRepository productoRepository;
+    private final RecetaRepository recetaRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final RedisTemplate<String, String> redisTemplate;
 
@@ -114,12 +116,14 @@ public class PerfilService {
             }
         }
 
+        int totalRecetasPublicadas = (int) recetaRepository.countByAutorIdAndEstado(usuarioId, "publicada");
+
         return new EstadisticasPerfilDTO(
                 totalProductos,
                 productosConsumidos,
                 productosCaducados,
-                0, // Recetas publicadas — Fase 2
-                0, // Recetas guardadas — Fase 2
+                totalRecetasPublicadas,
+                0,
                 usuario.getFechaRegistro()
         );
     }
