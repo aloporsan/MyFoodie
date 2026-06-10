@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     borderWidth: 1.5,
     borderColor: 'transparent',
-    minHeight: 44,
+    minHeight: 48,
     paddingHorizontal: spacing.lg,
   },
   inputFocused: {

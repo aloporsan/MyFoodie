@@ -7,6 +7,7 @@ import {
   PrivacidadUpdate,
   perfilService,
 } from '@/services/perfilService';
+import { handleApiError } from '@/utils/errorHandler';
 
 interface PerfilState {
   perfil: Perfil | null;
@@ -44,10 +45,7 @@ export const usePerfilStore = create<PerfilState & PerfilActions>()((set) => ({
       ]);
       set({ perfil, preferencias, isLoading: false });
     } catch (e) {
-      set({
-        error: e instanceof Error ? e.message : 'Error al cargar el perfil',
-        isLoading: false,
-      });
+      set({ error: handleApiError(e), isLoading: false });
     }
   },
 
@@ -57,10 +55,7 @@ export const usePerfilStore = create<PerfilState & PerfilActions>()((set) => ({
       const perfil = await perfilService.editarPerfil(datos);
       set({ perfil, isLoading: false });
     } catch (e) {
-      set({
-        error: e instanceof Error ? e.message : 'Error al editar el perfil',
-        isLoading: false,
-      });
+      set({ error: handleApiError(e), isLoading: false });
       throw e;
     }
   },
@@ -71,10 +66,7 @@ export const usePerfilStore = create<PerfilState & PerfilActions>()((set) => ({
       const preferencias = await perfilService.actualizarPreferencias(datos);
       set({ preferencias, isLoading: false });
     } catch (e) {
-      set({
-        error: e instanceof Error ? e.message : 'Error al actualizar preferencias',
-        isLoading: false,
-      });
+      set({ error: handleApiError(e), isLoading: false });
       throw e;
     }
   },
@@ -85,10 +77,7 @@ export const usePerfilStore = create<PerfilState & PerfilActions>()((set) => ({
       await perfilService.actualizarPrivacidad(datos);
       set({ isLoading: false });
     } catch (e) {
-      set({
-        error: e instanceof Error ? e.message : 'Error al actualizar privacidad',
-        isLoading: false,
-      });
+      set({ error: handleApiError(e), isLoading: false });
       throw e;
     }
   },
@@ -99,10 +88,7 @@ export const usePerfilStore = create<PerfilState & PerfilActions>()((set) => ({
       const estadisticas = await perfilService.obtenerEstadisticas();
       set({ estadisticas, isLoading: false });
     } catch (e) {
-      set({
-        error: e instanceof Error ? e.message : 'Error al cargar estadísticas',
-        isLoading: false,
-      });
+      set({ error: handleApiError(e), isLoading: false });
     }
   },
 
@@ -120,10 +106,7 @@ export const usePerfilStore = create<PerfilState & PerfilActions>()((set) => ({
       await perfilService.eliminarCuenta();
       set({ perfil: null, preferencias: null, estadisticas: null, isLoading: false });
     } catch (e) {
-      set({
-        error: e instanceof Error ? e.message : 'Error al eliminar la cuenta',
-        isLoading: false,
-      });
+      set({ error: handleApiError(e), isLoading: false });
       throw e;
     }
   },

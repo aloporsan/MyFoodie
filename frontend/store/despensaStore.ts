@@ -5,6 +5,7 @@ import {
   ProductoFiltro,
   ProductoInput,
 } from '@/services/despensaService';
+import { handleApiError } from '@/utils/errorHandler';
 
 const FILTRO_VACIO: ProductoFiltro = {};
 
@@ -54,10 +55,7 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
 
       set({ productos, isLoading: false });
     } catch (e) {
-      set({
-        error: e instanceof Error ? e.message : 'Error al cargar productos',
-        isLoading: false,
-      });
+      set({ error: handleApiError(e), isLoading: false });
     }
   },
 
@@ -68,8 +66,7 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
       set((s) => ({ productos: [...s.productos, nuevo], isLoading: false }));
       return nuevo;
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Error al añadir producto';
-      set({ error: msg, isLoading: false });
+      set({ error: handleApiError(e), isLoading: false });
       throw e;
     }
   },
@@ -83,8 +80,7 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
         isLoading: false,
       }));
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Error al editar producto';
-      set({ error: msg, isLoading: false });
+      set({ error: handleApiError(e), isLoading: false });
       throw e;
     }
   },
@@ -98,8 +94,7 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
         isLoading: false,
       }));
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Error al eliminar producto';
-      set({ error: msg, isLoading: false });
+      set({ error: handleApiError(e), isLoading: false });
       throw e;
     }
   },
@@ -111,8 +106,7 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
         productos: s.productos.map((p) => (p.id === id ? actualizado : p)),
       }));
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Error al actualizar cantidad';
-      set({ error: msg });
+      set({ error: handleApiError(e) });
       throw e;
     }
   },

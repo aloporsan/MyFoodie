@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
 import {
-  ActivityIndicator,
   Image,
   Pressable,
   RefreshControl,
@@ -18,6 +17,9 @@ import {
   RecetasRecomendadasCard,
   ResumenDespensaCard,
 } from '@/components/dashboard';
+import { LoadingScreen } from '@/components/common/LoadingScreen';
+import { LoadingOverlay } from '@/components/common/LoadingOverlay';
+import { ErrorScreen } from '@/components/common/ErrorScreen';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -42,34 +44,22 @@ export function DashboardScreen() {
   const despensaVacia = resumen !== null && resumen.totalProductos === 0;
 
   if (isLoading && resumen === null) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <Header />
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      </SafeAreaView>
-    );
+    return <LoadingScreen />;
   }
 
   if (error && resumen === null) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <Header />
-        <View style={styles.centered}>
-          <Ionicons name="cloud-offline-outline" size={56} color={colors.grayMid} />
-          <Text style={styles.errorTitulo}>No se pudo cargar</Text>
-          <Text style={styles.errorSubtitulo}>{error}</Text>
-          <Pressable style={styles.reintentarBtn} onPress={cargarDashboard}>
-            <Text style={styles.reintentarTexto}>Reintentar</Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
+      <ErrorScreen
+        titulo="No se pudo cargar"
+        descripcion={error}
+        onReintentar={cargarDashboard}
+      />
     );
   }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <LoadingOverlay visible={isLoading && resumen !== null} />
       <Header />
 
       {despensaVacia ? (

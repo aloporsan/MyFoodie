@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { ProductoEstadoBadge } from '@/components/despensa/ProductoEstadoBadge';
 import { Producto } from '@/services/despensaService';
 import { despensaService, EstadoProducto } from '@/services/despensaService';
@@ -80,6 +81,10 @@ export function ListaFiltradaScreen() {
       ]
     );
   }, []);
+
+  if (isLoading && productos.length === 0) {
+    return <LoadingScreen />;
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

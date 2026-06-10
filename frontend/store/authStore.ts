@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { authService } from '@/services/authService';
 import { setTokenGetter } from '@/services/apiClient';
+import { handleApiError } from '@/utils/errorHandler';
 
 export interface Usuario {
   userId: string;
@@ -53,8 +54,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             isLoading: false,
           });
         } catch (e: unknown) {
-          const msg = e instanceof Error ? e.message : 'Credenciales incorrectas';
-          set({ isLoading: false, error: msg });
+          set({ isLoading: false, error: handleApiError(e) });
           throw e;
         }
       },
@@ -70,8 +70,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             isLoading: false,
           });
         } catch (e: unknown) {
-          const msg = e instanceof Error ? e.message : 'Error al registrarse';
-          set({ isLoading: false, error: msg });
+          set({ isLoading: false, error: handleApiError(e) });
           throw e;
         }
       },

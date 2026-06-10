@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { handleApiError } from '@/utils/errorHandler';
 import {
   AlertaCaducidad,
   CarritoResumen,
@@ -56,10 +57,7 @@ export const useDashboardStore = create<DashboardState & DashboardActions>()(
         const dashboard = await dashboardService.obtenerDashboard();
         set({ ...aplicarDashboard(dashboard), isLoading: false });
       } catch (e) {
-        set({
-          error: e instanceof Error ? e.message : 'Error al cargar el dashboard',
-          isLoading: false,
-        });
+        set({ error: handleApiError(e), isLoading: false });
       }
     },
 
@@ -69,7 +67,7 @@ export const useDashboardStore = create<DashboardState & DashboardActions>()(
         const dashboard = await dashboardService.obtenerDashboard();
         set(aplicarDashboard(dashboard));
       } catch (e) {
-        set({ error: e instanceof Error ? e.message : 'Error al refrescar' });
+        set({ error: handleApiError(e) });
       }
     },
 

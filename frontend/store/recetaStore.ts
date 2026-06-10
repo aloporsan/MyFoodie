@@ -7,6 +7,7 @@ import {
   PasoInput,
   recetaService,
 } from '@/services/recetaService';
+import { handleApiError } from '@/utils/errorHandler';
 
 interface RecetaState {
   recetas: RecetaResumen[];
@@ -49,10 +50,7 @@ export const useRecetaStore = create<RecetaState & RecetaActions>()((set) => ({
       const recetas = await recetaService.misRecetas();
       set({ recetas, isLoading: false });
     } catch (e) {
-      set({
-        error: e instanceof Error ? e.message : 'Error al cargar recetas',
-        isLoading: false,
-      });
+      set({ error: handleApiError(e), isLoading: false });
     }
   },
 
@@ -62,10 +60,7 @@ export const useRecetaStore = create<RecetaState & RecetaActions>()((set) => ({
       const borradores = await recetaService.misBorradores();
       set({ borradores, isLoading: false });
     } catch (e) {
-      set({
-        error: e instanceof Error ? e.message : 'Error al cargar borradores',
-        isLoading: false,
-      });
+      set({ error: handleApiError(e), isLoading: false });
     }
   },
 
@@ -75,10 +70,7 @@ export const useRecetaStore = create<RecetaState & RecetaActions>()((set) => ({
       const recetaActual = await recetaService.obtenerReceta(id);
       set({ recetaActual, isLoading: false });
     } catch (e) {
-      set({
-        error: e instanceof Error ? e.message : 'Error al cargar la receta',
-        isLoading: false,
-      });
+      set({ error: handleApiError(e), isLoading: false });
     }
   },
 
@@ -89,8 +81,7 @@ export const useRecetaStore = create<RecetaState & RecetaActions>()((set) => ({
       set((s) => ({ borradores: [...s.borradores, nueva], recetaActual: nueva, isLoading: false }));
       return nueva;
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Error al crear la receta';
-      set({ error: msg, isLoading: false });
+      set({ error: handleApiError(e), isLoading: false });
       throw e;
     }
   },
@@ -106,8 +97,7 @@ export const useRecetaStore = create<RecetaState & RecetaActions>()((set) => ({
         isLoading: false,
       }));
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Error al editar la receta';
-      set({ error: msg, isLoading: false });
+      set({ error: handleApiError(e), isLoading: false });
       throw e;
     }
   },
@@ -123,8 +113,7 @@ export const useRecetaStore = create<RecetaState & RecetaActions>()((set) => ({
         isLoading: false,
       }));
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Error al eliminar la receta';
-      set({ error: msg, isLoading: false });
+      set({ error: handleApiError(e), isLoading: false });
       throw e;
     }
   },
@@ -140,8 +129,7 @@ export const useRecetaStore = create<RecetaState & RecetaActions>()((set) => ({
         isLoading: false,
       }));
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Error al publicar la receta';
-      set({ error: msg, isLoading: false });
+      set({ error: handleApiError(e), isLoading: false });
       throw e;
     }
   },
@@ -157,8 +145,7 @@ export const useRecetaStore = create<RecetaState & RecetaActions>()((set) => ({
         isLoading: false,
       }));
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Error al guardar como borrador';
-      set({ error: msg, isLoading: false });
+      set({ error: handleApiError(e), isLoading: false });
       throw e;
     }
   },
@@ -169,8 +156,7 @@ export const useRecetaStore = create<RecetaState & RecetaActions>()((set) => ({
       const actualizada = await recetaService.actualizarImagen(id, imagenUrl);
       set({ recetaActual: actualizada, isLoading: false });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Error al actualizar la imagen';
-      set({ error: msg, isLoading: false });
+      set({ error: handleApiError(e), isLoading: false });
       throw e;
     }
   },
@@ -181,8 +167,7 @@ export const useRecetaStore = create<RecetaState & RecetaActions>()((set) => ({
       const actualizada = await recetaService.actualizarEtiquetas(id, etiquetas);
       set({ recetaActual: actualizada, isLoading: false });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Error al actualizar etiquetas';
-      set({ error: msg, isLoading: false });
+      set({ error: handleApiError(e), isLoading: false });
       throw e;
     }
   },
@@ -193,8 +178,7 @@ export const useRecetaStore = create<RecetaState & RecetaActions>()((set) => ({
       const actualizada = await recetaService.añadirIngrediente(id, datos);
       set({ recetaActual: actualizada, isLoading: false });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Error al añadir ingrediente';
-      set({ error: msg, isLoading: false });
+      set({ error: handleApiError(e), isLoading: false });
       throw e;
     }
   },
@@ -213,8 +197,7 @@ export const useRecetaStore = create<RecetaState & RecetaActions>()((set) => ({
         isLoading: false,
       }));
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Error al eliminar ingrediente';
-      set({ error: msg, isLoading: false });
+      set({ error: handleApiError(e), isLoading: false });
       throw e;
     }
   },
@@ -225,8 +208,7 @@ export const useRecetaStore = create<RecetaState & RecetaActions>()((set) => ({
       const actualizada = await recetaService.añadirPaso(id, datos);
       set({ recetaActual: actualizada, isLoading: false });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Error al añadir paso';
-      set({ error: msg, isLoading: false });
+      set({ error: handleApiError(e), isLoading: false });
       throw e;
     }
   },
@@ -247,8 +229,7 @@ export const useRecetaStore = create<RecetaState & RecetaActions>()((set) => ({
         isLoading: false,
       }));
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Error al eliminar paso';
-      set({ error: msg, isLoading: false });
+      set({ error: handleApiError(e), isLoading: false });
       throw e;
     }
   },
@@ -259,8 +240,7 @@ export const useRecetaStore = create<RecetaState & RecetaActions>()((set) => ({
       const actualizada = await recetaService.reordenarPasos(id, ordenIds);
       set({ recetaActual: actualizada, isLoading: false });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Error al reordenar pasos';
-      set({ error: msg, isLoading: false });
+      set({ error: handleApiError(e), isLoading: false });
       throw e;
     }
   },

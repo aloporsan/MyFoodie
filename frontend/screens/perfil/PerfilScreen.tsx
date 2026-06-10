@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -10,6 +9,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { ErrorScreen } from '@/components/common/ErrorScreen';
+import { LoadingOverlay } from '@/components/common/LoadingOverlay';
+import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { EstadisticaItem } from '@/components/perfil/EstadisticaItem';
 import { MenuPerfil } from '@/components/perfil/MenuPerfil';
 import { PerfilHeader } from '@/components/perfil/PerfilHeader';
@@ -31,27 +33,16 @@ export function PerfilScreen() {
   };
 
   if (isLoading && perfil === null) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      </SafeAreaView>
-    );
+    return <LoadingScreen />;
   }
 
   if (error && perfil === null) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.centered}>
-          <Ionicons name="cloud-offline-outline" size={56} color={colors.grayMid} />
-          <Text style={styles.errorTitulo}>No se pudo cargar el perfil</Text>
-          <Text style={styles.errorSubtitulo}>{error}</Text>
-          <Pressable style={styles.reintentarBtn} onPress={onRefresh}>
-            <Text style={styles.reintentarTexto}>Reintentar</Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
+      <ErrorScreen
+        titulo="No se pudo cargar el perfil"
+        descripcion={error}
+        onReintentar={onRefresh}
+      />
     );
   }
 
@@ -63,6 +54,7 @@ export function PerfilScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <LoadingOverlay visible={isLoading && perfil !== null} />
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
