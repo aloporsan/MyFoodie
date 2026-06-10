@@ -5,6 +5,7 @@ import com.myfoodie.application.service.RecetaService;
 import com.myfoodie.domain.repository.UsuarioRepository;
 import com.myfoodie.exception.ApiException;
 import jakarta.validation.Valid;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,7 +25,7 @@ public class RecetaController {
 
     @PostMapping
     public ResponseEntity<RecetaResponseDTO> crear(
-            @RequestBody RecetaRequestDTO dto,
+            @Valid @RequestBody RecetaRequestDTO dto,
             Principal principal) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(recetaService.crearReceta(getUsuarioId(principal), dto));

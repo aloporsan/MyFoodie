@@ -33,6 +33,9 @@ public class RecetaService {
     // -------------------------------------------------------------------------
 
     public RecetaResponseDTO crearReceta(String usuarioId, RecetaRequestDTO dto) {
+        if (dto.titulo() == null || dto.titulo().isBlank())
+            throw new ApiException(HttpStatus.BAD_REQUEST, "El título es obligatorio");
+
         Receta receta = Receta.builder()
                 .autorId(usuarioId)
                 .titulo(dto.titulo())
@@ -137,6 +140,9 @@ public class RecetaService {
     // -------------------------------------------------------------------------
 
     public RecetaResponseDTO añadirPaso(String usuarioId, String recetaId, PasoRequestDTO dto) {
+        if (dto.descripcion() == null || dto.descripcion().isBlank())
+            throw new ApiException(HttpStatus.BAD_REQUEST, "La descripción del paso es obligatoria");
+
         getRecetaDelAutor(recetaId, usuarioId);
 
         List<Paso> pasos = pasoRepository.findByRecetaIdOrderByOrdenAsc(recetaId);
