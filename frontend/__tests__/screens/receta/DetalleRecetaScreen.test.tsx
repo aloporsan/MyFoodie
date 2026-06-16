@@ -36,9 +36,8 @@ beforeEach(() => {
 });
 
 it('muestra_indicador_de_carga_al_inicio', () => {
-  const { UNSAFE_getByType } = render(<DetalleRecetaScreen />);
-  const { ActivityIndicator } = require('react-native');
-  expect(UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
+  const { getByTestId } = render(<DetalleRecetaScreen />);
+  expect(getByTestId('loading-screen-logo')).toBeTruthy();
 });
 
 it('muestra_titulo_de_receta_tras_cargar', async () => {
@@ -57,8 +56,8 @@ it('muestra_descripcion_tras_cargar', async () => {
 
 it('muestra_error_si_el_servicio_falla', async () => {
   recetaService.obtenerReceta.mockRejectedValue(new Error('No encontrada'));
-  const { getByText } = render(<DetalleRecetaScreen />);
+  const { getByTestId } = render(<DetalleRecetaScreen />);
   await waitFor(() => {
-    expect(getByText('No se pudo cargar la receta')).toBeTruthy();
+    expect(getByTestId('error-screen')).toBeTruthy();
   });
 });

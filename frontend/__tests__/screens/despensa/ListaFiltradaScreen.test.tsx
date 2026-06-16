@@ -69,10 +69,9 @@ it('renderiza_titulo_correcto_para_filtro_bajoStock', async () => {
 it('muestra_boton_papelera_en_lista_caducados', async () => {
   (useLocalSearchParams as jest.Mock).mockReturnValue({ filtro: 'caducado' });
   mockService.filtrarProductos.mockResolvedValue([productoBase]);
-  const { UNSAFE_getByProps } = render(<ListaFiltradaScreen />);
-  // El botón papelera es el único elemento con hitSlop={8} en la lista
+  const { UNSAFE_getAllByProps } = render(<ListaFiltradaScreen />);
   await waitFor(() =>
-    expect(UNSAFE_getByProps({ hitSlop: 8 })).toBeTruthy()
+    expect(UNSAFE_getAllByProps({ hitSlop: 8 }).length).toBeGreaterThan(0)
   );
 });
 

@@ -67,8 +67,8 @@ it('muestra_indicador_de_carga_mientras_carga', () => {
     resumen: null,
     isLoading: true,
   });
-  const { UNSAFE_getByProps } = render(<DashboardScreen />);
-  expect(UNSAFE_getByProps({ size: 'large' })).toBeTruthy();
+  const { getByTestId } = render(<DashboardScreen />);
+  expect(getByTestId('loading-screen-logo')).toBeTruthy();
 });
 
 it('muestra_error_con_boton_reintentar_si_falla', () => {

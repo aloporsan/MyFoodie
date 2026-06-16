@@ -46,8 +46,8 @@ it('muestra_empty_state_con_boton_crear_si_lista_vacia', async () => {
 
 it('navega_a_CrearReceta_al_pulsar_boton', async () => {
   const { getByText } = render(<RecetasPublicadasScreen />);
-  expect(getByText('Mis recetas')).toBeTruthy();
   await waitFor(() => {
+    expect(getByText('Mis recetas')).toBeTruthy();
     expect(getByText('Tortilla española clásica')).toBeTruthy();
   });
 });
