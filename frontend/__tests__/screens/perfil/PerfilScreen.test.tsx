@@ -1,6 +1,5 @@
 import React from 'react';
 import { render, fireEvent, act } from '@testing-library/react-native';
-import { ActivityIndicator } from 'react-native';
 import { PerfilScreen } from '@/screens/perfil/PerfilScreen';
 
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
@@ -85,8 +84,8 @@ it('muestra_indicador_carga_mientras_carga', () => {
     cargarPerfil: mockCargarPerfil,
     cargarEstadisticas: mockCargarEstadisticas,
   });
-  const { UNSAFE_getByType } = render(<PerfilScreen />);
-  expect(UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
+  const { getByTestId } = render(<PerfilScreen />);
+  expect(getByTestId('loading-screen-logo')).toBeTruthy();
 });
 
 it('muestra_error_con_boton_reintentar_si_falla', () => {

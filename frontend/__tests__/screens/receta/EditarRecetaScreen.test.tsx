@@ -67,9 +67,8 @@ beforeEach(() => {
 
 it('muestra_indicador_de_carga_cuando_isLoading_es_true', () => {
   useRecetaStore.mockReturnValue({ ...mockStoreBase, isLoading: true });
-  const { UNSAFE_getByType } = render(<EditarRecetaScreen />);
-  const { ActivityIndicator } = require('react-native');
-  expect(UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
+  const { getByTestId } = render(<EditarRecetaScreen />);
+  expect(getByTestId('loading-screen-logo')).toBeTruthy();
 });
 
 it('muestra_boton_publicar_para_borrador', async () => {

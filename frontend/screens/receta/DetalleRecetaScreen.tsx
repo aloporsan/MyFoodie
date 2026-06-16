@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Image,
   Pressable,
@@ -12,6 +11,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ErrorScreen } from '@/components/common/ErrorScreen';
+import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { IngredienteReceta, PasoReceta, Receta, recetaService } from '@/services/recetaService';
 import { useAuthStore } from '@/store/authStore';
 import { borderRadius } from '@/theme/borderRadius';
@@ -71,28 +72,16 @@ export function DetalleRecetaScreen() {
   };
 
   if (cargando) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      </SafeAreaView>
-    );
+    return <LoadingScreen />;
   }
 
   if (error || !receta) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <Pressable onPress={goBack} hitSlop={8} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
-          </Pressable>
-        </View>
-        <View style={styles.centered}>
-          <Ionicons name="alert-circle-outline" size={48} color={colors.error} />
-          <Text style={styles.errorText}>{error ?? 'Receta no encontrada'}</Text>
-        </View>
-      </SafeAreaView>
+      <ErrorScreen
+        titulo="No se pudo cargar la receta"
+        descripcion={error ?? 'Receta no encontrada'}
+        onVolver={goBack}
+      />
     );
   }
 

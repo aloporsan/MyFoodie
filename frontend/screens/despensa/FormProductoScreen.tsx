@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { DuplicadosAlert } from '@/components/despensa';
 import { Producto, ProductoInput } from '@/services/despensaService';
 import { useDespensaStore } from '@/store/despensaStore';
@@ -127,6 +128,7 @@ export function FormProductoScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <LoadingOverlay visible={isLoading} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -342,6 +344,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     borderWidth: 1.5,
     borderColor: 'transparent',
+    minHeight: 48,
   },
   inputError: { borderColor: colors.error },
   textarea: { minHeight: 80, textAlignVertical: 'top' },

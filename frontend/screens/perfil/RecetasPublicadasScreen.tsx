@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { useEffect, useState } from 'react';
 import {
   FlatList,
@@ -48,6 +49,10 @@ export function RecetasPublicadasScreen() {
     await cargar();
     setRefreshing(false);
   };
+
+  if (cargando) {
+    return <LoadingScreen />;
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

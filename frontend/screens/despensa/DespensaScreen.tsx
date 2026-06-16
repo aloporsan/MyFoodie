@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   Modal,
@@ -13,6 +12,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LoadingOverlay } from '@/components/common/LoadingOverlay';
+import { LoadingScreen } from '@/components/common/LoadingScreen';
 import {
   BuscadorDespensa,
   FiltrosBar,
@@ -114,8 +115,13 @@ export function DespensaScreen() {
 
   const estaFiltrandoOBuscando = busquedaActiva.trim() || filtroActivo !== 'todos' || categoriaActiva;
 
+  if (isLoading && productos.length === 0) {
+    return <LoadingScreen />;
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <LoadingOverlay visible={isLoading && productos.length > 0} />
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerSide} />
@@ -155,56 +161,50 @@ export function DespensaScreen() {
       />
 
       {/* Lista */}
-      {isLoading && productos.length === 0 ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : (
-        <FlatList
-          data={productos}
-          keyExtractor={(p) => p.id}
-          contentContainerStyle={styles.lista}
-          refreshControl={
-            <RefreshControl
-              refreshing={isLoading}
-              onRefresh={cargarProductos}
-              tintColor={colors.primary}
+      <FlatList
+        data={productos}
+        keyExtractor={(p) => p.id}
+        contentContainerStyle={styles.lista}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={cargarProductos}
+            tintColor={colors.primary}
+          />
+        }
+        renderItem={({ item }) => (
+          <ProductoCard
+            producto={item}
+            onPress={() => router.push(`/despensa/${item.id}`)}
+            onEditar={() => router.push({ pathname: '/despensa/form', params: { id: item.id } })}
+            onEliminar={() => handleEliminar(item.id, item.nombre)}
+            onIncrementar={() => actualizarCantidad(item.id, 1)}
+            onDecrementar={() => actualizarCantidad(item.id, -1)}
+          />
+        )}
+        ListEmptyComponent={
+          <View style={styles.centered}>
+            <Ionicons
+              name={estaFiltrandoOBuscando ? 'search-outline' : 'basket-outline'}
+              size={56}
+              color={colors.grayMid}
             />
-          }
-          renderItem={({ item }) => (
-            <ProductoCard
-              producto={item}
-              onPress={() => router.push(`/despensa/${item.id}`)}
-              onEditar={() => router.push({ pathname: '/despensa/form', params: { id: item.id } })}
-              onEliminar={() => handleEliminar(item.id, item.nombre)}
-              onIncrementar={() => actualizarCantidad(item.id, 1)}
-              onDecrementar={() => actualizarCantidad(item.id, -1)}
-            />
-          )}
-          ListEmptyComponent={
-            <View style={styles.centered}>
-              <Ionicons
-                name={estaFiltrandoOBuscando ? 'search-outline' : 'basket-outline'}
-                size={56}
-                color={colors.grayMid}
-              />
-              <Text style={styles.emptyTitulo}>
-                {estaFiltrandoOBuscando ? 'Sin resultados' : 'Tu despensa está vacía'}
-              </Text>
-              <Text style={styles.emptySubtitulo}>
-                {estaFiltrandoOBuscando
-                  ? 'Prueba con otro término o quita los filtros'
-                  : 'Añade productos con el botón +'}
-              </Text>
-              {!estaFiltrandoOBuscando && (
-                <Pressable style={styles.emptyBtn} onPress={() => router.push('/despensa/form')}>
-                  <Text style={styles.emptyBtnText}>Añadir producto</Text>
-                </Pressable>
-              )}
-            </View>
-          }
-        />
-      )}
+            <Text style={styles.emptyTitulo}>
+              {estaFiltrandoOBuscando ? 'Sin resultados' : 'Tu despensa está vacía'}
+            </Text>
+            <Text style={styles.emptySubtitulo}>
+              {estaFiltrandoOBuscando
+                ? 'Prueba con otro término o quita los filtros'
+                : 'Añade productos con el botón +'}
+            </Text>
+            {!estaFiltrandoOBuscando && (
+              <Pressable style={styles.emptyBtn} onPress={() => router.push('/despensa/form')}>
+                <Text style={styles.emptyBtnText}>Añadir producto</Text>
+              </Pressable>
+            )}
+          </View>
+        }
+      />
 
       {/* Modal categorías */}
       <Modal visible={modalCategoria} transparent animationType="slide" onRequestClose={() => setModalCategoria(false)}>

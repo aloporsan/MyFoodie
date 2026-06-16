@@ -11,8 +11,10 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
+import { ToastMessage } from '@/components/common/ToastMessage';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useToastStore } from '@/hooks/useToast';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -34,6 +36,7 @@ function useAuthGuard(isAuthenticated: boolean, ready: boolean) {
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
   const { isAuthenticated, isReady } = useAuth();
+  const { visible, tipo, mensaje, hide } = useToastStore();
 
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -68,6 +71,7 @@ function RootLayoutNav() {
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
       <StatusBar style="auto" />
+      <ToastMessage visible={visible} tipo={tipo} mensaje={mensaje} onDismiss={hide} />
     </ThemeProvider>
   );
 }

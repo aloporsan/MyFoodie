@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,6 +7,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -58,6 +58,7 @@ export function EstadisticasScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <LoadingOverlay visible={isLoading && !estadisticas} />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
@@ -66,11 +67,7 @@ export function EstadisticasScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      {isLoading && !estadisticas ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : (
+      {estadisticas ? (
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
           {/* Hero card */}
@@ -216,7 +213,7 @@ export function EstadisticasScreen() {
           </Seccion>
 
         </ScrollView>
-      )}
+      ) : null}
     </SafeAreaView>
   );
 }

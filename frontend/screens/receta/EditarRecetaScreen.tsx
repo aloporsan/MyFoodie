@@ -14,6 +14,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LoadingOverlay } from '@/components/common/LoadingOverlay';
+import { LoadingScreen } from '@/components/common/LoadingScreen';
 import {
   EtiquetasSelector,
   FormIngrediente,
@@ -244,18 +246,12 @@ export function EditarRecetaScreen() {
   };
 
   if (!recetaActual && isLoading) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.cargando}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.cargandoText}>Cargando receta...</Text>
-        </View>
-      </SafeAreaView>
-    );
+    return <LoadingScreen />;
   }
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <LoadingOverlay visible={isLoading && !!recetaActual} />
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={confirmarSalida} hitSlop={8} style={styles.backBtn}>
@@ -519,7 +515,8 @@ const styles = StyleSheet.create({
   subLabel: { ...typography.label, color: colors.text.secondary },
   btnSeccion: {
     backgroundColor: '#E8F5D0', borderRadius: borderRadius.md,
-    paddingVertical: spacing.sm, alignItems: 'center',
+    paddingVertical: spacing.sm, alignItems: 'center', minHeight: 44,
+    justifyContent: 'center',
   },
   btnSeccionText: { ...typography.label, color: colors.primaryDark },
   btnDisabled: { opacity: 0.5 },

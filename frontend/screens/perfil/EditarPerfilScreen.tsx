@@ -1,8 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -16,6 +15,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { LoadingOverlay } from '@/components/common/LoadingOverlay';
+import { useToast } from '@/hooks/useToast';
 import { usePerfilStore } from '@/store/perfilStore';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
 
@@ -38,14 +39,12 @@ function validar(nombre: string, nombreUsuario: string, biografia: string): Erro
 export function EditarPerfilScreen() {
   const router = useRouter();
   const { perfil, isLoading, editarPerfil } = usePerfilStore();
+  const { showSuccess } = useToast();
 
   const [nombre, setNombre] = useState(perfil?.nombre ?? '');
   const [nombreUsuario, setNombreUsuario] = useState(perfil?.nombreUsuario ?? '');
   const [biografia, setBiografia] = useState(perfil?.biografia ?? '');
   const [fotoPerfil, setFotoPerfil] = useState(perfil?.fotoPerfil ?? '');
-  const [guardado, setGuardado] = useState(false);
-
-  const opacidadToast = useRef(new Animated.Value(0)).current;
 
   const errores = validar(nombre, nombreUsuario, biografia);
   const hayErrores = Object.keys(errores).length > 0;
@@ -75,14 +74,6 @@ export function EditarPerfilScreen() {
     }
   };
 
-  const mostrarToast = () => {
-    Animated.sequence([
-      Animated.timing(opacidadToast, { toValue: 1, duration: 300, useNativeDriver: true }),
-      Animated.delay(2000),
-      Animated.timing(opacidadToast, { toValue: 0, duration: 300, useNativeDriver: true }),
-    ]).start(() => setGuardado(false));
-  };
-
   const handleGuardar = async () => {
     if (hayErrores || !hayCambios) return;
     try {
@@ -92,8 +83,7 @@ export function EditarPerfilScreen() {
         biografia: biografia.trim() || undefined,
         fotoPerfil: fotoPerfil || undefined,
       });
-      setGuardado(true);
-      mostrarToast();
+      showSuccess('Perfil actualizado');
     } catch {
       // el error queda en el store
     }
@@ -108,6 +98,7 @@ export function EditarPerfilScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <LoadingOverlay visible={isLoading} />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
@@ -187,12 +178,6 @@ export function EditarPerfilScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {guardado && (
-        <Animated.View style={[styles.toast, { opacity: opacidadToast }]}>
-          <Ionicons name="checkmark-circle" size={18} color={colors.white} />
-          <Text style={styles.toastTexto}>Perfil actualizado</Text>
-        </Animated.View>
-      )}
     </SafeAreaView>
   );
 }
@@ -280,23 +265,12 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     alignItems: 'center',
     marginTop: spacing.sm,
+    minHeight: 44,
+    justifyContent: 'center',
     ...shadows.sm,
   },
   guardarBtnDisabled: { backgroundColor: colors.grayMid },
   guardarTexto: { ...typography.button, color: colors.white },
-  toast: {
-    position: 'absolute',
-    bottom: spacing.xxxl,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.primaryDark,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.full,
-  },
-  toastTexto: { ...typography.label, color: colors.white },
 });
 
 const campoStyles = StyleSheet.create({
@@ -309,6 +283,7 @@ const campoStyles = StyleSheet.create({
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
+    minHeight: 48,
     ...typography.body,
     color: colors.text.primary,
   },
