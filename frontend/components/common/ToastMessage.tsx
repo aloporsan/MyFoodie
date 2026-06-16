@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
@@ -22,6 +23,7 @@ const COLOR_MAP: Record<ToastTipo, string> = {
 };
 
 export function ToastMessage({ tipo, mensaje, visible, onDismiss }: ToastMessageProps) {
+  const { top } = useSafeAreaInsets();
   const [localVisible, setLocalVisible] = useState(visible);
   const translateY = useRef(new Animated.Value(-100)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -57,7 +59,7 @@ export function ToastMessage({ tipo, mensaje, visible, onDismiss }: ToastMessage
     <Animated.View
       style={[
         styles.container,
-        { backgroundColor: COLOR_MAP[tipo], transform: [{ translateY }], opacity },
+        { backgroundColor: COLOR_MAP[tipo], transform: [{ translateY }], opacity, paddingTop: top + spacing.sm },
       ]}
       testID="toast-container"
     >
@@ -77,7 +79,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 9999,
-    paddingTop: spacing.xl,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.md,
     paddingHorizontal: spacing.lg,
     borderBottomLeftRadius: borderRadius.md,
