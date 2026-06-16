@@ -35,7 +35,7 @@ it('aplica_color_verde_para_success', () => {
   );
   const container = getByTestId('toast-container');
   expect(container.props.style).toEqual(
-    expect.arrayContaining([expect.objectContaining({ backgroundColor: '#7FC62A' })])
+    expect.objectContaining({ backgroundColor: '#7FC62A' })
   );
 });
 
@@ -45,7 +45,7 @@ it('aplica_color_rojo_para_error', () => {
   );
   const container = getByTestId('toast-container');
   expect(container.props.style).toEqual(
-    expect.arrayContaining([expect.objectContaining({ backgroundColor: '#E53935' })])
+    expect.objectContaining({ backgroundColor: '#E53935' })
   );
 });
 
