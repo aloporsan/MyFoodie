@@ -15,6 +15,7 @@ import { ErrorScreen } from '@/components/common/ErrorScreen';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { IngredienteReceta, PasoReceta, Receta, recetaService } from '@/services/recetaService';
 import { useAuthStore } from '@/store/authStore';
+import { useRecetaStore } from '@/store/recetaStore';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
 import { shadows } from '@/theme/shadows';
@@ -60,7 +61,7 @@ export function DetalleRecetaScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await recetaService.eliminarReceta(receta!.id);
+              await useRecetaStore.getState().eliminarReceta(receta!.id);
               goBack();
             } catch {
               Alert.alert('Error', 'No se pudo eliminar la receta. Inténtalo de nuevo.');

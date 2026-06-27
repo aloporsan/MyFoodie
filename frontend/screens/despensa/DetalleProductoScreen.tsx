@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   },
   content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxxl },
   badgeRow: { alignItems: 'flex-start' },
-  nombre: { ...typography.heading1, color: colors.text.primary },
+  nombre: { ...typography.heading1, color: colors.text.primary, textAlign: 'center' },
   marca: { ...typography.body, color: colors.text.secondary },
   cantidadCard: {
     backgroundColor: colors.white,
