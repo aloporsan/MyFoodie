@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, type TextInputProps, View, type ViewStyle } from 'react-native';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
@@ -12,8 +12,45 @@ interface InputProps extends TextInputProps {
   rightElement?: React.ReactNode;
 }
 
-export function Input({ label, error, containerStyle, style, rightElement, ...props }: InputProps) {
+export function Input({
+  label,
+  error,
+  containerStyle,
+  style,
+  rightElement,
+  secureTextEntry,
+  value,
+  onChangeText,
+  ...props
+}: InputProps) {
   const [focused, setFocused] = useState(false);
+  const [displayValue, setDisplayValue] = useState('');
+  const realValue = useRef<string>(typeof value === 'string' ? value : '');
+
+  useEffect(() => {
+    if (!secureTextEntry) return;
+    const v = typeof value === 'string' ? value : '';
+    if (v !== realValue.current) {
+      realValue.current = v;
+      setDisplayValue('●'.repeat(v.length));
+    }
+  }, [secureTextEntry, value]);
+
+  const handleSecureChange = (text: string) => {
+    const prev = displayValue;
+    const delta = text.length - prev.length;
+
+    if (delta > 0) {
+      const newChars = text.slice(prev.length);
+      realValue.current = realValue.current + newChars;
+    } else if (delta < 0) {
+      realValue.current = realValue.current.slice(0, realValue.current.length + delta);
+    }
+
+    const n = realValue.current.length;
+    setDisplayValue(n === 0 ? '' : '●'.repeat(n - 1) + realValue.current[n - 1]);
+    onChangeText?.(realValue.current);
+  };
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -28,6 +65,11 @@ export function Input({ label, error, containerStyle, style, rightElement, ...pr
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           placeholderTextColor={colors.grayMid}
+          value={secureTextEntry ? displayValue : (typeof value === 'string' ? value : undefined)}
+          onChangeText={secureTextEntry ? handleSecureChange : onChangeText}
+          autoCorrect={secureTextEntry ? false : props.autoCorrect}
+          autoCapitalize={secureTextEntry ? 'none' : props.autoCapitalize}
+          secureTextEntry={false}
           {...props}
         />
         {rightElement && (
