@@ -25,6 +25,8 @@ const NIVELES = ['Cualquiera', 'Fácil', 'Media', 'Difícil'];
 const TIEMPO_MIN = 15;
 const TIEMPO_MAX = 120;
 const TIEMPO_PASO = 5;
+const STOCK_MIN = 1;
+const STOCK_MAX = 20;
 
 type SeccionIcono = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -42,6 +44,9 @@ export function PreferenciasScreen() {
   );
   const [tiempoCoccionMax, setTiempoCoccionMax] = useState(
     preferencias?.tiempoCoccionMax ?? TIEMPO_MAX,
+  );
+  const [stockMinimoGlobal, setStockMinimoGlobal] = useState(
+    preferencias?.stockMinimoGlobal ?? STOCK_MIN,
   );
   const [ingredienteInput, setIngredienteInput] = useState('');
   const [guardado, setGuardado] = useState(false);
@@ -70,6 +75,12 @@ export function PreferenciasScreen() {
     );
   };
 
+  const ajustarStock = (delta: number) => {
+    setStockMinimoGlobal((prev) =>
+      Math.min(STOCK_MAX, Math.max(STOCK_MIN, prev + delta)),
+    );
+  };
+
   const mostrarToast = () => {
     Animated.sequence([
       Animated.timing(opacidadToast, { toValue: 1, duration: 300, useNativeDriver: true }),
@@ -86,6 +97,7 @@ export function PreferenciasScreen() {
         ingredientesNoDeseados: ingredientesNoDeseados.length > 0 ? ingredientesNoDeseados : null,
         nivelDificultad: nivelDificultad === 'Cualquiera' ? null : nivelDificultad,
         tiempoCoccionMax: tiempoCoccionMax === TIEMPO_MAX ? null : tiempoCoccionMax,
+        stockMinimoGlobal,
       });
       setGuardado(true);
       mostrarToast();
@@ -253,6 +265,49 @@ export function PreferenciasScreen() {
                   name="add"
                   size={22}
                   color={tiempoCoccionMax >= TIEMPO_MAX ? colors.grayMid : colors.primaryDark}
+                />
+              </Pressable>
+            </View>
+          </Seccion>
+
+          {/* Stock mínimo global */}
+          <Seccion
+            icono="cart-outline"
+            color={colors.error}
+            titulo="Stock mínimo global"
+            descripcion="Cantidad mínima por defecto para la alerta de reposición"
+          >
+            <View style={styles.tiempoControl}>
+              <Pressable
+                style={[
+                  styles.tiempoBtn,
+                  { borderColor: stockMinimoGlobal <= STOCK_MIN ? colors.grayMid : colors.error },
+                ]}
+                onPress={() => ajustarStock(-1)}
+                disabled={stockMinimoGlobal <= STOCK_MIN}
+              >
+                <Ionicons
+                  name="remove"
+                  size={22}
+                  color={stockMinimoGlobal <= STOCK_MIN ? colors.grayMid : colors.error}
+                />
+              </Pressable>
+              <View style={styles.tiempoDisplay}>
+                <Text style={styles.tiempoValor}>{stockMinimoGlobal}</Text>
+                <Text style={styles.tiempoUnidad}>unidades</Text>
+              </View>
+              <Pressable
+                style={[
+                  styles.tiempoBtn,
+                  { borderColor: stockMinimoGlobal >= STOCK_MAX ? colors.grayMid : colors.error },
+                ]}
+                onPress={() => ajustarStock(1)}
+                disabled={stockMinimoGlobal >= STOCK_MAX}
+              >
+                <Ionicons
+                  name="add"
+                  size={22}
+                  color={stockMinimoGlobal >= STOCK_MAX ? colors.grayMid : colors.error}
                 />
               </Pressable>
             </View>

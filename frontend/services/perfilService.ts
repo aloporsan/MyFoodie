@@ -23,6 +23,7 @@ export interface Preferencias {
   ingredientesNoDeseados: string[] | null;
   nivelDificultad: string | null;
   tiempoCoccionMax: number | null;
+  stockMinimoGlobal?: number | null;
 }
 
 export interface PrivacidadUpdate {
