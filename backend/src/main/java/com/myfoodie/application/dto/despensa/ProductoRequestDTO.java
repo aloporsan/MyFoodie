@@ -19,5 +19,6 @@ public record ProductoRequestDTO(
         LocalDate fechaCaducidad,
         LocalDate fechaCompra,
         String marca,
-        String notas
+        String notas,
+        Integer stockMinimo
 ) {}

@@ -15,6 +15,8 @@ public record ProductoResponseDTO(
         LocalDate fechaCompra,
         String marca,
         String notas,
+        Integer stockMinimo,
+        boolean alertaCompra,
         String estado,
         List<ProductoResponseDTO> posiblesDuplicados,
         LocalDateTime createdAt,
