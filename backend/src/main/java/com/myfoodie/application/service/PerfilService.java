@@ -80,6 +80,7 @@ public class PerfilService {
         if (dto.ingredientesNoDeseados() != null) pref.setIngredientesNoDeseados(dto.ingredientesNoDeseados());
         if (dto.nivelDificultad() != null) pref.setNivelDificultad(dto.nivelDificultad());
         if (dto.tiempoCoccionMax() != null) pref.setTiempoCoccionMax(dto.tiempoCoccionMax());
+        if (dto.stockMinimoGlobal() != null) pref.setStockMinimoGlobal(dto.stockMinimoGlobal());
 
         return toPreferenciasDTO(preferenciasRepository.save(pref));
     }
@@ -175,7 +176,8 @@ public class PerfilService {
                 pref.getAlergenos(),
                 pref.getIngredientesNoDeseados(),
                 pref.getNivelDificultad(),
-                pref.getTiempoCoccionMax()
+                pref.getTiempoCoccionMax(),
+                pref.getStockMinimoGlobal()
         );
     }
 }
