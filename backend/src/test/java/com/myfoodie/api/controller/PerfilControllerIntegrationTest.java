@@ -134,7 +134,7 @@ class PerfilControllerIntegrationTest {
     @Test
     void PUT_preferencias_devuelve200_con_preferencias_actualizadas() throws Exception {
         PreferenciasUpdateDTO dto = new PreferenciasUpdateDTO(
-                "Vegana", List.of("Soja"), null, "Fácil", 45);
+                "Vegana", List.of("Soja"), null, "Fácil", 45, null);
 
         mockMvc.perform(put("/api/perfil/preferencias")
                         .header("Authorization", "Bearer " + token)

@@ -43,6 +43,7 @@ class DashboardServiceTest {
                                     LocalDateTime createdAt) {
         return new ProductoResponseDTO(id, "desp-1", "Producto " + id, cantidad, "unidades",
                 categoria, fechaCaducidad, null, null, null,
+                null, false,
                 estado, null, createdAt, createdAt);
     }
 
