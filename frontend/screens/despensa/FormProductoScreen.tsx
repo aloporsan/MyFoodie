@@ -46,6 +46,7 @@ export function FormProductoScreen() {
   const [fechaCompra, setFechaCompra] = useState('');
   const [marca, setMarca] = useState('');
   const [notas, setNotas] = useState('');
+  const [stockMinimo, setStockMinimo] = useState('');
 
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [duplicadosVisible, setDuplicadosVisible] = useState(false);
@@ -64,6 +65,7 @@ export function FormProductoScreen() {
         setFechaCompra(p.fechaCompra ?? '');
         setMarca(p.marca ?? '');
         setNotas(p.notas ?? '');
+        setStockMinimo(p.stockMinimo != null ? String(p.stockMinimo) : '');
       }
     }
   }, [id]);
@@ -78,6 +80,10 @@ export function FormProductoScreen() {
       e.fechaCaducidad = 'Formato AAAA-MM-DD';
     if (fechaCompra && !DATE_REGEX.test(fechaCompra))
       e.fechaCompra = 'Formato AAAA-MM-DD';
+    if (stockMinimo) {
+      const sm = parseInt(stockMinimo, 10);
+      if (isNaN(sm) || sm < 1) e.stockMinimo = 'Debe ser un número entero positivo';
+    }
     setErrores(e);
     return Object.keys(e).length === 0;
   };
@@ -91,6 +97,7 @@ export function FormProductoScreen() {
     fechaCompra: fechaCompra || undefined,
     marca: marca.trim() || undefined,
     notas: notas.trim() || undefined,
+    stockMinimo: stockMinimo ? parseInt(stockMinimo, 10) : undefined,
   });
 
   const handleGuardar = async () => {
@@ -233,6 +240,22 @@ export function FormProductoScreen() {
               placeholderTextColor={colors.grayMid}
               multiline
               numberOfLines={3}
+            />
+          </Campo>
+
+          {/* Stock mínimo */}
+          <Campo
+            label="Stock mínimo personalizado"
+            error={errores.stockMinimo}
+            hint="Deja vacío para usar el umbral global de tus preferencias"
+          >
+            <TextInput
+              style={[styles.input, errores.stockMinimo && styles.inputError]}
+              value={stockMinimo}
+              onChangeText={(t) => { setStockMinimo(t); setErrores((e) => ({ ...e, stockMinimo: '' })); }}
+              placeholder="ej. 3"
+              placeholderTextColor={colors.grayMid}
+              keyboardType="number-pad"
             />
           </Campo>
 

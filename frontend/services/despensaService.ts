@@ -13,6 +13,8 @@ export interface Producto {
   fechaCompra?: string;
   marca?: string;
   notas?: string;
+  stockMinimo?: number;
+  alertaCompra?: boolean;
   estado: EstadoProducto;
   posiblesDuplicados?: Producto[];
   createdAt: string;
@@ -28,6 +30,7 @@ export interface ProductoInput {
   fechaCompra?: string;
   marca?: string;
   notas?: string;
+  stockMinimo?: number;
 }
 
 export interface ProductoFiltro {
