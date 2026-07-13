@@ -221,6 +221,35 @@
           }
         },
         {
+          "name": "5b. Añadir producto con stockMinimo personalizado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('stockMinimo guardado', () => pm.expect(json.stockMinimo).to.eql(5));",
+                  "pm.test('alertaCompra activa (cantidad <= stockMinimo)', () => pm.expect(json.alertaCompra).to.be.true);",
+                  "pm.test('Estado bajoStock', () => pm.expect(json.estado).to.eql('bajoStock'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Aceite de oliva\",\n  \"cantidad\": 2,\n  \"unidad\": \"litros\",\n  \"categoria\": \"Aceites\",\n  \"stockMinimo\": 5\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
           "name": "6. Listar todos",
           "event": [
             {
