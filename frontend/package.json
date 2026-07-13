@@ -16,6 +16,7 @@
   "jest": {
     "preset": "jest-expo",
     "testTimeout": 15000,
+    "maxWorkers": 2,
     "setupFilesAfterEnv": [
       "./jest.setup.ts"
     ],

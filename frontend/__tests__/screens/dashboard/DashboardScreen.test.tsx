@@ -6,7 +6,10 @@ import { useDashboardStore } from '@/store/dashboardStore';
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 );
-jest.mock('expo-router', () => ({ useRouter: jest.fn() }));
+jest.mock('expo-router', () => ({
+  useRouter: jest.fn(),
+  useFocusEffect: (cb: () => void) => cb(),
+}));
 jest.mock('@/store/dashboardStore', () => ({ useDashboardStore: jest.fn() }));
 jest.mock('@/store/authStore', () => ({ useAuthStore: jest.fn(() => ({ nombre: 'Test', nombreUsuario: 'testuser' })) }));
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));

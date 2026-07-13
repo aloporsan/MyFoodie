@@ -138,3 +138,57 @@ it('boton_guardar_no_llama_al_servicio_si_cantidad_invalida', async () => {
   });
   expect(getByText('Cantidad válida requerida')).toBeTruthy();
 });
+
+// -------------------------------------------------------------------------
+// MEJORA 1 — Stock mínimo personalizado (#132)
+// -------------------------------------------------------------------------
+
+it('renderiza_campo_stock_minimo_personalizado', () => {
+  const { getByText, getByPlaceholderText } = render(<FormProductoScreen />);
+  expect(getByText('Stock mínimo personalizado')).toBeTruthy();
+  expect(getByPlaceholderText('ej. 3')).toBeTruthy();
+});
+
+it('stock_minimo_invalido_muestra_error_de_validacion', async () => {
+  const { getByPlaceholderText, getByText } = render(<FormProductoScreen />);
+  fireEvent.changeText(getByPlaceholderText('ej. Leche entera'), 'Leche');
+  fireEvent.changeText(getByPlaceholderText('ej. 2'), '2');
+  fireEvent.changeText(getByPlaceholderText('ej. 3'), '0');
+  fireEvent.press(getByText('Añadir producto'));
+
+  await waitFor(() => {
+    expect(mockAñadirProducto).not.toHaveBeenCalled();
+  });
+  expect(getByText('Debe ser un número entero positivo')).toBeTruthy();
+});
+
+it('boton_guardar_no_queda_deshabilitado_al_escribir_stock_minimo_valido', async () => {
+  mockAñadirProducto.mockResolvedValue({
+    id: 'prod-1', despensaId: 'desp-1', nombre: 'Leche', cantidad: 2,
+    unidad: 'litros', estado: 'normal', createdAt: '', updatedAt: '',
+  });
+  const { getByPlaceholderText, getByText } = render(<FormProductoScreen />);
+  fireEvent.changeText(getByPlaceholderText('ej. Leche entera'), 'Leche');
+  fireEvent.changeText(getByPlaceholderText('ej. 2'), '2');
+  fireEvent.changeText(getByPlaceholderText('ej. 3'), '3');
+  fireEvent.press(getByText('Añadir producto'));
+
+  await waitFor(() => {
+    expect(mockAñadirProducto).toHaveBeenCalled();
+  });
+});
+
+it('rellena_stock_minimo_en_modo_edicion_si_el_producto_lo_tiene', () => {
+  const mockProducto = {
+    id: 'prod-1', despensaId: 'desp-1', nombre: 'Sal', cantidad: 1,
+    unidad: 'kg', stockMinimo: 3, estado: 'normal' as const,
+    createdAt: '', updatedAt: '',
+  };
+  (useLocalSearchParams as jest.Mock).mockReturnValue({ id: 'prod-1' });
+  (useDespensaStore as unknown as jest.Mock).mockReturnValue({
+    ...storeBase,
+    productos: [mockProducto],
+  });
+  const { getByDisplayValue } = render(<FormProductoScreen />);
+  expect(getByDisplayValue('3')).toBeTruthy();
+});

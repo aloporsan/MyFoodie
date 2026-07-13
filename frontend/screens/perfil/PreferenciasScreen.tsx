@@ -282,6 +282,7 @@ export function PreferenciasScreen() {
           >
             <View style={styles.tiempoControl}>
               <Pressable
+                testID="stock-decrementar"
                 style={[
                   styles.tiempoBtn,
                   { borderColor: stockMinimoGlobal <= STOCK_MIN ? colors.grayMid : colors.error },
@@ -296,10 +297,11 @@ export function PreferenciasScreen() {
                 />
               </Pressable>
               <View style={styles.tiempoDisplay}>
-                <Text style={styles.tiempoValor}>{stockMinimoGlobal}</Text>
+                <Text testID="stock-valor">{stockMinimoGlobal}</Text>
                 <Text style={styles.tiempoUnidad}>unidades</Text>
               </View>
               <Pressable
+                testID="stock-incrementar"
                 style={[
                   styles.tiempoBtn,
                   { borderColor: stockMinimoGlobal >= STOCK_MAX ? colors.grayMid : colors.error },
