@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { PreferenciaChip } from '@/components/perfil/PreferenciaChip';
+import { useDespensaStore } from '@/store/despensaStore';
 import { usePerfilStore } from '@/store/perfilStore';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
 
@@ -33,6 +34,7 @@ type SeccionIcono = React.ComponentProps<typeof Ionicons>['name'];
 export function PreferenciasScreen() {
   const router = useRouter();
   const { preferencias, isLoading, actualizarPreferencias } = usePerfilStore();
+  const cargarProductos = useDespensaStore((s) => s.cargarProductos);
 
   const [tipoDieta, setTipoDieta] = useState(preferencias?.tipoDieta ?? 'Ninguna');
   const [alergias, setAlergias] = useState<string[]>(preferencias?.alergias ?? []);
@@ -101,6 +103,7 @@ export function PreferenciasScreen() {
       });
       setGuardado(true);
       mostrarToast();
+      cargarProductos();
     } catch {
       // error queda en el store
     }

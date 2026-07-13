@@ -131,7 +131,7 @@ export function FormProductoScreen() {
     router.back();
   };
 
-  const hayErrores = Object.keys(errores).length > 0;
+  const hayErrores = Object.values(errores).some((v) => !!v);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

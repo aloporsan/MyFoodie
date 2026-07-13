@@ -32,12 +32,6 @@ export function ProductoCard({
           <Text style={styles.duplicadosText}>Posible duplicado en despensa</Text>
         </View>
       )}
-      {producto.alertaCompra && (
-        <View style={styles.alertaCompraBanner}>
-          <Ionicons name="cart-outline" size={12} color="#C62828" />
-          <Text style={styles.alertaCompraText}>Stock bajo — reponer pronto</Text>
-        </View>
-      )}
 
       <View style={styles.row}>
         {/* Icono de categoría */}
@@ -109,20 +103,6 @@ const styles = StyleSheet.create({
   duplicadosText: {
     ...typography.caption,
     color: colors.secondary,
-  },
-  alertaCompraBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: '#FFEBEE',
-    borderRadius: borderRadius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    marginBottom: spacing.sm,
-  },
-  alertaCompraText: {
-    ...typography.caption,
-    color: '#C62828',
   },
   row: {
     flexDirection: 'row',
