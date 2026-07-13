@@ -7,6 +7,7 @@ import com.myfoodie.application.dto.despensa.ProductoUpdateCantidadDTO;
 import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.repository.DespensaRepository;
+import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.ProductoRepository;
 import com.myfoodie.exception.ApiException;
 import org.junit.jupiter.api.DisplayName;
@@ -33,6 +34,7 @@ class DespensaServiceTest {
 
     @Mock private DespensaRepository despensaRepository;
     @Mock private ProductoRepository productoRepository;
+    @Mock private PreferenciasRepository preferenciasRepository;
 
     @InjectMocks private DespensaService despensaService;
 
@@ -60,7 +62,7 @@ class DespensaServiceTest {
     }
 
     private ProductoRequestDTO dto(String nombre, double cantidad) {
-        return new ProductoRequestDTO(nombre, cantidad, "unidades", null, null, null, null, null);
+        return new ProductoRequestDTO(nombre, cantidad, "unidades", null, null, null, null, null, null);
     }
 
     // -------------------------------------------------------------------------
@@ -181,7 +183,7 @@ class DespensaServiceTest {
         when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
 
         ProductoRequestDTO nuevoDto = new ProductoRequestDTO(
-                "Leche Desnatada", 3, "litros", null, null, null, null, null);
+                "Leche Desnatada", 3, "litros", null, null, null, null, null, null);
         ProductoResponseDTO resultado = despensaService.editarProducto("user-1", "prod-1", nuevoDto);
 
         assertThat(resultado.nombre()).isEqualTo("Leche Desnatada");
