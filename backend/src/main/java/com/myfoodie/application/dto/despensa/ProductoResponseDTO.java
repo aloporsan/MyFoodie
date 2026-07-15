@@ -18,6 +18,7 @@ public record ProductoResponseDTO(
         Integer stockMinimo,
         boolean alertaCompra,
         String estado,
+        Integer diasHastaCaducidad,
         List<ProductoResponseDTO> posiblesDuplicados,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

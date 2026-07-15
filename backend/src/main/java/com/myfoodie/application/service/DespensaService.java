@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Service
@@ -182,12 +183,21 @@ public class DespensaService {
 
     String calcularEstado(Producto p, int umbral) {
         if (p.getFechaCaducidad() != null) {
-            LocalDate hoy = LocalDate.now();
-            if (p.getFechaCaducidad().isBefore(hoy)) return "caducado";
-            if (!p.getFechaCaducidad().isAfter(hoy.plusDays(3))) return "proximoCaducar";
+            long dias = ChronoUnit.DAYS.between(LocalDate.now(), p.getFechaCaducidad());
+            if (dias < 0)   return "caducado";
+            if (dias == 0)  return "caduca_hoy";
+            if (dias <= 3)  return "caduca_pronto";
+            if (dias <= 7)  return "caduca_semana";
+            if (dias <= 30) return "caduca_mes";
+            return "normal";
         }
         if (p.getCantidad() <= umbral) return "bajoStock";
         return "normal";
+    }
+
+    private Integer calcularDiasHastaCaducidad(Producto p) {
+        if (p.getFechaCaducidad() == null) return null;
+        return (int) ChronoUnit.DAYS.between(LocalDate.now(), p.getFechaCaducidad());
     }
 
     ProductoResponseDTO toDTO(Producto p, List<ProductoResponseDTO> duplicados, int umbralEfectivo) {
@@ -206,6 +216,7 @@ public class DespensaService {
                 p.getStockMinimo(),
                 alertaCompra,
                 calcularEstado(p, umbralEfectivo),
+                calcularDiasHastaCaducidad(p),
                 duplicados,
                 p.getCreatedAt(),
                 p.getUpdatedAt()

@@ -127,8 +127,8 @@ class DespensaServiceTest {
     }
 
     @Test
-    @DisplayName("calcularEstado devuelve 'proximoCaducar' si fechaCaducidad es mañana")
-    void listarProductos_calculaEstado_proximoCaducar_correctamente() {
+    @DisplayName("calcularEstado devuelve 'caduca_pronto' si fechaCaducidad es mañana")
+    void listarProductos_calculaEstado_caduca_pronto_correctamente() {
         Despensa d = despensa("desp-1", "user-1");
         Producto p = producto("p-1", "desp-1", "Queso", 2, LocalDate.now().plusDays(1));
 
@@ -137,7 +137,7 @@ class DespensaServiceTest {
 
         List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
 
-        assertThat(lista.get(0).estado()).isEqualTo("proximoCaducar");
+        assertThat(lista.get(0).estado()).isEqualTo("caduca_pronto");
     }
 
     @Test
