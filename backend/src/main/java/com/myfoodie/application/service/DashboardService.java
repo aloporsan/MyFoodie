@@ -28,21 +28,24 @@ public class DashboardService {
     public DashboardResumenDTO.ResumenDespensa obtenerResumenDespensa(String usuarioId) {
         List<ProductoResponseDTO> productos = despensaService.listarProductos(usuarioId);
 
-        int total          = productos.size();
-        int proximosCaducar = contarPorEstado(productos, "proximoCaducar");
-        int caducados      = contarPorEstado(productos, "caducado");
-        int bajoStock      = contarPorEstado(productos, "bajoStock");
+        int total         = productos.size();
+        int caducados     = contarPorEstado(productos, "caducado") + contarPorEstado(productos, "caduca_hoy");
+        int caduca_pronto = contarPorEstado(productos, "caduca_pronto");
+        int caduca_semana = contarPorEstado(productos, "caduca_semana");
+        int caduca_mes    = contarPorEstado(productos, "caduca_mes");
+        int bajoStock     = contarPorEstado(productos, "bajoStock");
 
-        return new DashboardResumenDTO.ResumenDespensa(total, proximosCaducar, caducados, bajoStock);
+        return new DashboardResumenDTO.ResumenDespensa(total, caducados, caduca_pronto, caduca_semana, caduca_mes, bajoStock);
     }
 
     public List<AlertaCaducidadDTO> obtenerAlertasCaducidad(String usuarioId) {
         List<ProductoResponseDTO> productos = despensaService.listarProductos(usuarioId);
+        List<String> estadosCriticos = List.of("caducado", "caduca_hoy", "caduca_pronto", "caduca_semana", "caduca_mes");
 
         return productos.stream()
-                .filter(p -> "caducado".equals(p.estado()) || "proximoCaducar".equals(p.estado()))
+                .filter(p -> estadosCriticos.contains(p.estado()))
                 .sorted(Comparator
-                        .comparingInt((ProductoResponseDTO p) -> "caducado".equals(p.estado()) ? 0 : 1)
+                        .comparingInt((ProductoResponseDTO p) -> urgencia(p.estado()))
                         .thenComparing(p -> p.fechaCaducidad() != null
                                 ? p.fechaCaducidad() : LocalDate.MAX))
                 .map(p -> {
@@ -56,6 +59,17 @@ public class DashboardService {
                 .toList();
     }
 
+    private int urgencia(String estado) {
+        return switch (estado) {
+            case "caducado"      -> 0;
+            case "caduca_hoy"    -> 1;
+            case "caduca_pronto" -> 2;
+            case "caduca_semana" -> 3;
+            case "caduca_mes"    -> 4;
+            default              -> 5;
+        };
+    }
+
     // -------------------------------------------------------------------------
     // COMMIT 2 — Productos prioritarios y estadísticas
     // -------------------------------------------------------------------------
@@ -67,9 +81,10 @@ public class DashboardService {
         List<ProductoPrioritarioDTO> resultado = new ArrayList<>();
         Set<String> incluidos = new HashSet<>();
 
-        agregarPrioritarios(productos, "caducado",       "caducado",         incluidos, resultado);
-        agregarPrioritarios(productos, "proximoCaducar", "proximoCaducar",   incluidos, resultado);
-        agregarPrioritarios(productos, "bajoStock",      "bajoStock",        incluidos, resultado);
+        agregarPrioritarios(productos, "caducado",      "caducado",      incluidos, resultado);
+        agregarPrioritarios(productos, "caduca_hoy",    "caduca_hoy",    incluidos, resultado);
+        agregarPrioritarios(productos, "caduca_pronto", "caduca_pronto", incluidos, resultado);
+        agregarPrioritarios(productos, "bajoStock",     "bajoStock",     incluidos, resultado);
 
         // Añadidos en los últimos 7 días (cualquier estado no cubierto aún)
         if (resultado.size() < 5) {
