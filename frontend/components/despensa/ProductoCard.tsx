@@ -18,11 +18,19 @@ interface Props {
   onPress?: () => void;
 }
 
+function formatDias(dias: number | null | undefined): string | null {
+  if (dias == null) return null;
+  if (dias < 0) return `Hace ${Math.abs(dias)} día${Math.abs(dias) !== 1 ? 's' : ''}`;
+  if (dias === 0) return 'Hoy';
+  return `En ${dias} día${dias !== 1 ? 's' : ''}`;
+}
+
 export function ProductoCard({
   producto, onEditar, onEliminar, onIncrementar, onDecrementar, onPress,
 }: Props) {
   const tieneDuplicados = producto.posiblesDuplicados && producto.posiblesDuplicados.length > 0;
   const cat = getCategoriaConfig(producto.categoria);
+  const diasText = formatDias(producto.diasHastaCaducidad);
 
   return (
     <Pressable style={styles.card} onPress={onPress}>
@@ -51,7 +59,10 @@ export function ProductoCard({
           )}
         </View>
 
-        <ProductoEstadoBadge estado={producto.estado} size="sm" />
+        <View style={styles.badgeCol}>
+          <ProductoEstadoBadge estado={producto.estado} size="sm" />
+          {diasText && <Text style={styles.diasText}>{diasText}</Text>}
+        </View>
       </View>
 
       <View style={styles.actions}>
@@ -165,5 +176,14 @@ const styles = StyleSheet.create({
   },
   iconBtn: {
     padding: spacing.xs,
+  },
+  badgeCol: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  diasText: {
+    ...typography.caption,
+    color: colors.text.secondary,
+    fontSize: 10,
   },
 });
