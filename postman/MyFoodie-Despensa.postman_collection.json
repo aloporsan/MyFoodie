@@ -6,6 +6,8 @@
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:8080" },
     { "key": "token", "value": "" },
+    { "key": "testUsername", "value": "" },
+    { "key": "testEmail", "value": "" },
     { "key": "productoId", "value": "" },
     { "key": "productoIdCaducado", "value": "" }
   ],
@@ -16,6 +18,16 @@
         {
           "name": "Registrar usuario",
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const ts = Date.now();",
+                  "pm.collectionVariables.set('testUsername', 'testuser_' + ts);",
+                  "pm.collectionVariables.set('testEmail', 'test_' + ts + '@test.com');"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
@@ -36,7 +48,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nombre\": \"Test User\",\n  \"nombreUsuario\": \"testuser\",\n  \"email\": \"test@test.com\",\n  \"password\": \"password123\"\n}"
+              "raw": "{\n  \"nombre\": \"Test User\",\n  \"nombreUsuario\": \"{{testUsername}}\",\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"password123\"\n}"
             },
             "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
           }
@@ -61,7 +73,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"test@test.com\",\n  \"password\": \"password123\"\n}"
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"password123\"\n}"
             },
             "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
           }
@@ -119,7 +131,7 @@
                 "exec": [
                   "const json = pm.response.json();",
                   "pm.test('Status 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Estado proximoCaducar', () => pm.expect(json.estado).to.eql('proximoCaducar'));"
+                  "pm.test('Estado caduca_pronto', () => pm.expect(json.estado).to.eql('caduca_pronto'));"
                 ]
               }
             }
@@ -465,6 +477,238 @@
             "method": "DELETE",
             "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
             "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoIdCaducado}}", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoIdCaducado}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📅 Caducidad — Granularidad",
+      "item": [
+        {
+          "name": "G1. Crear producto caduca_hoy → diasHastaCaducidad=0",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const hoy = new Date().toISOString().split('T')[0];",
+                  "pm.variables.set('fechaHoy', hoy);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('estado es caduca_hoy', () => pm.expect(json.estado).to.eql('caduca_hoy'));",
+                  "pm.test('diasHastaCaducidad es 0', () => pm.expect(json.diasHastaCaducidad).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Caduca Hoy\",\n  \"cantidad\": 5,\n  \"unidad\": \"unidades\",\n  \"fechaCaducidad\": \"{{fechaHoy}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos"] }
+          }
+        },
+        {
+          "name": "G2. Crear producto caduca_pronto → diasHastaCaducidad entre 1 y 3",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const d = new Date(); d.setDate(d.getDate() + 2);",
+                  "pm.variables.set('fechaProximo', d.toISOString().split('T')[0]);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('estado es caduca_pronto', () => pm.expect(json.estado).to.eql('caduca_pronto'));",
+                  "pm.test('diasHastaCaducidad entre 1 y 3', () => {",
+                  "  pm.expect(json.diasHastaCaducidad).to.be.at.least(1);",
+                  "  pm.expect(json.diasHastaCaducidad).to.be.at.most(3);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Caduca Pronto\",\n  \"cantidad\": 5,\n  \"unidad\": \"unidades\",\n  \"fechaCaducidad\": \"{{fechaProximo}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos"] }
+          }
+        },
+        {
+          "name": "G3. Crear producto caduca_semana → diasHastaCaducidad entre 4 y 7",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const d = new Date(); d.setDate(d.getDate() + 5);",
+                  "pm.variables.set('fechaSemana', d.toISOString().split('T')[0]);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('estado es caduca_semana', () => pm.expect(json.estado).to.eql('caduca_semana'));",
+                  "pm.test('diasHastaCaducidad entre 4 y 7', () => {",
+                  "  pm.expect(json.diasHastaCaducidad).to.be.at.least(4);",
+                  "  pm.expect(json.diasHastaCaducidad).to.be.at.most(7);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Caduca Esta Semana\",\n  \"cantidad\": 5,\n  \"unidad\": \"unidades\",\n  \"fechaCaducidad\": \"{{fechaSemana}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos"] }
+          }
+        },
+        {
+          "name": "G4. Crear producto caduca_mes → diasHastaCaducidad entre 8 y 30",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const d = new Date(); d.setDate(d.getDate() + 15);",
+                  "pm.variables.set('fechaMes', d.toISOString().split('T')[0]);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('estado es caduca_mes', () => pm.expect(json.estado).to.eql('caduca_mes'));",
+                  "pm.test('diasHastaCaducidad entre 8 y 30', () => {",
+                  "  pm.expect(json.diasHastaCaducidad).to.be.at.least(8);",
+                  "  pm.expect(json.diasHastaCaducidad).to.be.at.most(30);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Caduca Este Mes\",\n  \"cantidad\": 5,\n  \"unidad\": \"unidades\",\n  \"fechaCaducidad\": \"{{fechaMes}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos"] }
+          }
+        },
+        {
+          "name": "G5. Crear producto normal (sin fecha) → estado normal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('estado es normal', () => pm.expect(json.estado).to.eql('normal'));",
+                  "pm.test('diasHastaCaducidad es null', () => pm.expect(json.diasHastaCaducidad).to.be.null);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Producto Normal\",\n  \"cantidad\": 10,\n  \"unidad\": \"unidades\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos"] }
+          }
+        },
+        {
+          "name": "G6. Crear producto caducado → diasHastaCaducidad negativo",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const d = new Date(); d.setDate(d.getDate() - 3);",
+                  "pm.variables.set('fechaCaducada', d.toISOString().split('T')[0]);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('estado es caducado', () => pm.expect(json.estado).to.eql('caducado'));",
+                  "pm.test('diasHastaCaducidad es negativo', () => pm.expect(json.diasHastaCaducidad).to.be.below(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Producto Caducado\",\n  \"cantidad\": 1,\n  \"unidad\": \"unidades\",\n  \"fechaCaducidad\": \"{{fechaCaducada}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos"] }
+          }
+        },
+        {
+          "name": "G7. GET /dashboard/resumen → 4 contadores de caducidad",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('caducados >= 1', () => pm.expect(json.caducados).to.be.at.least(1));",
+                  "pm.test('caduca_pronto >= 1', () => pm.expect(json.caduca_pronto).to.be.at.least(1));",
+                  "pm.test('caduca_semana >= 1', () => pm.expect(json.caduca_semana).to.be.at.least(1));",
+                  "pm.test('caduca_mes >= 1', () => pm.expect(json.caduca_mes).to.be.at.least(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/dashboard/resumen", "host": ["{{baseUrl}}"], "path": ["api","dashboard","resumen"] }
           }
         }
       ]
