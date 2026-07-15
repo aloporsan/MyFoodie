@@ -127,8 +127,8 @@ class DespensaServiceTest {
     }
 
     @Test
-    @DisplayName("calcularEstado devuelve 'proximoCaducar' si fechaCaducidad es mañana")
-    void listarProductos_calculaEstado_proximoCaducar_correctamente() {
+    @DisplayName("calcularEstado devuelve 'caduca_pronto' si fechaCaducidad es mañana")
+    void listarProductos_calculaEstado_caduca_pronto_correctamente() {
         Despensa d = despensa("desp-1", "user-1");
         Producto p = producto("p-1", "desp-1", "Queso", 2, LocalDate.now().plusDays(1));
 
@@ -137,7 +137,7 @@ class DespensaServiceTest {
 
         List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
 
-        assertThat(lista.get(0).estado()).isEqualTo("proximoCaducar");
+        assertThat(lista.get(0).estado()).isEqualTo("caduca_pronto");
     }
 
     @Test
@@ -155,10 +155,10 @@ class DespensaServiceTest {
     }
 
     @Test
-    @DisplayName("calcularEstado devuelve 'normal' si fecha es lejana y cantidad alta")
+    @DisplayName("calcularEstado devuelve 'normal' si fecha es lejana (>30 días) y cantidad alta")
     void listarProductos_calculaEstado_normal_correctamente() {
         Despensa d = despensa("desp-1", "user-1");
-        Producto p = producto("p-1", "desp-1", "Arroz", 5, LocalDate.now().plusDays(30));
+        Producto p = producto("p-1", "desp-1", "Arroz", 5, LocalDate.now().plusDays(31));
 
         when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
         when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p));
@@ -540,5 +540,201 @@ class DespensaServiceTest {
 
         assertThat(lista.get(0).estado()).isEqualTo("normal");
         assertThat(lista.get(0).alertaCompra()).isFalse();
+    }
+
+    // -------------------------------------------------------------------------
+    // MEJORA 2 — Granularidad de caducidad (#133 + #136)
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("calcularEstado devuelve 'caduca_hoy' y diasHastaCaducidad=0 cuando vence hoy")
+    void mejora2_estado_caduca_hoy_y_dias_cero() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p = producto("p-1", "desp-1", "Fresas", 2, LocalDate.now());
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista.get(0).estado()).isEqualTo("caduca_hoy");
+        assertThat(lista.get(0).diasHastaCaducidad()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("calcularEstado devuelve 'caduca_semana' cuando quedan 5 días")
+    void mejora2_estado_caduca_semana_correctamente() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p = producto("p-1", "desp-1", "Tomates", 3, LocalDate.now().plusDays(5));
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista.get(0).estado()).isEqualTo("caduca_semana");
+        assertThat(lista.get(0).diasHastaCaducidad()).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName("calcularEstado devuelve 'caduca_mes' cuando quedan 15 días")
+    void mejora2_estado_caduca_mes_correctamente() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p = producto("p-1", "desp-1", "Mantequilla", 2, LocalDate.now().plusDays(15));
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista.get(0).estado()).isEqualTo("caduca_mes");
+        assertThat(lista.get(0).diasHastaCaducidad()).isEqualTo(15);
+    }
+
+    @Test
+    @DisplayName("diasHastaCaducidad es null cuando el producto no tiene fecha de caducidad")
+    void mejora2_diasHastaCaducidad_esNull_sinFechaCaducidad() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p = producto("p-1", "desp-1", "Sal", 5, null);
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista.get(0).diasHastaCaducidad()).isNull();
+    }
+
+    @Test
+    @DisplayName("diasHastaCaducidad es negativo cuando el producto está caducado")
+    void mejora2_diasHastaCaducidad_esNegativo_cuandoCaducado() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p = producto("p-1", "desp-1", "Yogur", 2, LocalDate.now().minusDays(3));
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista.get(0).diasHastaCaducidad()).isEqualTo(-3);
+    }
+
+    @Test
+    @DisplayName("límite exacto: 7 días devuelve 'caduca_semana', 8 días devuelve 'caduca_mes'")
+    void mejora2_limite_exacto_entre_semana_y_mes() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto enSemana = producto("p-1", "desp-1", "Queso semana", 2, LocalDate.now().plusDays(7));
+        Producto enMes    = producto("p-2", "desp-1", "Queso mes",    2, LocalDate.now().plusDays(8));
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(enSemana, enMes));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista.get(0).estado()).isEqualTo("caduca_semana");
+        assertThat(lista.get(1).estado()).isEqualTo("caduca_mes");
+    }
+
+    @Test
+    @DisplayName("límite exacto: 30 días devuelve 'caduca_mes', 31 días devuelve 'normal'")
+    void mejora2_limite_exacto_entre_mes_y_normal() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto enMes    = producto("p-1", "desp-1", "Leche mes",    3, LocalDate.now().plusDays(30));
+        Producto normal   = producto("p-2", "desp-1", "Leche normal", 3, LocalDate.now().plusDays(31));
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(enMes, normal));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista.get(0).estado()).isEqualTo("caduca_mes");
+        assertThat(lista.get(1).estado()).isEqualTo("normal");
+    }
+
+    @Test
+    @DisplayName("filtrarProductos por 'caduca_hoy' devuelve solo los que vencen hoy")
+    void mejora2_filtrarProductos_porEstado_caduca_hoy() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto hoy   = producto("p-1", "desp-1", "Fresas", 2, LocalDate.now());
+        Producto manana = producto("p-2", "desp-1", "Peras",  2, LocalDate.now().plusDays(1));
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(hoy, manana));
+
+        List<ProductoResponseDTO> resultado = despensaService.filtrarProductos(
+                "user-1", new ProductoFiltroDTO(null, "caduca_hoy", null));
+
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).nombre()).isEqualTo("Fresas");
+    }
+
+    @Test
+    @DisplayName("filtrarProductos por 'caduca_semana' devuelve solo los que caducan entre 4 y 7 días")
+    void mejora2_filtrarProductos_porEstado_caduca_semana() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto pronto  = producto("p-1", "desp-1", "Yogur",   2, LocalDate.now().plusDays(2));
+        Producto semana  = producto("p-2", "desp-1", "Queso",   2, LocalDate.now().plusDays(6));
+        Producto mes     = producto("p-3", "desp-1", "Aceite",  2, LocalDate.now().plusDays(20));
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(pronto, semana, mes));
+
+        List<ProductoResponseDTO> resultado = despensaService.filtrarProductos(
+                "user-1", new ProductoFiltroDTO(null, "caduca_semana", null));
+
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).nombre()).isEqualTo("Queso");
+    }
+
+    @Test
+    @DisplayName("filtrarProductos por 'caduca_mes' devuelve solo los que caducan entre 8 y 30 días")
+    void mejora2_filtrarProductos_porEstado_caduca_mes() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto semana  = producto("p-1", "desp-1", "Fresa",  2, LocalDate.now().plusDays(5));
+        Producto mes     = producto("p-2", "desp-1", "Pasta",  4, LocalDate.now().plusDays(25));
+        Producto normal  = producto("p-3", "desp-1", "Arroz",  5, LocalDate.now().plusDays(60));
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(semana, mes, normal));
+
+        List<ProductoResponseDTO> resultado = despensaService.filtrarProductos(
+                "user-1", new ProductoFiltroDTO(null, "caduca_mes", null));
+
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).nombre()).isEqualTo("Pasta");
+    }
+
+    @Test
+    @DisplayName("filtrarProductos por 'bajoStock' devuelve solo los productos con cantidad <= umbral")
+    void mejora2_filtrarProductos_porEstado_bajoStock() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto bajo   = producto("p-1", "desp-1", "Sal",   1, null);
+        Producto normal = producto("p-2", "desp-1", "Arroz", 5, null);
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(bajo, normal));
+
+        List<ProductoResponseDTO> resultado = despensaService.filtrarProductos(
+                "user-1", new ProductoFiltroDTO(null, "bajoStock", null));
+
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).nombre()).isEqualTo("Sal");
+    }
+
+    @Test
+    @DisplayName("filtrarProductos sin filtros devuelve todos los productos")
+    void mejora2_filtrarProductos_sinFiltros_devuelveTodos() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p1 = producto("p-1", "desp-1", "Leche",  3, null);
+        Producto p2 = producto("p-2", "desp-1", "Huevos", 6, LocalDate.now().plusDays(10));
+        Producto p3 = producto("p-3", "desp-1", "Yogur",  1, LocalDate.now().minusDays(2));
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p1, p2, p3));
+
+        List<ProductoResponseDTO> resultado = despensaService.filtrarProductos(
+                "user-1", new ProductoFiltroDTO(null, null, null));
+
+        assertThat(resultado).hasSize(3);
     }
 }

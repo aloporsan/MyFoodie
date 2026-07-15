@@ -7,10 +7,13 @@ import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
 const CONFIG: Record<EstadoProducto, { bg: string; text: string; label: string }> = {
-  caducado:       { bg: colors.error,         text: colors.white,        label: 'Caducado' },
-  proximoCaducar: { bg: colors.secondary,      text: colors.white,        label: 'Caduca pronto' },
-  bajoStock:      { bg: '#F5D800',             text: '#5C4200',           label: 'Bajo stock' },
-  normal:         { bg: '#E8F5D0',             text: colors.primaryDark,  label: 'En stock' },
+  caducado:      { bg: colors.error,     text: colors.white,       label: 'Caducado' },
+  caduca_hoy:    { bg: '#FF6D00',        text: colors.white,       label: 'Caduca hoy' },
+  caduca_pronto: { bg: colors.secondary, text: colors.white,       label: 'Caduca pronto' },
+  caduca_semana: { bg: '#FDD835',        text: '#5C3400',          label: 'Esta semana' },
+  caduca_mes:    { bg: '#DCE775',        text: '#33691E',          label: 'Este mes' },
+  bajoStock:     { bg: '#F5D800',        text: '#5C4200',          label: 'Bajo stock' },
+  normal:        { bg: '#E8F5D0',        text: colors.primaryDark, label: 'En stock' },
 };
 
 interface Props {

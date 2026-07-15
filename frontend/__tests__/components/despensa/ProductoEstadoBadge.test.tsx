@@ -7,9 +7,24 @@ it('renderiza_texto_Caducado_si_estado_caducado', () => {
   expect(getByText('Caducado')).toBeTruthy();
 });
 
-it('renderiza_texto_Caduca_pronto_si_estado_proximoCaducar', () => {
-  const { getByText } = render(<ProductoEstadoBadge estado="proximoCaducar" />);
+it('renderiza_texto_Caduca_hoy_si_estado_caduca_hoy', () => {
+  const { getByText } = render(<ProductoEstadoBadge estado="caduca_hoy" />);
+  expect(getByText('Caduca hoy')).toBeTruthy();
+});
+
+it('renderiza_texto_Caduca_pronto_si_estado_caduca_pronto', () => {
+  const { getByText } = render(<ProductoEstadoBadge estado="caduca_pronto" />);
   expect(getByText('Caduca pronto')).toBeTruthy();
+});
+
+it('renderiza_texto_Esta_semana_si_estado_caduca_semana', () => {
+  const { getByText } = render(<ProductoEstadoBadge estado="caduca_semana" />);
+  expect(getByText('Esta semana')).toBeTruthy();
+});
+
+it('renderiza_texto_Este_mes_si_estado_caduca_mes', () => {
+  const { getByText } = render(<ProductoEstadoBadge estado="caduca_mes" />);
+  expect(getByText('Este mes')).toBeTruthy();
 });
 
 it('renderiza_texto_Bajo_stock_si_estado_bajoStock', () => {

@@ -69,7 +69,9 @@ class DashboardControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.resumen.totalProductos").value(0))
                 .andExpect(jsonPath("$.resumen.caducados").value(0))
-                .andExpect(jsonPath("$.resumen.proximosCaducar").value(0))
+                .andExpect(jsonPath("$.resumen.caduca_pronto").value(0))
+                .andExpect(jsonPath("$.resumen.caduca_semana").value(0))
+                .andExpect(jsonPath("$.resumen.caduca_mes").value(0))
                 .andExpect(jsonPath("$.resumen.bajoStock").value(0));
     }
 
@@ -84,8 +86,10 @@ class DashboardControllerIntegrationTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalProductos").exists())
-                .andExpect(jsonPath("$.proximosCaducar").exists())
                 .andExpect(jsonPath("$.caducados").exists())
+                .andExpect(jsonPath("$.caduca_pronto").exists())
+                .andExpect(jsonPath("$.caduca_semana").exists())
+                .andExpect(jsonPath("$.caduca_mes").exists())
                 .andExpect(jsonPath("$.bajoStock").exists());
     }
 

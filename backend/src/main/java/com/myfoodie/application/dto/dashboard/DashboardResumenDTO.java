@@ -12,8 +12,10 @@ public record DashboardResumenDTO(
 ) {
     public record ResumenDespensa(
             int totalProductos,
-            int proximosCaducar,
             int caducados,
+            int caduca_pronto,
+            int caduca_semana,
+            int caduca_mes,
             int bajoStock
     ) {}
 }

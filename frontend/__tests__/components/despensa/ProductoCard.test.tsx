@@ -78,3 +78,38 @@ it('muestra_aviso_duplicados_si_posiblesDuplicados_no_esta_vacio', () => {
   );
   expect(getByText('Posible duplicado en despensa')).toBeTruthy();
 });
+
+it('muestra_En_N_dias_si_diasHastaCaducidad_es_positivo', () => {
+  const { getByText } = render(
+    <ProductoCard {...defaultProps} producto={{ ...productoBase, diasHastaCaducidad: 5 }} />
+  );
+  expect(getByText('En 5 días')).toBeTruthy();
+});
+
+it('muestra_En_1_dia_singular_si_diasHastaCaducidad_es_1', () => {
+  const { getByText } = render(
+    <ProductoCard {...defaultProps} producto={{ ...productoBase, diasHastaCaducidad: 1 }} />
+  );
+  expect(getByText('En 1 día')).toBeTruthy();
+});
+
+it('muestra_Hoy_si_diasHastaCaducidad_es_0', () => {
+  const { getByText } = render(
+    <ProductoCard {...defaultProps} producto={{ ...productoBase, diasHastaCaducidad: 0 }} />
+  );
+  expect(getByText('Hoy')).toBeTruthy();
+});
+
+it('muestra_Hace_N_dias_si_diasHastaCaducidad_es_negativo', () => {
+  const { getByText } = render(
+    <ProductoCard {...defaultProps} producto={{ ...productoBase, diasHastaCaducidad: -3 }} />
+  );
+  expect(getByText('Hace 3 días')).toBeTruthy();
+});
+
+it('no_muestra_texto_dias_si_diasHastaCaducidad_es_null', () => {
+  const { queryByText } = render(
+    <ProductoCard {...defaultProps} producto={{ ...productoBase, diasHastaCaducidad: null }} />
+  );
+  expect(queryByText(/día/)).toBeNull();
+});

@@ -44,7 +44,7 @@ class DashboardServiceTest {
         return new ProductoResponseDTO(id, "desp-1", "Producto " + id, cantidad, "unidades",
                 categoria, fechaCaducidad, null, null, null,
                 null, false,
-                estado, null, createdAt, createdAt);
+                estado, null, null, createdAt, createdAt);
     }
 
     // -------------------------------------------------------------------------
@@ -57,7 +57,7 @@ class DashboardServiceTest {
         when(despensaService.listarProductos("u1")).thenReturn(List.of(
                 dto("1", "normal",         null, null,                            3),
                 dto("2", "caducado",       null, LocalDate.now().minusDays(1),    1),
-                dto("3", "proximoCaducar", null, LocalDate.now().plusDays(1),     2),
+                dto("3", "caduca_pronto",  null, LocalDate.now().plusDays(1),     2),
                 dto("4", "bajoStock",      null, null,                            1),
                 dto("5", "normal",         null, null,                            5)
         ));
@@ -65,8 +65,10 @@ class DashboardServiceTest {
         DashboardResumenDTO.ResumenDespensa r = dashboardService.obtenerResumenDespensa("u1");
 
         assertThat(r.totalProductos()).isEqualTo(5);
-        assertThat(r.proximosCaducar()).isEqualTo(1);
         assertThat(r.caducados()).isEqualTo(1);
+        assertThat(r.caduca_pronto()).isEqualTo(1);
+        assertThat(r.caduca_semana()).isZero();
+        assertThat(r.caduca_mes()).isZero();
         assertThat(r.bajoStock()).isEqualTo(1);
     }
 
@@ -78,8 +80,10 @@ class DashboardServiceTest {
         DashboardResumenDTO.ResumenDespensa r = dashboardService.obtenerResumenDespensa("u1");
 
         assertThat(r.totalProductos()).isZero();
-        assertThat(r.proximosCaducar()).isZero();
         assertThat(r.caducados()).isZero();
+        assertThat(r.caduca_pronto()).isZero();
+        assertThat(r.caduca_semana()).isZero();
+        assertThat(r.caduca_mes()).isZero();
         assertThat(r.bajoStock()).isZero();
     }
 
@@ -104,16 +108,16 @@ class DashboardServiceTest {
     @DisplayName("Alertas devuelve lista ordenada: caducados primero, luego próximos")
     void obtenerAlertasCaducidad_devuelve_lista_ordenada_por_urgencia() {
         when(despensaService.listarProductos("u1")).thenReturn(List.of(
-                dto("1", "proximoCaducar", null, LocalDate.now().plusDays(2), 2),
-                dto("2", "caducado",       null, LocalDate.now().minusDays(1), 1),
-                dto("3", "normal",         null, null, 4)
+                dto("1", "caduca_pronto", null, LocalDate.now().plusDays(2), 2),
+                dto("2", "caducado",      null, LocalDate.now().minusDays(1), 1),
+                dto("3", "normal",        null, null, 4)
         ));
 
         List<AlertaCaducidadDTO> alertas = dashboardService.obtenerAlertasCaducidad("u1");
 
         assertThat(alertas).hasSize(2);
         assertThat(alertas.get(0).estado()).isEqualTo("caducado");
-        assertThat(alertas.get(1).estado()).isEqualTo("proximoCaducar");
+        assertThat(alertas.get(1).estado()).isEqualTo("caduca_pronto");
     }
 
     @Test
@@ -151,14 +155,14 @@ class DashboardServiceTest {
     @DisplayName("Prioritarios pone caducados antes que próximos")
     void obtenerProductosPrioritarios_respeta_orden_caducado_primero() {
         when(despensaService.listarProductos("u1")).thenReturn(List.of(
-                dto("1", "proximoCaducar", null, LocalDate.now().plusDays(1), 2),
-                dto("2", "caducado",       null, LocalDate.now().minusDays(1), 1)
+                dto("1", "caduca_pronto", null, LocalDate.now().plusDays(1), 2),
+                dto("2", "caducado",      null, LocalDate.now().minusDays(1), 1)
         ));
 
         List<ProductoPrioritarioDTO> lista = dashboardService.obtenerProductosPrioritarios("u1");
 
         assertThat(lista.get(0).estado()).isEqualTo("caducado");
-        assertThat(lista.get(1).estado()).isEqualTo("proximoCaducar");
+        assertThat(lista.get(1).estado()).isEqualTo("caduca_pronto");
     }
 
     @Test
@@ -187,7 +191,7 @@ class DashboardServiceTest {
                 dto("5", "normal",   "Cereales", null, 2),
                 dto("6", "normal",   "Cereales", null, 1),
                 dto("7", "bajoStock","Bebidas",  null, 1),
-                dto("8", "proximoCaducar","Bebidas", LocalDate.now().plusDays(1), 2),
+                dto("8", "caduca_pronto","Bebidas", LocalDate.now().plusDays(1), 2),
                 dto("9", "caducado", "Conservas", LocalDate.now().minusDays(1), 1),
                 dto("10","caducado", "Conservas", LocalDate.now().minusDays(2), 1)
         );
