@@ -13,7 +13,7 @@ jest.mock('@/services/dashboardService');
 const mockService = dashboardService as jest.Mocked<typeof dashboardService>;
 
 const mockDashboard = {
-  resumen: { totalProductos: 5, proximosCaducar: 1, caducados: 1, bajoStock: 1 },
+  resumen: { totalProductos: 5, caducados: 1, caduca_pronto: 1, caduca_semana: 2, caduca_mes: 3, bajoStock: 1 },
   alertas: [{ id: 'a1', nombre: 'Yogur', cantidad: 1, unidad: 'unidades', fechaCaducidad: null, estado: 'caducado' as const, diasParaCaducar: -5 }],
   prioritarios: [{ id: 'p1', nombre: 'Yogur', cantidad: 1, unidad: 'unidades', estado: 'caducado', motivo: 'caducado' }],
   estadisticas: { totalRegistrados: 5, consumidos: 0, caducadosHistorico: 1, categoriaLider: 'Lácteos', aprovechamiento: 80.0 },
