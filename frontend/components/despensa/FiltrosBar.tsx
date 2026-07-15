@@ -15,10 +15,13 @@ interface Chip {
 }
 
 const ESTADO_CHIPS: Record<EstadoProducto, Chip> = {
-  caducado:       { id: 'caducado',       label: 'Caducados',  color: colors.error },
-  proximoCaducar: { id: 'proximoCaducar', label: 'Próximos',   color: colors.secondary },
-  bajoStock:      { id: 'bajoStock',      label: 'Bajo stock', color: '#F5D800' },
-  normal:         { id: 'normal',         label: 'En stock',   color: colors.primary },
+  caducado:      { id: 'caducado',      label: 'Caducados',     color: colors.error },
+  caduca_hoy:    { id: 'caduca_hoy',    label: 'Caduca hoy',    color: '#FF6D00' },
+  caduca_pronto: { id: 'caduca_pronto', label: 'Caduca pronto', color: colors.secondary },
+  caduca_semana: { id: 'caduca_semana', label: 'Esta semana',   color: '#FDD835' },
+  caduca_mes:    { id: 'caduca_mes',    label: 'Este mes',      color: '#DCE775' },
+  bajoStock:     { id: 'bajoStock',     label: 'Bajo stock',    color: '#F5D800' },
+  normal:        { id: 'normal',        label: 'En stock',      color: colors.primary },
 };
 
 interface Props {

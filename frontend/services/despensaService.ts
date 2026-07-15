@@ -1,6 +1,13 @@
 import { apiClient } from './apiClient';
 
-export type EstadoProducto = 'normal' | 'bajoStock' | 'proximoCaducar' | 'caducado';
+export type EstadoProducto =
+  | 'normal'
+  | 'bajoStock'
+  | 'caducado'
+  | 'caduca_hoy'
+  | 'caduca_pronto'
+  | 'caduca_semana'
+  | 'caduca_mes';
 
 export interface Producto {
   id: string;
@@ -16,6 +23,7 @@ export interface Producto {
   stockMinimo?: number;
   alertaCompra?: boolean;
   estado: EstadoProducto;
+  diasHastaCaducidad?: number | null;
   posiblesDuplicados?: Producto[];
   createdAt: string;
   updatedAt: string;
