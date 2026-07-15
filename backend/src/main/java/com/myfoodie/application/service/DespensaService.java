@@ -5,8 +5,10 @@ import com.myfoodie.application.dto.despensa.ProductoRequestDTO;
 import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.despensa.ProductoUpdateCantidadDTO;
 import com.myfoodie.domain.model.Despensa;
+import com.myfoodie.domain.model.Preferencias;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.repository.DespensaRepository;
+import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.ProductoRepository;
 import com.myfoodie.exception.ApiException;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ public class DespensaService {
 
     private final DespensaRepository despensaRepository;
     private final ProductoRepository productoRepository;
+    private final PreferenciasRepository preferenciasRepository;
 
     // -------------------------------------------------------------------------
     // CRUD básico
@@ -30,6 +33,7 @@ public class DespensaService {
 
     public ProductoResponseDTO añadirProducto(String usuarioId, ProductoRequestDTO dto) {
         Despensa despensa = getDespensaDeUsuario(usuarioId);
+        int globalUmbral = obtenerGlobalUmbral(usuarioId);
 
         List<Producto> similares = productoRepository
                 .findByDespensaIdAndNombreContainingIgnoreCase(despensa.getId(), dto.nombre().trim());
@@ -44,33 +48,38 @@ public class DespensaService {
                 .fechaCompra(dto.fechaCompra())
                 .marca(dto.marca())
                 .notas(dto.notas())
+                .stockMinimo(dto.stockMinimo())
                 .build();
 
         Producto saved = productoRepository.save(producto);
         actualizarDespensa(despensa);
 
         List<ProductoResponseDTO> duplicados = similares.stream()
-                .map(p -> toDTO(p, null))
+                .map(p -> toDTO(p, null, resolverUmbral(p, globalUmbral)))
                 .toList();
 
-        return toDTO(saved, duplicados.isEmpty() ? null : duplicados);
+        return toDTO(saved, duplicados.isEmpty() ? null : duplicados, resolverUmbral(saved, globalUmbral));
     }
 
     public List<ProductoResponseDTO> listarProductos(String usuarioId) {
         Despensa despensa = getDespensaDeUsuario(usuarioId);
+        int globalUmbral = obtenerGlobalUmbral(usuarioId);
         return productoRepository.findByDespensaId(despensa.getId())
                 .stream()
-                .map(p -> toDTO(p, null))
+                .map(p -> toDTO(p, null, resolverUmbral(p, globalUmbral)))
                 .toList();
     }
 
     public ProductoResponseDTO obtenerProducto(String usuarioId, String productoId) {
         Despensa despensa = getDespensaDeUsuario(usuarioId);
-        return toDTO(getProductoDeUsuario(despensa.getId(), productoId), null);
+        int globalUmbral = obtenerGlobalUmbral(usuarioId);
+        Producto p = getProductoDeUsuario(despensa.getId(), productoId);
+        return toDTO(p, null, resolverUmbral(p, globalUmbral));
     }
 
     public ProductoResponseDTO editarProducto(String usuarioId, String productoId, ProductoRequestDTO dto) {
         Despensa despensa = getDespensaDeUsuario(usuarioId);
+        int globalUmbral = obtenerGlobalUmbral(usuarioId);
         Producto p = getProductoDeUsuario(despensa.getId(), productoId);
 
         p.setNombre(dto.nombre());
@@ -81,11 +90,12 @@ public class DespensaService {
         p.setFechaCompra(dto.fechaCompra());
         p.setMarca(dto.marca());
         p.setNotas(dto.notas());
+        p.setStockMinimo(dto.stockMinimo());
         p.setUpdatedAt(LocalDateTime.now());
 
         Producto saved = productoRepository.save(p);
         actualizarDespensa(despensa);
-        return toDTO(saved, null);
+        return toDTO(saved, null, resolverUmbral(saved, globalUmbral));
     }
 
     public void eliminarProducto(String usuarioId, String productoId) {
@@ -98,6 +108,7 @@ public class DespensaService {
     public ProductoResponseDTO actualizarCantidad(String usuarioId, String productoId,
                                                    ProductoUpdateCantidadDTO dto) {
         Despensa despensa = getDespensaDeUsuario(usuarioId);
+        int globalUmbral = obtenerGlobalUmbral(usuarioId);
         Producto p = getProductoDeUsuario(despensa.getId(), productoId);
 
         double nuevaCantidad = Math.max(0, p.getCantidad() + dto.delta());
@@ -106,7 +117,7 @@ public class DespensaService {
 
         Producto saved = productoRepository.save(p);
         actualizarDespensa(despensa);
-        return toDTO(saved, null);
+        return toDTO(saved, null, resolverUmbral(saved, globalUmbral));
     }
 
     // -------------------------------------------------------------------------
@@ -115,25 +126,27 @@ public class DespensaService {
 
     public List<ProductoResponseDTO> buscarProductos(String usuarioId, String texto) {
         Despensa despensa = getDespensaDeUsuario(usuarioId);
+        int globalUmbral = obtenerGlobalUmbral(usuarioId);
         return productoRepository
                 .findByDespensaIdAndNombreContainingIgnoreCase(despensa.getId(), texto.trim())
                 .stream()
-                .map(p -> toDTO(p, null))
+                .map(p -> toDTO(p, null, resolverUmbral(p, globalUmbral)))
                 .toList();
     }
 
     public List<ProductoResponseDTO> filtrarProductos(String usuarioId, ProductoFiltroDTO filtro) {
         Despensa despensa = getDespensaDeUsuario(usuarioId);
+        int globalUmbral = obtenerGlobalUmbral(usuarioId);
         return productoRepository.findByDespensaId(despensa.getId())
                 .stream()
                 .filter(p -> filtro.categoria() == null
                         || filtro.categoria().equalsIgnoreCase(p.getCategoria()))
                 .filter(p -> filtro.estado() == null
-                        || filtro.estado().equals(calcularEstado(p)))
+                        || filtro.estado().equals(calcularEstado(p, resolverUmbral(p, globalUmbral))))
                 .filter(p -> filtro.caducaAntesDe() == null
                         || (p.getFechaCaducidad() != null
                             && p.getFechaCaducidad().isBefore(filtro.caducaAntesDe())))
-                .map(p -> toDTO(p, null))
+                .map(p -> toDTO(p, null, resolverUmbral(p, globalUmbral)))
                 .toList();
     }
 
@@ -156,17 +169,29 @@ public class DespensaService {
         despensaRepository.save(despensa);
     }
 
-    String calcularEstado(Producto p) {
+    private int obtenerGlobalUmbral(String usuarioId) {
+        return preferenciasRepository.findByUsuarioId(usuarioId)
+                .map(Preferencias::getStockMinimoGlobal)
+                .filter(v -> v != null)
+                .orElse(1);
+    }
+
+    private int resolverUmbral(Producto p, int globalUmbral) {
+        return p.getStockMinimo() != null ? p.getStockMinimo() : globalUmbral;
+    }
+
+    String calcularEstado(Producto p, int umbral) {
         if (p.getFechaCaducidad() != null) {
             LocalDate hoy = LocalDate.now();
             if (p.getFechaCaducidad().isBefore(hoy)) return "caducado";
             if (!p.getFechaCaducidad().isAfter(hoy.plusDays(3))) return "proximoCaducar";
         }
-        if (p.getCantidad() <= 1) return "bajoStock";
+        if (p.getCantidad() <= umbral) return "bajoStock";
         return "normal";
     }
 
-    ProductoResponseDTO toDTO(Producto p, List<ProductoResponseDTO> duplicados) {
+    ProductoResponseDTO toDTO(Producto p, List<ProductoResponseDTO> duplicados, int umbralEfectivo) {
+        boolean alertaCompra = p.getCantidad() <= umbralEfectivo;
         return new ProductoResponseDTO(
                 p.getId(),
                 p.getDespensaId(),
@@ -178,7 +203,9 @@ public class DespensaService {
                 p.getFechaCompra(),
                 p.getMarca(),
                 p.getNotas(),
-                calcularEstado(p),
+                p.getStockMinimo(),
+                alertaCompra,
+                calcularEstado(p, umbralEfectivo),
                 duplicados,
                 p.getCreatedAt(),
                 p.getUpdatedAt()

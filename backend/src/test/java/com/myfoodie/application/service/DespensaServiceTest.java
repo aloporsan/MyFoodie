@@ -5,8 +5,10 @@ import com.myfoodie.application.dto.despensa.ProductoRequestDTO;
 import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.despensa.ProductoUpdateCantidadDTO;
 import com.myfoodie.domain.model.Despensa;
+import com.myfoodie.domain.model.Preferencias;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.repository.DespensaRepository;
+import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.ProductoRepository;
 import com.myfoodie.exception.ApiException;
 import org.junit.jupiter.api.DisplayName;
@@ -33,6 +35,7 @@ class DespensaServiceTest {
 
     @Mock private DespensaRepository despensaRepository;
     @Mock private ProductoRepository productoRepository;
+    @Mock private PreferenciasRepository preferenciasRepository;
 
     @InjectMocks private DespensaService despensaService;
 
@@ -60,7 +63,7 @@ class DespensaServiceTest {
     }
 
     private ProductoRequestDTO dto(String nombre, double cantidad) {
-        return new ProductoRequestDTO(nombre, cantidad, "unidades", null, null, null, null, null);
+        return new ProductoRequestDTO(nombre, cantidad, "unidades", null, null, null, null, null, null);
     }
 
     // -------------------------------------------------------------------------
@@ -181,7 +184,7 @@ class DespensaServiceTest {
         when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
 
         ProductoRequestDTO nuevoDto = new ProductoRequestDTO(
-                "Leche Desnatada", 3, "litros", null, null, null, null, null);
+                "Leche Desnatada", 3, "litros", null, null, null, null, null, null);
         ProductoResponseDTO resultado = despensaService.editarProducto("user-1", "prod-1", nuevoDto);
 
         assertThat(resultado.nombre()).isEqualTo("Leche Desnatada");
@@ -404,5 +407,138 @@ class DespensaServiceTest {
                 .hasMessage("Producto no encontrado")
                 .satisfies(ex -> assertThat(((ApiException) ex).getStatus())
                         .isEqualTo(HttpStatus.NOT_FOUND));
+    }
+
+    // -------------------------------------------------------------------------
+    // MEJORA 1 — Stock mínimo personalizable (#132)
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("resolverUmbral usa stockMinimo del producto cuando está definido, ignorando el global")
+    void stockMinimo_resolverUmbral_usaStockMinimoDelProducto_cuandoEstaDefinido() {
+        Despensa d = despensa("desp-1", "user-1");
+        // cantidad=3, stockMinimo propio=5 → bajoStock (3≤5); con global=1 sería normal (3>1)
+        Producto p = Producto.builder()
+                .id("p-1").despensaId("desp-1").nombre("Agua").cantidad(3).unidad("litros")
+                .stockMinimo(5)
+                .build();
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista.get(0).estado()).isEqualTo("bajoStock");
+        assertThat(lista.get(0).alertaCompra()).isTrue();
+    }
+
+    @Test
+    @DisplayName("resolverUmbral usa stockMinimoGlobal como fallback cuando el producto no tiene stockMinimo propio")
+    void stockMinimo_resolverUmbral_usaGlobalComoFallback_cuandoProductoSinStockMinimo() {
+        Despensa d = despensa("desp-1", "user-1");
+        Preferencias prefs = Preferencias.builder().usuarioId("user-1").stockMinimoGlobal(5).build();
+        // cantidad=3, sin stockMinimo propio → usa global=5 → bajoStock (3≤5)
+        Producto p = producto("p-1", "desp-1", "Arroz", 3, null);
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(preferenciasRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(prefs));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista.get(0).estado()).isEqualTo("bajoStock");
+        assertThat(lista.get(0).alertaCompra()).isTrue();
+    }
+
+    @Test
+    @DisplayName("obtenerGlobalUmbral devuelve 1 como fallback cuando el usuario no tiene preferencias")
+    void stockMinimo_obtenerGlobalUmbral_devuelve1_cuandoSinPreferencias() {
+        Despensa d = despensa("desp-1", "user-1");
+        // preferenciasRepository devuelve Optional.empty() por defecto → umbral fallback = 1
+        Producto p = producto("p-1", "desp-1", "Sal", 1, null);
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        // cantidad=1, umbral=1 → bajoStock (1≤1)
+        assertThat(lista.get(0).estado()).isEqualTo("bajoStock");
+        assertThat(lista.get(0).alertaCompra()).isTrue();
+    }
+
+    @Test
+    @DisplayName("obtenerGlobalUmbral devuelve el stockMinimoGlobal definido en las preferencias del usuario")
+    void stockMinimo_obtenerGlobalUmbral_devuelveValorDePreferencias() {
+        Despensa d = despensa("desp-1", "user-1");
+        Preferencias prefs = Preferencias.builder().usuarioId("user-1").stockMinimoGlobal(4).build();
+        // cantidad=3, sin stockMinimo propio → usa global=4 → bajoStock (3≤4)
+        Producto p = producto("p-1", "desp-1", "Azúcar", 3, null);
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(preferenciasRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(prefs));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista.get(0).estado()).isEqualTo("bajoStock");
+    }
+
+    @Test
+    @DisplayName("alertaCompra es true cuando la cantidad es exactamente igual al umbral efectivo")
+    void stockMinimo_alertaCompra_esTrue_cuandoCantidadIgualAlUmbral() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p = Producto.builder()
+                .id("p-1").despensaId("desp-1").nombre("Leche").cantidad(2).unidad("litros")
+                .stockMinimo(2)
+                .build();
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista.get(0).alertaCompra()).isTrue();
+        assertThat(lista.get(0).estado()).isEqualTo("bajoStock");
+    }
+
+    @Test
+    @DisplayName("alertaCompra es false cuando la cantidad supera el umbral efectivo")
+    void stockMinimo_alertaCompra_esFalse_cuandoCantidadSuperaUmbral() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p = Producto.builder()
+                .id("p-1").despensaId("desp-1").nombre("Pasta").cantidad(5).unidad("kg")
+                .stockMinimo(2)
+                .build();
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista.get(0).alertaCompra()).isFalse();
+        assertThat(lista.get(0).estado()).isEqualTo("normal");
+    }
+
+    @Test
+    @DisplayName("stockMinimo del producto tiene prioridad sobre un stockMinimoGlobal más alto")
+    void stockMinimo_productoTienePrioridad_sobreGlobalMasAlto() {
+        Despensa d = despensa("desp-1", "user-1");
+        Preferencias prefs = Preferencias.builder().usuarioId("user-1").stockMinimoGlobal(10).build();
+        // cantidad=4, stockMinimo propio=2, global=10 → usa el propio → normal (4>2)
+        // Si usase el global (10), sería bajoStock (4≤10)
+        Producto p = Producto.builder()
+                .id("p-1").despensaId("desp-1").nombre("Huevos").cantidad(4).unidad("unidades")
+                .stockMinimo(2)
+                .build();
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(preferenciasRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(prefs));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista.get(0).estado()).isEqualTo("normal");
+        assertThat(lista.get(0).alertaCompra()).isFalse();
     }
 }

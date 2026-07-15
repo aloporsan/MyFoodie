@@ -32,6 +32,7 @@ public class Producto {
     private LocalDate fechaCompra;
     private String marca;
     private String notas;
+    private Integer stockMinimo;
 
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

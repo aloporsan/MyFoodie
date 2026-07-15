@@ -151,7 +151,8 @@
                   "const json = pm.response.json();",
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
                   "pm.test('Tiene tipoDieta', () => pm.expect(json).to.have.property('tipoDieta'));",
-                  "pm.test('Tiene alergias', () => pm.expect(json).to.have.property('alergias'));"
+                  "pm.test('Tiene alergias', () => pm.expect(json).to.have.property('alergias'));",
+                  "pm.test('Tiene stockMinimoGlobal', () => pm.expect(json).to.have.property('stockMinimoGlobal'));"
                 ]
               }
             }
@@ -173,7 +174,8 @@
                   "pm.test('Status 200', () => pm.response.to.have.status(200));",
                   "pm.test('TipoDieta actualizado', () => pm.expect(json.tipoDieta).to.eql('vegetariano'));",
                   "pm.test('Alergias actualizadas', () => pm.expect(json.alergias).to.include('gluten'));",
-                  "pm.test('NivelDificultad actualizado', () => pm.expect(json.nivelDificultad).to.eql('medio'));"
+                  "pm.test('NivelDificultad actualizado', () => pm.expect(json.nivelDificultad).to.eql('medio'));",
+                  "pm.test('stockMinimoGlobal actualizado', () => pm.expect(json.stockMinimoGlobal).to.eql(3));"
                 ]
               }
             }
@@ -186,7 +188,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tipoDieta\": \"vegetariano\",\n  \"alergias\": [\"gluten\"],\n  \"nivelDificultad\": \"medio\"\n}"
+              "raw": "{\n  \"tipoDieta\": \"vegetariano\",\n  \"alergias\": [\"gluten\"],\n  \"nivelDificultad\": \"medio\",\n  \"stockMinimoGlobal\": 3\n}"
             },
             "url": { "raw": "{{baseUrl}}/api/perfil/preferencias", "host": ["{{baseUrl}}"], "path": ["api", "perfil", "preferencias"] }
           }

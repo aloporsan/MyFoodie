@@ -16,6 +16,10 @@ jest.mock('@/store/perfilStore', () => ({
   usePerfilStore: jest.fn(),
 }));
 
+jest.mock('@/store/despensaStore', () => ({
+  useDespensaStore: jest.fn(() => jest.fn()),
+}));
+
 const { usePerfilStore } = require('@/store/perfilStore');
 
 const makeStore = (overrides = {}) => ({
@@ -25,6 +29,7 @@ const makeStore = (overrides = {}) => ({
     ingredientesNoDeseados: null,
     nivelDificultad: null,
     tiempoCoccionMax: null,
+    stockMinimoGlobal: 1,
   },
   isLoading: false,
   error: null,
@@ -99,4 +104,64 @@ it('cambios_no_se_guardan_hasta_pulsar_boton', async () => {
     fireEvent.press(getByText('Vegana'));
   });
   expect(mockActualizarPreferencias).not.toHaveBeenCalled();
+});
+
+// -------------------------------------------------------------------------
+// MEJORA 1 — Stock mínimo global (#132)
+// -------------------------------------------------------------------------
+
+it('renderiza_sección_stock_mínimo_global', () => {
+  const { getByText } = render(<PreferenciasScreen />);
+  expect(getByText('Stock mínimo global')).toBeTruthy();
+  expect(getByText('unidades')).toBeTruthy();
+});
+
+it('muestra_el_valor_inicial_de_stockMinimoGlobal', () => {
+  usePerfilStore.mockReturnValue(makeStore({
+    preferencias: { ...makeStore().preferencias, stockMinimoGlobal: 3 },
+  }));
+  const { getByTestId } = render(<PreferenciasScreen />);
+  expect(getByTestId('stock-valor').props.children).toBe(3);
+});
+
+it('stepper_incrementa_stockMinimoGlobal_al_pulsar_mas', async () => {
+  const { getByTestId } = render(<PreferenciasScreen />);
+  await act(async () => {
+    fireEvent.press(getByTestId('stock-incrementar'));
+  });
+  expect(getByTestId('stock-valor').props.children).toBe(2);
+});
+
+it('stepper_decrementa_stockMinimoGlobal_al_pulsar_menos', async () => {
+  usePerfilStore.mockReturnValue(makeStore({
+    preferencias: { ...makeStore().preferencias, stockMinimoGlobal: 5 },
+  }));
+  const { getByTestId } = render(<PreferenciasScreen />);
+  await act(async () => {
+    fireEvent.press(getByTestId('stock-decrementar'));
+  });
+  expect(getByTestId('stock-valor').props.children).toBe(4);
+});
+
+it('stepper_no_baja_de_1_al_pulsar_menos_en_el_mínimo', async () => {
+  const { getByTestId } = render(<PreferenciasScreen />);
+  await act(async () => {
+    fireEvent.press(getByTestId('stock-decrementar'));
+  });
+  expect(getByTestId('stock-valor').props.children).toBe(1);
+});
+
+it('guardar_incluye_stockMinimoGlobal_en_la_llamada', async () => {
+  usePerfilStore.mockReturnValue(makeStore({
+    preferencias: { ...makeStore().preferencias, stockMinimoGlobal: 3 },
+  }));
+  const { getByText } = render(<PreferenciasScreen />);
+  await act(async () => {
+    fireEvent.press(getByText('Guardar preferencias'));
+  });
+  await waitFor(() => {
+    expect(mockActualizarPreferencias).toHaveBeenCalledWith(
+      expect.objectContaining({ stockMinimoGlobal: 3 }),
+    );
+  });
 });

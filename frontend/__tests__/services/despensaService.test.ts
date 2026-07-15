@@ -148,3 +148,45 @@ it('listarProductos_lanza_error_si_falla_red', async () => {
   mockGet.mockRejectedValue(new Error('Network Error'));
   await expect(despensaService.listarProductos()).rejects.toThrow('Network Error');
 });
+
+// -------------------------------------------------------------------------
+// MEJORA 1 — Stock mínimo personalizable (#132)
+// -------------------------------------------------------------------------
+
+it('añadirProducto_incluye_stockMinimo_en_la_peticion', async () => {
+  const productoConStock = { ...mockProducto, stockMinimo: 3, alertaCompra: false };
+  mockPost.mockResolvedValue({ data: productoConStock });
+  const result = await despensaService.añadirProducto({
+    nombre: 'Leche Entera',
+    cantidad: 2,
+    unidad: 'litros',
+    stockMinimo: 3,
+  });
+  expect(result.stockMinimo).toBe(3);
+  expect(mockPost).toHaveBeenCalledWith('/despensa/productos', expect.objectContaining({
+    stockMinimo: 3,
+  }));
+});
+
+it('editarProducto_incluye_stockMinimo_en_la_peticion', async () => {
+  const actualizado = { ...mockProducto, stockMinimo: 5, alertaCompra: false };
+  mockPut.mockResolvedValue({ data: actualizado });
+  const result = await despensaService.editarProducto('prod-1', {
+    nombre: 'Leche Entera',
+    cantidad: 2,
+    unidad: 'litros',
+    stockMinimo: 5,
+  });
+  expect(result.stockMinimo).toBe(5);
+  expect(mockPut).toHaveBeenCalledWith('/despensa/productos/prod-1', expect.objectContaining({
+    stockMinimo: 5,
+  }));
+});
+
+it('listarProductos_devuelve_producto_con_alertaCompra_y_stockMinimo', async () => {
+  const productoConAlerta = { ...mockProducto, stockMinimo: 3, alertaCompra: true };
+  mockGet.mockResolvedValue({ data: [productoConAlerta] });
+  const result = await despensaService.listarProductos();
+  expect(result[0].stockMinimo).toBe(3);
+  expect(result[0].alertaCompra).toBe(true);
+});

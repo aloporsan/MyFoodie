@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import {
   Image,
   Pressable,
@@ -37,9 +38,11 @@ export function DashboardScreen() {
     refrescar,
   } = useDashboardStore();
 
-  useEffect(() => {
-    cargarDashboard();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      cargarDashboard();
+    }, [])
+  );
 
   const despensaVacia = resumen !== null && resumen.totalProductos === 0;
 

@@ -132,7 +132,7 @@ class PerfilServiceTest {
         when(preferenciasRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         PreferenciasUpdateDTO result = perfilService.actualizarPreferencias("user-123",
-                new PreferenciasUpdateDTO("Vegana", List.of("Soja"), List.of("cilantro"), "Fácil", 30));
+                new PreferenciasUpdateDTO("Vegana", List.of("Soja"), List.of("cilantro"), "Fácil", 30, null));
 
         assertThat(result.tipoDieta()).isEqualTo("Vegana");
         assertThat(result.alergias()).containsExactly("Soja");
@@ -253,7 +253,7 @@ class PerfilServiceTest {
         when(preferenciasRepository.findByUsuarioId("no-existe")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> perfilService.actualizarPreferencias("no-existe",
-                new PreferenciasUpdateDTO("INVALIDA", null, null, null, null)))
+                new PreferenciasUpdateDTO("INVALIDA", null, null, null, null, null)))
                 .isInstanceOf(ApiException.class)
                 .satisfies(e -> assertThat(((ApiException) e).getStatus()).isEqualTo(HttpStatus.NOT_FOUND));
     }

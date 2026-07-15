@@ -47,4 +47,7 @@ public class Preferencias {
 
     private Integer tiempoCoccionMax;
 
+    @Builder.Default
+    private Integer stockMinimoGlobal = 1;
+
 }

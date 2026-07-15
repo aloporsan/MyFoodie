@@ -7,5 +7,6 @@ public record PreferenciasUpdateDTO(
         List<String> alergias,
         List<String> ingredientesNoDeseados,
         String nivelDificultad,
-        Integer tiempoCoccionMax
+        Integer tiempoCoccionMax,
+        Integer stockMinimoGlobal
 ) {}
