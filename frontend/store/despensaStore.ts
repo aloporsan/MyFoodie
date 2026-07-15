@@ -6,6 +6,7 @@ import {
   ProductoInput,
 } from '@/services/despensaService';
 import { handleApiError } from '@/utils/errorHandler';
+import { useDashboardStore } from './dashboardStore';
 
 const FILTRO_VACIO: ProductoFiltro = {};
 
@@ -64,6 +65,7 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
     try {
       const nuevo = await despensaService.añadirProducto(datos);
       set((s) => ({ productos: [...s.productos, nuevo], isLoading: false }));
+      useDashboardStore.getState().cargarDashboard();
       return nuevo;
     } catch (e) {
       set({ error: handleApiError(e), isLoading: false });
@@ -79,6 +81,7 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
         productos: s.productos.map((p) => (p.id === id ? actualizado : p)),
         isLoading: false,
       }));
+      useDashboardStore.getState().cargarDashboard();
     } catch (e) {
       set({ error: handleApiError(e), isLoading: false });
       throw e;
@@ -93,6 +96,7 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
         productos: s.productos.filter((p) => p.id !== id),
         isLoading: false,
       }));
+      useDashboardStore.getState().cargarDashboard();
     } catch (e) {
       set({ error: handleApiError(e), isLoading: false });
       throw e;
@@ -105,6 +109,7 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
       set((s) => ({
         productos: s.productos.map((p) => (p.id === id ? actualizado : p)),
       }));
+      useDashboardStore.getState().cargarDashboard();
     } catch (e) {
       set({ error: handleApiError(e) });
       throw e;

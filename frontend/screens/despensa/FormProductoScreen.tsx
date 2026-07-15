@@ -144,7 +144,7 @@ export function FormProductoScreen() {
       <LoadingOverlay visible={isLoading} />
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -253,7 +253,7 @@ export function FormProductoScreen() {
 
           {/* Botón guardar */}
           <Pressable
-            style={[styles.btnGuardar, (hayErrores || isLoading) && styles.btnDisabled]}
+            style={[styles.btnGuardar, isLoading && styles.btnDisabled]}
             onPress={handleGuardar}
             disabled={isLoading}
           >
