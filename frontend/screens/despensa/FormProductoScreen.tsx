@@ -1,3 +1,4 @@
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -29,7 +30,16 @@ const CATEGORIAS = [
   'Bebidas', 'Congelados', 'Condimentos', 'Cereales',
   'Conservas', 'Snacks', 'Otros',
 ];
-const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+function dateToApi(d: Date): string {
+  return d.toISOString().split('T')[0];
+}
+
+function apiToDisplay(s: string): string {
+  if (!s) return '';
+  const [y, m, d] = s.split('-');
+  return `${d}/${m}/${y}`;
+}
 
 export function FormProductoScreen() {
   const router = useRouter();
@@ -76,10 +86,6 @@ export function FormProductoScreen() {
     const cant = parseFloat(cantidad);
     if (!cantidad || isNaN(cant) || cant < 0) e.cantidad = 'Cantidad válida requerida';
     if (!unidad) e.unidad = 'Selecciona una unidad';
-    if (fechaCaducidad && !DATE_REGEX.test(fechaCaducidad))
-      e.fechaCaducidad = 'Formato AAAA-MM-DD';
-    if (fechaCompra && !DATE_REGEX.test(fechaCompra))
-      e.fechaCompra = 'Formato AAAA-MM-DD';
     if (stockMinimo) {
       const sm = parseInt(stockMinimo, 10);
       if (isNaN(sm) || sm < 1) e.stockMinimo = 'Debe ser un número entero positivo';
@@ -196,27 +202,13 @@ export function FormProductoScreen() {
           </Campo>
 
           {/* Fecha caducidad */}
-          <Campo label="Fecha caducidad" error={errores.fechaCaducidad} hint="AAAA-MM-DD">
-            <TextInput
-              style={[styles.input, errores.fechaCaducidad && styles.inputError]}
-              value={fechaCaducidad}
-              onChangeText={setFechaCaducidad}
-              placeholder="2026-12-31"
-              placeholderTextColor={colors.grayMid}
-              keyboardType="numbers-and-punctuation"
-            />
+          <Campo label="Fecha caducidad">
+            <DateFieldInput value={fechaCaducidad} onChange={setFechaCaducidad} />
           </Campo>
 
           {/* Fecha compra */}
-          <Campo label="Fecha compra" error={errores.fechaCompra} hint="AAAA-MM-DD">
-            <TextInput
-              style={[styles.input, errores.fechaCompra && styles.inputError]}
-              value={fechaCompra}
-              onChangeText={setFechaCompra}
-              placeholder="2026-06-01"
-              placeholderTextColor={colors.grayMid}
-              keyboardType="numbers-and-punctuation"
-            />
+          <Campo label="Fecha compra">
+            <DateFieldInput value={fechaCompra} onChange={setFechaCompra} />
           </Campo>
 
           {/* Marca */}
@@ -284,6 +276,51 @@ export function FormProductoScreen() {
         onCancelar={() => setDuplicadosVisible(false)}
       />
     </SafeAreaView>
+  );
+}
+
+function DateFieldInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [show, setShow] = useState(false);
+  const pickerDate = value ? new Date(value + 'T12:00:00') : new Date();
+
+  const handleChange = (_: DateTimePickerEvent, date?: Date) => {
+    if (Platform.OS === 'android') setShow(false);
+    if (date) onChange(dateToApi(date));
+  };
+
+  return (
+    <>
+      <Pressable style={dateStyles.row} onPress={() => setShow(true)}>
+        <Ionicons name="calendar-outline" size={18} color={value ? colors.primary : colors.grayMid} />
+        <Text style={[dateStyles.text, !value && dateStyles.placeholder]}>
+          {value ? apiToDisplay(value) : 'Seleccionar fecha'}
+        </Text>
+        {value && (
+          <Pressable onPress={() => onChange('')} hitSlop={8}>
+            <Ionicons name="close-circle" size={16} color={colors.grayMid} />
+          </Pressable>
+        )}
+      </Pressable>
+
+      {show && Platform.OS === 'android' && (
+        <DateTimePicker value={pickerDate} mode="date" display="default" onChange={handleChange} />
+      )}
+
+      {show && Platform.OS === 'ios' && (
+        <View style={dateStyles.iosWrapper}>
+          <Pressable style={dateStyles.doneBtn} onPress={() => setShow(false)}>
+            <Text style={dateStyles.doneBtnText}>Hecho</Text>
+          </Pressable>
+          <DateTimePicker value={pickerDate} mode="date" display="spinner" onChange={handleChange} />
+        </View>
+      )}
+    </>
   );
 }
 
@@ -380,6 +417,46 @@ const styles = StyleSheet.create({
   },
   btnDisabled: { opacity: 0.5 },
   btnGuardarText: { ...typography.button, color: colors.white },
+});
+
+const dateStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.grayLight,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    minHeight: 48,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  text: {
+    ...typography.body,
+    color: colors.text.primary,
+    flex: 1,
+  },
+  placeholder: {
+    color: colors.grayMid,
+  },
+  iosWrapper: {
+    backgroundColor: colors.grayLight,
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+  },
+  doneBtn: {
+    alignItems: 'flex-end',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray,
+  },
+  doneBtnText: {
+    ...typography.label,
+    color: colors.primary,
+    fontWeight: '700',
+  },
 });
 
 const campoStyles = StyleSheet.create({
