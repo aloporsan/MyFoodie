@@ -2,8 +2,10 @@ import { apiClient } from './apiClient';
 
 export interface DashboardResumen {
   totalProductos: number;
-  proximosCaducar: number;
   caducados: number;
+  caduca_pronto: number;
+  caduca_semana: number;
+  caduca_mes: number;
   bajoStock: number;
 }
 
@@ -13,7 +15,7 @@ export interface AlertaCaducidad {
   cantidad: number;
   unidad: string;
   fechaCaducidad: string | null;
-  estado: 'caducado' | 'proximoCaducar';
+  estado: 'caducado' | 'caduca_hoy' | 'caduca_pronto' | 'caduca_semana' | 'caduca_mes';
   diasParaCaducar: number;
 }
 

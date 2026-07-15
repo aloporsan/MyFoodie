@@ -13,26 +13,29 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { ProductoEstadoBadge } from '@/components/despensa/ProductoEstadoBadge';
-import { Producto } from '@/services/despensaService';
-import { despensaService, EstadoProducto } from '@/services/despensaService';
+import { despensaService, EstadoProducto, Producto } from '@/services/despensaService';
 import { useDespensaStore } from '@/store/despensaStore';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
-type FiltroEstado = 'proximoCaducar' | 'caducado' | 'bajoStock';
+type FiltroEstado = 'caducado' | 'caduca_pronto' | 'caduca_semana' | 'caduca_mes' | 'bajoStock';
 
 const TITULOS: Record<FiltroEstado, string> = {
-  proximoCaducar: 'Próximos a caducar',
-  caducado: 'Productos caducados',
-  bajoStock: 'Bajo stock',
+  caducado:      'Productos caducados',
+  caduca_pronto: 'Caduca pronto',
+  caduca_semana: 'Caduca esta semana',
+  caduca_mes:    'Caduca este mes',
+  bajoStock:     'Bajo stock',
 };
 
 const MENSAJES_VACIOS: Record<FiltroEstado, string> = {
-  proximoCaducar: '¡Todo en orden! Ningún producto está próximo a caducar',
-  caducado: '¡Perfecto! No tienes productos caducados',
-  bajoStock: '¡Genial! Tienes suficiente stock de todo',
+  caducado:      '¡Perfecto! No tienes productos caducados',
+  caduca_pronto: '¡Todo en orden! Ningún producto caduca en los próximos 3 días',
+  caduca_semana: '¡Bien! Ningún producto caduca esta semana',
+  caduca_mes:    '¡Excelente! Ningún producto caduca este mes',
+  bajoStock:     '¡Genial! Tienes suficiente stock de todo',
 };
 
 export function ListaFiltradaScreen() {
@@ -46,7 +49,7 @@ export function ListaFiltradaScreen() {
   const titulo = TITULOS[filtro] ?? 'Productos';
   const mensajeVacio = MENSAJES_VACIOS[filtro] ?? 'No hay productos en esta categoría';
   const esCaducado = filtro === 'caducado';
-  const esProximo = filtro === 'proximoCaducar';
+  const esProximo = (filtro === 'caduca_pronto' || filtro === 'caduca_semana' || filtro === 'caduca_mes');
 
   const cargar = useCallback(async () => {
     setIsLoading(true);

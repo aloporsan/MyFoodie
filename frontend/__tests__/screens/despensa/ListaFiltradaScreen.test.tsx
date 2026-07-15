@@ -54,10 +54,22 @@ it('renderiza_titulo_correcto_para_filtro_caducado', async () => {
   await waitFor(() => expect(getByText('Productos caducados')).toBeTruthy());
 });
 
-it('renderiza_titulo_correcto_para_filtro_proximoCaducar', async () => {
-  (useLocalSearchParams as jest.Mock).mockReturnValue({ filtro: 'proximoCaducar' });
+it('renderiza_titulo_correcto_para_filtro_caduca_pronto', async () => {
+  (useLocalSearchParams as jest.Mock).mockReturnValue({ filtro: 'caduca_pronto' });
   const { getByText } = render(<ListaFiltradaScreen />);
-  await waitFor(() => expect(getByText('Próximos a caducar')).toBeTruthy());
+  await waitFor(() => expect(getByText('Caduca pronto')).toBeTruthy());
+});
+
+it('renderiza_titulo_correcto_para_filtro_caduca_semana', async () => {
+  (useLocalSearchParams as jest.Mock).mockReturnValue({ filtro: 'caduca_semana' });
+  const { getByText } = render(<ListaFiltradaScreen />);
+  await waitFor(() => expect(getByText('Caduca esta semana')).toBeTruthy());
+});
+
+it('renderiza_titulo_correcto_para_filtro_caduca_mes', async () => {
+  (useLocalSearchParams as jest.Mock).mockReturnValue({ filtro: 'caduca_mes' });
+  const { getByText } = render(<ListaFiltradaScreen />);
+  await waitFor(() => expect(getByText('Caduca este mes')).toBeTruthy());
 });
 
 it('renderiza_titulo_correcto_para_filtro_bajoStock', async () => {
@@ -82,9 +94,9 @@ it('no_muestra_boton_carrito_en_lista_caducados', async () => {
   await waitFor(() => expect(queryByText('Añadir al carrito')).toBeNull());
 });
 
-it('muestra_boton_placeholder_carrito_en_proximoCaducar', async () => {
-  (useLocalSearchParams as jest.Mock).mockReturnValue({ filtro: 'proximoCaducar' });
-  mockService.filtrarProductos.mockResolvedValue([{ ...productoBase, estado: 'proximoCaducar' as const }]);
+it('muestra_boton_placeholder_carrito_en_caduca_pronto', async () => {
+  (useLocalSearchParams as jest.Mock).mockReturnValue({ filtro: 'caduca_pronto' });
+  mockService.filtrarProductos.mockResolvedValue([{ ...productoBase, estado: 'caduca_pronto' as const }]);
   const { findByText } = render(<ListaFiltradaScreen />);
   expect(await findByText('Añadir al carrito')).toBeTruthy();
 });
