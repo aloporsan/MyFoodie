@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import {
   despensaService,
+  MovimientoProducto,
+  MotivoEliminacion,
   Producto,
   ProductoFiltro,
   ProductoInput,
@@ -12,6 +14,7 @@ const FILTRO_VACIO: ProductoFiltro = {};
 
 interface DespensaState {
   productos: Producto[];
+  historialProducto: MovimientoProducto[];
   isLoading: boolean;
   error: string | null;
   filtrosActivos: ProductoFiltro;
@@ -22,8 +25,9 @@ interface DespensaActions {
   cargarProductos: () => Promise<void>;
   añadirProducto: (datos: ProductoInput) => Promise<Producto>;
   editarProducto: (id: string, datos: ProductoInput) => Promise<void>;
-  eliminarProducto: (id: string) => Promise<void>;
+  eliminarProducto: (id: string, motivo?: MotivoEliminacion, motivoDetalle?: string) => Promise<void>;
   actualizarCantidad: (id: string, delta: number) => Promise<void>;
+  cargarHistorial: (productoId: string) => Promise<void>;
   setBusqueda: (texto: string) => void;
   setFiltros: (filtros: ProductoFiltro) => void;
   limpiarFiltros: () => void;
@@ -35,6 +39,7 @@ const hayFiltrosActivos = (f: ProductoFiltro): boolean =>
 
 export const useDespensaStore = create<DespensaState & DespensaActions>()((set, get) => ({
   productos: [],
+  historialProducto: [],
   isLoading: false,
   error: null,
   filtrosActivos: FILTRO_VACIO,
@@ -88,10 +93,10 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
     }
   },
 
-  eliminarProducto: async (id) => {
+  eliminarProducto: async (id, motivo, motivoDetalle) => {
     set({ isLoading: true, error: null });
     try {
-      await despensaService.eliminarProducto(id);
+      await despensaService.eliminarProducto(id, motivo, motivoDetalle);
       set((s) => ({
         productos: s.productos.filter((p) => p.id !== id),
         isLoading: false,
@@ -113,6 +118,16 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
     } catch (e) {
       set({ error: handleApiError(e) });
       throw e;
+    }
+  },
+
+  cargarHistorial: async (productoId) => {
+    set({ isLoading: true, error: null });
+    try {
+      const historial = await despensaService.obtenerHistorial(productoId);
+      set({ historialProducto: historial, isLoading: false });
+    } catch (e) {
+      set({ error: handleApiError(e), isLoading: false });
     }
   },
 
