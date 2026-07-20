@@ -9,7 +9,10 @@
     { "key": "testUsername", "value": "" },
     { "key": "testEmail", "value": "" },
     { "key": "productoId", "value": "" },
-    { "key": "productoIdCaducado", "value": "" }
+    { "key": "productoIdCaducado", "value": "" },
+    { "key": "productoHistorialId", "value": "" },
+    { "key": "productoConsumoId", "value": "" },
+    { "key": "productoOtroId", "value": "" }
   ],
   "item": [
     {
@@ -709,6 +712,251 @@
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
             "url": { "raw": "{{baseUrl}}/api/dashboard/resumen", "host": ["{{baseUrl}}"], "path": ["api","dashboard","resumen"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📋 Historial y Motivos",
+      "item": [
+        {
+          "name": "H0. Crear producto para historial",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.id) pm.collectionVariables.set('productoHistorialId', json.id);",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Producto Historial\",\n  \"cantidad\": 5,\n  \"unidad\": \"unidades\",\n  \"categoria\": \"Otros\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos"] }
+          }
+        },
+        {
+          "name": "H1. Editar producto → movimiento 'editado'",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Nombre actualizado', () => pm.expect(json.nombre).to.eql('Producto Historial Editado'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Producto Historial Editado\",\n  \"cantidad\": 5,\n  \"unidad\": \"unidades\",\n  \"categoria\": \"Otros\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoHistorialId}}", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos","{{productoHistorialId}}"] }
+          }
+        },
+        {
+          "name": "H2. Actualizar cantidad (+3) → movimiento 'cantidad_actualizada'",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Cantidad = 8', () => pm.expect(json.cantidad).to.eql(8));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"delta\": 3\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoHistorialId}}/cantidad", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos","{{productoHistorialId}}","cantidad"] }
+          }
+        },
+        {
+          "name": "H3. GET historial → array con movimientos y cantidadAnterior/Nueva",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Es array', () => pm.expect(json).to.be.an('array'));",
+                  "pm.test('Al menos 3 movimientos', () => pm.expect(json.length).to.be.at.least(3));",
+                  "pm.test('Todos tienen tipo y descripcion', () => json.forEach(m => {",
+                  "  pm.expect(m.tipo).to.not.be.undefined;",
+                  "  pm.expect(m.descripcion).to.not.be.undefined;",
+                  "}));",
+                  "const cantMov = json.find(m => m.tipo === 'cantidad_actualizada');",
+                  "pm.test('Movimiento cantidad_actualizada existe', () => pm.expect(cantMov).to.not.be.undefined);",
+                  "pm.test('cantidadAnterior = 5', () => pm.expect(cantMov.cantidadAnterior).to.eql(5));",
+                  "pm.test('cantidadNueva = 8', () => pm.expect(cantMov.cantidadNueva).to.eql(8));",
+                  "const editMov = json.find(m => m.tipo === 'editado');",
+                  "pm.test('Movimiento editado existe', () => pm.expect(editMov).to.not.be.undefined);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoHistorialId}}/historial", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos","{{productoHistorialId}}","historial"] }
+          }
+        },
+        {
+          "name": "H4. Crear producto para DELETE con motivo=consumido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.id) pm.collectionVariables.set('productoConsumoId', json.id);",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Para Consumir\",\n  \"cantidad\": 2,\n  \"unidad\": \"unidades\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos"] }
+          }
+        },
+        {
+          "name": "H5. DELETE con motivo=consumido → 204",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Sin body', () => pm.expect(pm.response.text()).to.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"motivo\": \"consumido\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoConsumoId}}", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos","{{productoConsumoId}}"] }
+          }
+        },
+        {
+          "name": "H6. Crear producto para DELETE con motivo=otro",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.id) pm.collectionVariables.set('productoOtroId', json.id);",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Para Motivo Otro\",\n  \"cantidad\": 1,\n  \"unidad\": \"unidades\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos"] }
+          }
+        },
+        {
+          "name": "H7. DELETE con motivo=otro y motivoDetalle → 204",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Sin body', () => pm.expect(pm.response.text()).to.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"motivo\": \"otro\",\n  \"motivoDetalle\": \"Lo perdí en la mudanza\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoOtroId}}", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos","{{productoOtroId}}"] }
+          }
+        },
+        {
+          "name": "H8. DELETE sin body → 204 (motivo opcional)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Sin body', () => pm.expect(pm.response.text()).to.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoHistorialId}}", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos","{{productoHistorialId}}"] }
+          }
+        },
+        {
+          "name": "H9. GET /perfil/estadisticas → campo motivosEliminacion con desglose",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiene campo motivosEliminacion', () => pm.expect(json.motivosEliminacion).to.not.be.undefined);",
+                  "pm.test('consumido >= 1', () => pm.expect(json.motivosEliminacion.consumido).to.be.at.least(1));",
+                  "pm.test('otro >= 1', () => pm.expect(json.motivosEliminacion.otro).to.be.at.least(1));",
+                  "pm.test('Tiene campo caducado', () => pm.expect(json.motivosEliminacion.caducado).to.not.be.undefined);",
+                  "pm.test('Tiene campo donado', () => pm.expect(json.motivosEliminacion.donado).to.not.be.undefined);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/perfil/estadisticas", "host": ["{{baseUrl}}"], "path": ["api","perfil","estadisticas"] }
           }
         }
       ]
