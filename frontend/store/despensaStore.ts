@@ -26,7 +26,7 @@ interface DespensaActions {
   añadirProducto: (datos: ProductoInput) => Promise<Producto>;
   editarProducto: (id: string, datos: ProductoInput) => Promise<void>;
   eliminarProducto: (id: string, motivo?: MotivoEliminacion, motivoDetalle?: string) => Promise<void>;
-  actualizarCantidad: (id: string, delta: number) => Promise<void>;
+  actualizarCantidad: (id: string, delta: number, motivo?: MotivoEliminacion, motivoDetalle?: string) => Promise<void>;
   cargarHistorial: (productoId: string) => Promise<void>;
   setBusqueda: (texto: string) => void;
   setFiltros: (filtros: ProductoFiltro) => void;
@@ -108,9 +108,9 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
     }
   },
 
-  actualizarCantidad: async (id, delta) => {
+  actualizarCantidad: async (id, delta, motivo, motivoDetalle) => {
     try {
-      const actualizado = await despensaService.actualizarCantidad(id, delta);
+      const actualizado = await despensaService.actualizarCantidad(id, delta, motivo, motivoDetalle);
       set((s) => ({
         productos: s.productos.map((p) => (p.id === id ? actualizado : p)),
       }));

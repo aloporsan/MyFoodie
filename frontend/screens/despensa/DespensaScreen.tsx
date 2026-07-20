@@ -2,13 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Modal,
   Pressable,
   RefreshControl,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,10 +16,11 @@ import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import {
   BuscadorDespensa,
+  CantidadMotivoSheet,
   FiltrosBar,
   ProductoCard,
 } from '@/components/despensa';
-import { EstadoProducto } from '@/services/despensaService';
+import { EstadoProducto, MotivoEliminacion } from '@/services/despensaService';
 import { useDespensaStore } from '@/store/despensaStore';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
@@ -27,6 +28,15 @@ import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
 type FiltroId = 'todos' | EstadoProducto;
+
+const MOTIVOS_ELIMINAR: { key: MotivoEliminacion; label: string; icono: string }[] = [
+  { key: 'consumido',       label: 'Consumido',       icono: 'checkmark-circle-outline' },
+  { key: 'caducado',        label: 'Caducado',        icono: 'warning-outline' },
+  { key: 'usado_en_receta', label: 'Usado en receta', icono: 'restaurant-outline' },
+  { key: 'donado',          label: 'Donado',          icono: 'heart-outline' },
+  { key: 'perdido',         label: 'Perdido',         icono: 'help-circle-outline' },
+  { key: 'otro',            label: 'Otro motivo',     icono: 'ellipsis-horizontal-circle-outline' },
+];
 
 export function DespensaScreen() {
   const router = useRouter();
@@ -46,8 +56,17 @@ export function DespensaScreen() {
   const [categoriaActiva, setCategoriaActiva] = useState('');
   const [modalCategoria, setModalCategoria] = useState(false);
 
-  // Chips fijos: se calculan solo con la lista completa (sin filtros activos).
-  // Así los chips no desaparecen al seleccionar un filtro concreto.
+  // Estado para el modal de eliminar
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [pendingDeleteNombre, setPendingDeleteNombre] = useState('');
+  const [motivoEliminar, setMotivoEliminar] = useState<MotivoEliminacion | null>(null);
+  const [motivoDetalleEliminar, setMotivoDetalleEliminar] = useState('');
+
+  // Estado para el sheet de cantidad
+  const [pendingCantidadId, setPendingCantidadId] = useState<string | null>(null);
+  const [pendingCantidadUnidad, setPendingCantidadUnidad] = useState('');
+  const [pendingCantidadModo, setPendingCantidadModo] = useState<'sumar' | 'restar'>('restar');
+
   const [estadosPresentesBase, setEstadosPresentesBase] = useState<EstadoProducto[]>([]);
   const [categoriasBase, setCategoriasBase] = useState<string[]>([]);
 
@@ -66,8 +85,6 @@ export function DespensaScreen() {
       setCategoriasBase([...new Set(productos.map((p) => p.categoria).filter(Boolean) as string[])]);
     }
   }, [productos, busquedaActiva]);
-
-  const categorias = categoriasBase;
 
   const handleSearch = useCallback((texto: string) => {
     setBusqueda(texto);
@@ -102,16 +119,47 @@ export function DespensaScreen() {
     setTimeout(() => cargarProductos(), 0);
   }, []);
 
+  // Eliminar con motivo
   const handleEliminar = useCallback((id: string, nombre: string) => {
-    Alert.alert(
-      'Eliminar producto',
-      `¿Eliminar "${nombre}" de tu despensa?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Eliminar', style: 'destructive', onPress: () => eliminarProducto(id) },
-      ]
-    );
+    setPendingDeleteId(id);
+    setPendingDeleteNombre(nombre);
+    setMotivoEliminar(null);
+    setMotivoDetalleEliminar('');
   }, []);
+
+  const confirmarEliminar = async () => {
+    if (!pendingDeleteId || !motivoEliminar) return;
+    const detalle =
+      motivoEliminar === 'otro' && motivoDetalleEliminar.trim()
+        ? motivoDetalleEliminar.trim()
+        : undefined;
+    await eliminarProducto(pendingDeleteId, motivoEliminar, detalle);
+    setPendingDeleteId(null);
+  };
+
+  // Cantidad con motivo
+  const handleDecrementar = useCallback((id: string, unidad: string) => {
+    setPendingCantidadId(id);
+    setPendingCantidadUnidad(unidad);
+    setPendingCantidadModo('restar');
+  }, []);
+
+  const handleIncrementar = useCallback((id: string, unidad: string) => {
+    setPendingCantidadId(id);
+    setPendingCantidadUnidad(unidad);
+    setPendingCantidadModo('sumar');
+  }, []);
+
+  const confirmarCantidad = async (
+    cantidad: number,
+    motivo?: MotivoEliminacion,
+    motivoDetalle?: string
+  ) => {
+    if (!pendingCantidadId) return;
+    const delta = pendingCantidadModo === 'sumar' ? cantidad : -cantidad;
+    await actualizarCantidad(pendingCantidadId, delta, motivo, motivoDetalle);
+    setPendingCantidadId(null);
+  };
 
   const estaFiltrandoOBuscando = busquedaActiva.trim() || filtroActivo !== 'todos' || categoriaActiva;
 
@@ -122,6 +170,7 @@ export function DespensaScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <LoadingOverlay visible={isLoading && productos.length > 0} />
+
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerSide} />
@@ -153,7 +202,7 @@ export function DespensaScreen() {
         </Pressable>
       </View>
 
-      {/* Filtros de estado (dinámicos) */}
+      {/* Filtros de estado */}
       <FiltrosBar
         filtroActivo={filtroActivo}
         estadosPresentes={estadosPresentesBase}
@@ -178,8 +227,8 @@ export function DespensaScreen() {
             onPress={() => router.push(`/despensa/${item.id}`)}
             onEditar={() => router.push({ pathname: '/despensa/form', params: { id: item.id } })}
             onEliminar={() => handleEliminar(item.id, item.nombre)}
-            onIncrementar={() => actualizarCantidad(item.id, 1)}
-            onDecrementar={() => actualizarCantidad(item.id, -1)}
+            onIncrementar={() => handleIncrementar(item.id, item.unidad)}
+            onDecrementar={() => handleDecrementar(item.id, item.unidad)}
           />
         )}
         ListEmptyComponent={
@@ -207,11 +256,15 @@ export function DespensaScreen() {
       />
 
       {/* Modal categorías */}
-      <Modal visible={modalCategoria} transparent animationType="slide" onRequestClose={() => setModalCategoria(false)}>
+      <Modal
+        visible={modalCategoria}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalCategoria(false)}
+      >
         <Pressable style={styles.overlay} onPress={() => setModalCategoria(false)}>
           <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.sheetTitulo}>Filtrar por categoría</Text>
-
             <Pressable
               style={[styles.categoriaOpcion, !categoriaActiva && styles.categoriaOpcionActiva]}
               onPress={() => handleFiltroCategoria('')}
@@ -222,8 +275,7 @@ export function DespensaScreen() {
               </Text>
               {!categoriaActiva && <Ionicons name="checkmark" size={16} color={colors.primary} />}
             </Pressable>
-
-            {categorias.map((cat) => (
+            {categoriasBase.map((cat) => (
               <Pressable
                 key={cat}
                 style={[styles.categoriaOpcion, categoriaActiva === cat && styles.categoriaOpcionActiva]}
@@ -239,6 +291,71 @@ export function DespensaScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Modal eliminar con motivo */}
+      <Modal
+        visible={pendingDeleteId !== null}
+        transparent
+        statusBarTranslucent
+        animationType="slide"
+        onRequestClose={() => setPendingDeleteId(null)}
+      >
+        <View style={styles.motivoContainer}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setPendingDeleteId(null)} />
+          <View style={styles.motivoSheet}>
+            <Text style={styles.motivoTitulo}>
+              ¿Por qué eliminas "{pendingDeleteNombre}"?
+            </Text>
+            {MOTIVOS_ELIMINAR.map((m) => (
+              <Pressable
+                key={m.key}
+                style={[styles.motivoBtn, motivoEliminar === m.key && styles.motivoBtnActivo]}
+                onPress={() => setMotivoEliminar(m.key)}
+              >
+                <Ionicons
+                  name={m.icono as any}
+                  size={18}
+                  color={motivoEliminar === m.key ? colors.white : colors.text.secondary}
+                />
+                <Text style={[styles.motivoBtnText, motivoEliminar === m.key && styles.motivoBtnTextActivo]}>
+                  {m.label}
+                </Text>
+              </Pressable>
+            ))}
+            {motivoEliminar === 'otro' && (
+              <TextInput
+                style={styles.motivoInput}
+                placeholder="Describe el motivo (opcional)"
+                placeholderTextColor={colors.text.secondary}
+                value={motivoDetalleEliminar}
+                onChangeText={setMotivoDetalleEliminar}
+                maxLength={200}
+              />
+            )}
+            <View style={styles.motivoBotones}>
+              <Pressable style={styles.btnCancelar} onPress={() => setPendingDeleteId(null)}>
+                <Text style={styles.btnCancelarText}>Cancelar</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.btnEliminar, !motivoEliminar && styles.btnDisabled]}
+                onPress={confirmarEliminar}
+                disabled={!motivoEliminar}
+              >
+                <Text style={styles.btnEliminarText}>Eliminar</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Sheet cantidad con motivo */}
+      <CantidadMotivoSheet
+        visible={pendingCantidadId !== null}
+        unidad={pendingCantidadUnidad}
+        modo={pendingCantidadModo}
+        onConfirm={confirmarCantidad}
+        onCancelar={() => setPendingCantidadId(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -253,16 +370,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     backgroundColor: colors.white,
   },
-  headerSide: {
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  titulo: {
-    ...typography.heading1,
-    color: colors.text.primary,
-    textAlign: 'center',
-    flex: 2,
-  },
+  headerSide: { flex: 1, alignItems: 'flex-end' },
+  titulo: { ...typography.heading1, color: colors.text.primary, textAlign: 'center', flex: 2 },
   addBtn: {
     backgroundColor: colors.primary,
     borderRadius: 20,
@@ -294,16 +403,8 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
     maxWidth: 120,
   },
-  categoriaBtnActivo: {
-    backgroundColor: '#E8F5D0',
-    borderColor: colors.primary,
-  },
-  categoriaBtnText: {
-    ...typography.caption,
-    color: colors.primary,
-    fontWeight: '700',
-    flexShrink: 1,
-  },
+  categoriaBtnActivo: { backgroundColor: '#E8F5D0', borderColor: colors.primary },
+  categoriaBtnText: { ...typography.caption, color: colors.primary, fontWeight: '700', flexShrink: 1 },
   lista: { padding: spacing.lg, flexGrow: 1 },
   centered: {
     flex: 1,
@@ -323,6 +424,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   emptyBtnText: { ...typography.button, color: colors.white },
+  // Modal categorías (mantiene patrón original con Pressable anidado)
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: colors.white,
@@ -332,11 +434,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxxl,
     gap: spacing.xs,
   },
-  sheetTitulo: {
-    ...typography.heading2,
-    color: colors.text.primary,
-    marginBottom: spacing.md,
-  },
+  sheetTitulo: { ...typography.heading2, color: colors.text.primary, marginBottom: spacing.md },
   categoriaOpcion: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -347,4 +445,59 @@ const styles = StyleSheet.create({
   },
   categoriaOpcionActiva: { backgroundColor: '#E8F5D0' },
   categoriaOpcionText: { ...typography.body, color: colors.text.primary, flex: 1 },
+  // Modal eliminar
+  motivoContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  motivoSheet: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    padding: spacing.lg,
+    gap: spacing.sm,
+    paddingBottom: spacing.xxxl,
+  },
+  motivoTitulo: { ...typography.heading2, color: colors.text.primary, textAlign: 'center', marginBottom: spacing.sm },
+  motivoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.gray,
+  },
+  motivoBtnActivo: { backgroundColor: colors.primary, borderColor: colors.primary },
+  motivoBtnText: { ...typography.body, color: colors.text.secondary },
+  motivoBtnTextActivo: { color: colors.white },
+  motivoInput: {
+    borderWidth: 1,
+    borderColor: colors.gray,
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    ...typography.body,
+    color: colors.text.primary,
+  },
+  motivoBotones: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  btnCancelar: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1.5,
+    borderColor: colors.gray,
+    alignItems: 'center',
+  },
+  btnCancelarText: { ...typography.button, color: colors.text.secondary },
+  btnEliminar: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.xl,
+    backgroundColor: colors.error,
+    alignItems: 'center',
+  },
+  btnEliminarText: { ...typography.button, color: colors.white },
+  btnDisabled: { opacity: 0.4 },
 });

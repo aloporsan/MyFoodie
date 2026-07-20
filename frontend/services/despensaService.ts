@@ -103,8 +103,17 @@ export const despensaService = {
     return data;
   },
 
-  actualizarCantidad: async (id: string, delta: number): Promise<Producto> => {
-    const { data } = await apiClient.patch<Producto>(`/despensa/productos/${id}/cantidad`, { delta });
+  actualizarCantidad: async (
+    id: string,
+    delta: number,
+    motivo?: MotivoEliminacion,
+    motivoDetalle?: string
+  ): Promise<Producto> => {
+    const { data } = await apiClient.patch<Producto>(`/despensa/productos/${id}/cantidad`, {
+      delta,
+      motivo,
+      motivoDetalle,
+    });
     return data;
   },
 

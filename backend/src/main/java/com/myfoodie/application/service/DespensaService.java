@@ -133,7 +133,7 @@ public class DespensaService {
         Producto saved = productoRepository.save(p);
         actualizarDespensa(despensa);
         registrarMovimiento(saved, usuarioId, "cantidad_actualizada", "Cantidad actualizada",
-                cantidadAnterior, nuevaCantidad, null, null);
+                cantidadAnterior, nuevaCantidad, dto.motivo(), dto.motivoDetalle());
         return toDTO(saved, null, resolverUmbral(saved, globalUmbral));
     }
 

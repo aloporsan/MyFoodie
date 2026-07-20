@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ProductoEstadoBadge } from '@/components/despensa';
+import { CantidadMotivoSheet, ProductoEstadoBadge } from '@/components/despensa';
 import { MotivoEliminacion, MovimientoProducto } from '@/services/despensaService';
 import { useDespensaStore } from '@/store/despensaStore';
 import { borderRadius } from '@/theme/borderRadius';
@@ -46,15 +46,23 @@ export function DetalleProductoScreen() {
     cargarHistorial,
   } = useDespensaStore();
 
+  // Modal eliminar
   const [motivoModal, setMotivoModal] = useState(false);
   const [motivoSeleccionado, setMotivoSeleccionado] = useState<MotivoEliminacion | null>(null);
   const [motivoDetalleTexto, setMotivoDetalleTexto] = useState('');
 
+  // Sheet de cantidad
+  const [cantidadSheet, setCantidadSheet] = useState(false);
+  const [cantidadModo, setCantidadModo] = useState<'sumar' | 'restar'>('restar');
+
   const producto = productos.find((p) => p.id === id);
 
-  useEffect(() => {
-    if (id) cargarHistorial(id);
-  }, [id]);
+  // Recarga historial cada vez que la pantalla gana foco
+  useFocusEffect(
+    useCallback(() => {
+      if (id) cargarHistorial(id);
+    }, [id])
+  );
 
   if (!producto) {
     return (
@@ -68,6 +76,27 @@ export function DetalleProductoScreen() {
       </SafeAreaView>
     );
   }
+
+  const handleMenos = () => {
+    setCantidadModo('restar');
+    setCantidadSheet(true);
+  };
+
+  const handleMas = () => {
+    setCantidadModo('sumar');
+    setCantidadSheet(true);
+  };
+
+  const confirmarCantidad = async (
+    cantidad: number,
+    motivo?: MotivoEliminacion,
+    motivoDetalle?: string
+  ) => {
+    setCantidadSheet(false);
+    const delta = cantidadModo === 'sumar' ? cantidad : -cantidad;
+    await actualizarCantidad(id, delta, motivo, motivoDetalle);
+    cargarHistorial(id);
+  };
 
   const handleEliminar = () => {
     setMotivoSeleccionado(null);
@@ -118,13 +147,13 @@ export function DetalleProductoScreen() {
         <View style={styles.cantidadCard}>
           <Text style={styles.cantidadLabel}>Cantidad</Text>
           <View style={styles.cantidadRow}>
-            <Pressable style={styles.cantidadBtn} onPress={() => actualizarCantidad(id, -1)}>
+            <Pressable style={styles.cantidadBtn} onPress={handleMenos}>
               <Ionicons name="remove" size={24} color={colors.primary} />
             </Pressable>
             <Text style={styles.cantidadValor}>
               {producto.cantidad} <Text style={styles.unidad}>{producto.unidad}</Text>
             </Text>
-            <Pressable style={styles.cantidadBtn} onPress={() => actualizarCantidad(id, 1)}>
+            <Pressable style={styles.cantidadBtn} onPress={handleMas}>
               <Ionicons name="add" size={24} color={colors.primary} />
             </Pressable>
           </View>
@@ -168,15 +197,26 @@ export function DetalleProductoScreen() {
         </Pressable>
       </ScrollView>
 
+      {/* Sheet de cantidad (sumar / restar) */}
+      <CantidadMotivoSheet
+        visible={cantidadSheet}
+        unidad={producto.unidad}
+        modo={cantidadModo}
+        onConfirm={confirmarCantidad}
+        onCancelar={() => setCantidadSheet(false)}
+      />
+
       {/* Modal de motivo de eliminación */}
       <Modal
         visible={motivoModal}
         transparent
+        statusBarTranslucent
         animationType="slide"
         onRequestClose={() => setMotivoModal(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setMotivoModal(false)}>
-          <Pressable style={styles.modalSheet} onPress={() => {}}>
+        <View style={styles.modalContainer}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setMotivoModal(false)} />
+          <View style={styles.modalSheet}>
             <Text style={styles.modalTitulo}>¿Por qué eliminas este producto?</Text>
 
             {MOTIVOS.map((m) => (
@@ -224,8 +264,8 @@ export function DetalleProductoScreen() {
                 <Text style={styles.modalBtnConfirmarText}>Eliminar</Text>
               </Pressable>
             </View>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -242,20 +282,53 @@ function FilaDetalle({ icono, label, valor }: { icono: string; label: string; va
 }
 
 function FilaHistorial({ movimiento }: { movimiento: MovimientoProducto }) {
-  const icono = TIPO_ICONO[movimiento.tipo] ?? { name: 'ellipse-outline', color: colors.grayDark };
+  const delta =
+    movimiento.tipo === 'cantidad_actualizada' &&
+    movimiento.cantidadAnterior != null &&
+    movimiento.cantidadNueva != null
+      ? movimiento.cantidadNueva - movimiento.cantidadAnterior
+      : null;
+
+  const icono =
+    delta !== null
+      ? delta >= 0
+        ? { name: 'trending-up-outline' as const, color: colors.primary }
+        : { name: 'trending-down-outline' as const, color: colors.error }
+      : TIPO_ICONO[movimiento.tipo] ?? { name: 'ellipse-outline', color: colors.grayDark };
+
   const fecha = new Date(movimiento.createdAt).toLocaleDateString('es-ES', {
     day: '2-digit',
     month: 'short',
     year: '2-digit',
   });
+
   return (
     <View style={historialStyles.fila}>
       <Ionicons name={icono.name as any} size={18} color={icono.color} />
       <View style={historialStyles.info}>
-        <Text style={historialStyles.desc}>{movimiento.descripcion}</Text>
+        <View style={historialStyles.descRow}>
+          <Text style={historialStyles.desc}>{movimiento.descripcion}</Text>
+          {delta !== null && (
+            <View
+              style={[
+                historialStyles.deltaChip,
+                { backgroundColor: (delta >= 0 ? colors.primary : colors.error) + '20' },
+              ]}
+            >
+              <Text
+                style={[
+                  historialStyles.deltaText,
+                  { color: delta >= 0 ? colors.primary : colors.error },
+                ]}
+              >
+                {delta >= 0 ? `+${delta}` : `${delta}`}
+              </Text>
+            </View>
+          )}
+        </View>
         {movimiento.motivo && (
           <Text style={historialStyles.motivo}>
-            {movimiento.motivo.replace('_', ' ')}
+            {movimiento.motivo.replace(/_/g, ' ')}
             {movimiento.motivoDetalle ? ` — ${movimiento.motivoDetalle}` : ''}
           </Text>
         )}
@@ -356,11 +429,10 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   btnEliminarText: { ...typography.button, color: colors.error },
-  // Modal
-  modalOverlay: {
+  modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.45)',
   },
   modalSheet: {
     backgroundColor: colors.white,
@@ -386,10 +458,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.gray,
   },
-  motivoBtnActivo: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
+  motivoBtnActivo: { backgroundColor: colors.primary, borderColor: colors.primary },
   motivoBtnText: { ...typography.body, color: colors.text.secondary },
   motivoBtnTextActivo: { color: colors.white },
   motivoInput: {
@@ -401,11 +470,7 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     marginTop: spacing.xs,
   },
-  modalBotones: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.md,
-  },
+  modalBotones: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
   modalBtnCancelar: {
     flex: 1,
     paddingVertical: spacing.md,
@@ -449,7 +514,10 @@ const historialStyles = StyleSheet.create({
     borderBottomColor: colors.grayLight,
   },
   info: { flex: 1 },
+  descRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' },
   desc: { ...typography.body, color: colors.text.primary },
+  deltaChip: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: borderRadius.md },
+  deltaText: { ...typography.caption, fontWeight: '600' },
   motivo: { ...typography.caption, color: colors.text.secondary, marginTop: 2 },
   fecha: { ...typography.caption, color: colors.text.secondary, flexShrink: 0 },
 });

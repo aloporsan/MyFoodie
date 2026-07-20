@@ -31,6 +31,14 @@ function getNivel(totalProductos: number): NivelInfo {
 }
 
 function calcularEficiencia(stats: EstadisticasPerfil): number | null {
+  const m = stats.motivosEliminacion;
+  if (m) {
+    const bienUsados = m.consumido + m.usado_en_receta + m.donado;
+    const desperdiciados = m.caducado + m.perdido;
+    const total = bienUsados + desperdiciados;
+    if (total === 0) return null;
+    return Math.round((bienUsados / total) * 100);
+  }
   if (stats.totalProductosRegistrados === 0) return null;
   return Math.round((stats.totalProductosConsumidos / stats.totalProductosRegistrados) * 100);
 }
@@ -49,6 +57,13 @@ export function EstadisticasScreen() {
 
   const nivel = getNivel(estadisticas?.totalProductosRegistrados ?? 0);
   const eficiencia = estadisticas ? calcularEficiencia(estadisticas) : null;
+  const motivos = estadisticas?.motivosEliminacion;
+  const bienUsados = motivos
+    ? motivos.consumido + motivos.usado_en_receta + motivos.donado
+    : (estadisticas?.totalProductosConsumidos ?? 0);
+  const desperdiciados = motivos
+    ? motivos.caducado + motivos.perdido
+    : (estadisticas?.totalProductosCaducados ?? 0);
   const totalResueltos =
     (estadisticas?.totalProductosConsumidos ?? 0) + (estadisticas?.totalProductosCaducados ?? 0);
   const pendientes = Math.max(
@@ -85,7 +100,7 @@ export function EstadisticasScreen() {
                 </Text>
                 {estadisticas && (
                   <Text style={styles.heroSub}>
-                    {estadisticas.totalProductosConsumidos} consumidos · {estadisticas.totalProductosCaducados} caducados
+                    {bienUsados} bien usados · {desperdiciados} desperdiciados
                   </Text>
                 )}
               </View>
@@ -97,24 +112,18 @@ export function EstadisticasScreen() {
 
             {/* Barra de progreso */}
             <View style={styles.progressTrack}>
-              {totalResueltos > 0 || pendientes > 0 ? (
+              {bienUsados > 0 || desperdiciados > 0 ? (
                 <>
-                  {(estadisticas?.totalProductosConsumidos ?? 0) > 0 && (
+                  {bienUsados > 0 && (
                     <View style={[styles.progressSeg, {
-                      flex: estadisticas!.totalProductosConsumidos,
+                      flex: bienUsados,
                       backgroundColor: 'rgba(255,255,255,0.85)',
                     }]} />
                   )}
-                  {(estadisticas?.totalProductosCaducados ?? 0) > 0 && (
+                  {desperdiciados > 0 && (
                     <View style={[styles.progressSeg, {
-                      flex: estadisticas!.totalProductosCaducados,
+                      flex: desperdiciados,
                       backgroundColor: 'rgba(239,68,68,0.75)',
-                    }]} />
-                  )}
-                  {pendientes > 0 && (
-                    <View style={[styles.progressSeg, {
-                      flex: pendientes,
-                      backgroundColor: 'rgba(255,255,255,0.25)',
                     }]} />
                   )}
                 </>
@@ -123,9 +132,8 @@ export function EstadisticasScreen() {
               )}
             </View>
             <View style={styles.progressLeyenda}>
-              <LeyendaItem color="rgba(255,255,255,0.85)" label="Consumidos" />
-              <LeyendaItem color="rgba(239,68,68,0.9)" label="Caducados" />
-              <LeyendaItem color="rgba(255,255,255,0.4)" label="Pendientes" />
+              <LeyendaItem color="rgba(255,255,255,0.85)" label="Bien usados" />
+              <LeyendaItem color="rgba(239,68,68,0.9)" label="Desperdiciados" />
             </View>
           </LinearGradient>
 
@@ -156,7 +164,7 @@ export function EstadisticasScreen() {
                 icono="time-outline"
                 valor={pendientes}
                 etiqueta="Pendientes"
-                color="#888"
+                color="#888888"
               />
             </View>
           </Seccion>
@@ -233,7 +241,7 @@ const MOTIVOS_CONFIG: {
   { key: 'caducado',        label: 'Caducado',        icono: 'warning-outline',           color: colors.error },
   { key: 'usado_en_receta', label: 'En receta',       icono: 'restaurant-outline',        color: '#F5A623' },
   { key: 'donado',          label: 'Donado',          icono: 'heart-outline',             color: '#E91E8C' },
-  { key: 'perdido',         label: 'Perdido',         icono: 'help-circle-outline',       color: '#888' },
+  { key: 'perdido',         label: 'Perdido',         icono: 'help-circle-outline',       color: '#888888' },
   { key: 'otro',            label: 'Otro',            icono: 'ellipsis-horizontal-circle-outline', color: '#7C5CBF' },
 ];
 
