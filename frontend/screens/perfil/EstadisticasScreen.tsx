@@ -14,7 +14,7 @@ import { useRouter } from 'expo-router';
 import { EstadisticaItem } from '@/components/perfil/EstadisticaItem';
 import { usePerfilStore } from '@/store/perfilStore';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
-import type { EstadisticasPerfil } from '@/services/perfilService';
+import type { EstadisticasPerfil, MotivosEliminacion } from '@/services/perfilService';
 
 type NivelInfo = {
   icono: React.ComponentProps<typeof Ionicons>['name'];
@@ -161,6 +161,11 @@ export function EstadisticasScreen() {
             </View>
           </Seccion>
 
+          {/* Motivos de eliminación */}
+          {estadisticas.motivosEliminacion && (
+            <SeccionMotivos motivos={estadisticas.motivosEliminacion} />
+          )}
+
           {/* Recetas */}
           <Seccion titulo="Recetas">
             <View style={styles.fila}>
@@ -215,6 +220,39 @@ export function EstadisticasScreen() {
         </ScrollView>
       ) : null}
     </SafeAreaView>
+  );
+}
+
+const MOTIVOS_CONFIG: {
+  key: keyof MotivosEliminacion;
+  label: string;
+  icono: React.ComponentProps<typeof Ionicons>['name'];
+  color: string;
+}[] = [
+  { key: 'consumido',       label: 'Consumido',       icono: 'checkmark-circle-outline', color: colors.primary },
+  { key: 'caducado',        label: 'Caducado',        icono: 'warning-outline',           color: colors.error },
+  { key: 'usado_en_receta', label: 'En receta',       icono: 'restaurant-outline',        color: '#F5A623' },
+  { key: 'donado',          label: 'Donado',          icono: 'heart-outline',             color: '#E91E8C' },
+  { key: 'perdido',         label: 'Perdido',         icono: 'help-circle-outline',       color: '#888' },
+  { key: 'otro',            label: 'Otro',            icono: 'ellipsis-horizontal-circle-outline', color: '#7C5CBF' },
+];
+
+function SeccionMotivos({ motivos }: { motivos: MotivosEliminacion }) {
+  return (
+    <View style={seccionStyles.wrapper}>
+      <Text style={seccionStyles.titulo}>Motivos de eliminación</Text>
+      <View style={[seccionStyles.card, motivosStyles.grid]}>
+        {MOTIVOS_CONFIG.map((m) => (
+          <View key={m.key} style={motivosStyles.item}>
+            <View style={[motivosStyles.iconoBg, { backgroundColor: m.color + '20' }]}>
+              <Ionicons name={m.icono} size={20} color={m.color} />
+            </View>
+            <Text style={motivosStyles.valor}>{motivos[m.key]}</Text>
+            <Text style={motivosStyles.label}>{m.label}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -361,6 +399,36 @@ const seccionStyles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     ...shadows.sm,
+  },
+});
+
+const motivosStyles = StyleSheet.create({
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+  item: {
+    width: '30%',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  iconoBg: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  valor: {
+    fontSize: 20,
+    fontFamily: 'Poppins_700Bold',
+    color: colors.text.primary,
+  },
+  label: {
+    ...typography.caption,
+    color: colors.text.secondary,
+    textAlign: 'center',
   },
 });
 
