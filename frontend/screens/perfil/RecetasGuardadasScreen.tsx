@@ -1,6 +1,10 @@
-import { useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import {
+  Alert,
   FlatList,
+  Image,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -8,65 +12,57 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
+import { LoadingScreen } from '@/components/common/LoadingScreen';
+import { Receta } from '@/services/recetaService';
+import { useRecetaStore } from '@/store/recetaStore';
+import { borderRadius } from '@/theme/borderRadius';
+import { colors } from '@/theme/colors';
+import { shadows } from '@/theme/shadows';
+import { spacing } from '@/theme/spacing';
+import { typography } from '@/theme/typography';
 
-interface RecetaPlaceholder {
-  id: string;
-  titulo: string;
-  tiempo: number;
-  dificultad: string;
-  autor: string;
-  gradiente: [string, string];
-}
-
-const RECETAS_MOCK: RecetaPlaceholder[] = [
-  {
-    id: '1',
-    titulo: 'Pasta carbonara',
-    tiempo: 30,
-    dificultad: 'Fácil',
-    autor: 'chef_mario',
-    gradiente: ['#FF6B6B', '#FF8E53'],
-  },
-  {
-    id: '2',
-    titulo: 'Pollo al horno con verduras',
-    tiempo: 60,
-    dificultad: 'Media',
-    autor: 'cocina_saludable',
-    gradiente: ['#4ECDC4', '#2ECC71'],
-  },
-  {
-    id: '3',
-    titulo: 'Gazpacho andaluz',
-    tiempo: 15,
-    dificultad: 'Fácil',
-    autor: 'recetas_del_sur',
-    gradiente: ['#F8B133', '#F4A000'],
-  },
-  {
-    id: '4',
-    titulo: 'Risotto de champiñones',
-    tiempo: 45,
-    dificultad: 'Media',
-    autor: 'italia_en_casa',
-    gradiente: ['#a18cd1', '#fbc2eb'],
-  },
-];
+const DIFICULTAD_COLOR: Record<string, string> = {
+  Fácil: colors.primary,
+  Media: colors.secondary,
+  Difícil: colors.error,
+};
 
 export function RecetasGuardadasScreen() {
   const router = useRouter();
+  const recetasGuardadas = useRecetaStore((s) => s.recetasGuardadas);
+  const cargarRecetasGuardadas = useRecetaStore((s) => s.cargarRecetasGuardadas);
+  const eliminarGuardado = useRecetaStore((s) => s.eliminarGuardado);
   const [refreshing, setRefreshing] = useState(false);
-  const [recetas] = useState<RecetaPlaceholder[]>(RECETAS_MOCK);
+  const [cargandoInicial, setCargandoInicial] = useState(true);
+
+  useEffect(() => {
+    cargarRecetasGuardadas().finally(() => setCargandoInicial(false));
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await new Promise((r) => setTimeout(r, 800));
+    await cargarRecetasGuardadas();
     setRefreshing(false);
   };
+
+  const confirmarQuitarGuardado = (id: string, titulo: string) => {
+    Alert.alert(
+      'Quitar de guardados',
+      `¿Quitar "${titulo}" de tus recetas guardadas?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Quitar',
+          style: 'destructive',
+          onPress: () => eliminarGuardado(id),
+        },
+      ]
+    );
+  };
+
+  if (cargandoInicial) {
+    return <LoadingScreen />;
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -76,45 +72,47 @@ export function RecetasGuardadasScreen() {
         </Pressable>
         <Text style={styles.headerTitulo}>Recetas guardadas</Text>
         <View style={styles.headerRight}>
-          <View style={styles.contador}>
-            <Text style={styles.contadorTexto}>{recetas.length}</Text>
-          </View>
+          {recetasGuardadas.length > 0 && (
+            <View style={styles.contador}>
+              <Text style={styles.contadorTexto}>{recetasGuardadas.length}</Text>
+            </View>
+          )}
         </View>
       </View>
 
       <FlatList
-        data={recetas}
+        data={recetasGuardadas}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={recetas.length === 0 ? styles.centrado : styles.lista}
+        contentContainerStyle={recetasGuardadas.length === 0 ? styles.centrado : styles.lista}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={'#F8B133'}
-            colors={['#F8B133']}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
           />
         }
         ListEmptyComponent={
           <View style={styles.emptyWrapper}>
             <View style={styles.emptyIcono}>
-              <Ionicons name="bookmark-outline" size={48} color={'#F8B133'} />
+              <Ionicons name="bookmark-outline" size={48} color={colors.primary} />
             </View>
-            <Text style={styles.emptyTitulo}>Aún no tienes recetas guardadas</Text>
-            <Text style={styles.emptySubtitulo}>
-              Cuando guardes una receta aparecerá aquí
-            </Text>
+            <Text style={styles.emptyTitulo}>Aún no has guardado ninguna receta</Text>
+            <Pressable
+              style={styles.explorarBtn}
+              onPress={() => router.push('/(tabs)/feed')}
+            >
+              <Ionicons name="compass-outline" size={18} color={colors.white} />
+              <Text style={styles.explorarBtnTexto}>Explorar recetas</Text>
+            </Pressable>
           </View>
         }
         renderItem={({ item }) => (
           <RecetaCard
-            titulo={item.titulo}
-            tiempo={item.tiempo}
-            dificultad={item.dificultad}
-            gradiente={item.gradiente}
-            info={`Por @${item.autor}`}
-            infoIcono="person-outline"
-            accentColor={'#F8B133'}
+            receta={item}
+            onPress={() => router.push({ pathname: '/receta/[id]', params: { id: item.id } })}
+            onQuitarGuardado={() => confirmarQuitarGuardado(item.id, item.titulo)}
           />
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
@@ -124,46 +122,52 @@ export function RecetasGuardadasScreen() {
 }
 
 function RecetaCard({
-  titulo,
-  tiempo,
-  dificultad,
-  gradiente,
-  info,
-  infoIcono,
-  accentColor,
+  receta,
+  onPress,
+  onQuitarGuardado,
 }: {
-  titulo: string;
-  tiempo: number;
-  dificultad: string;
-  gradiente: [string, string];
-  info: string;
-  infoIcono: React.ComponentProps<typeof Ionicons>['name'];
-  accentColor: string;
+  receta: Receta;
+  onPress: () => void;
+  onQuitarGuardado: () => void;
 }) {
+  const dificultadColor = DIFICULTAD_COLOR[receta.dificultad] ?? colors.grayMid;
+
   return (
     <View style={cardStyles.container}>
-      <LinearGradient colors={gradiente} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={cardStyles.imagen}>
-        <View style={cardStyles.imagenIcono}>
-          <Ionicons name="restaurant-outline" size={36} color="rgba(255,255,255,0.8)" />
-        </View>
-      </LinearGradient>
-      <View style={cardStyles.cuerpo}>
-        <Text style={cardStyles.titulo} numberOfLines={2}>{titulo}</Text>
-        <View style={cardStyles.metaRow}>
-          <View style={cardStyles.metaItem}>
-            <Ionicons name="time-outline" size={14} color={colors.text.secondary} />
-            <Text style={cardStyles.metaTexto}>{tiempo} min</Text>
+      <Pressable onPress={onPress}>
+        {receta.imagenUrl ? (
+          <Image
+            source={{ uri: receta.imagenUrl }}
+            style={cardStyles.imagen}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={[cardStyles.imagen, cardStyles.imagenPlaceholder]}>
+            <Ionicons name="restaurant-outline" size={36} color="rgba(255,255,255,0.7)" />
           </View>
-          <View style={cardStyles.metaItem}>
-            <Ionicons name="bar-chart-outline" size={14} color={colors.text.secondary} />
-            <Text style={cardStyles.metaTexto}>{dificultad}</Text>
+        )}
+        <View style={[cardStyles.dificultadBadge, { backgroundColor: dificultadColor }]}>
+          <Text style={cardStyles.dificultadTexto}>{receta.dificultad}</Text>
+        </View>
+        <View style={cardStyles.cuerpo}>
+          <Text style={cardStyles.titulo} numberOfLines={2}>{receta.titulo}</Text>
+          <Text style={cardStyles.descripcion} numberOfLines={2}>{receta.descripcion}</Text>
+          <View style={cardStyles.metaRow}>
+            <View style={cardStyles.metaItem}>
+              <Ionicons name="time-outline" size={13} color={colors.text.secondary} />
+              <Text style={cardStyles.metaTexto}>{receta.tiempoEstimado} min</Text>
+            </View>
+            <View style={cardStyles.metaItem}>
+              <Ionicons name="heart-outline" size={13} color={colors.text.secondary} />
+              <Text style={cardStyles.metaTexto}>{receta.totalLikes ?? 0}</Text>
+            </View>
           </View>
         </View>
-        <View style={cardStyles.footerRow}>
-          <Ionicons name={infoIcono} size={13} color={accentColor} />
-          <Text style={[cardStyles.footerTexto, { color: accentColor }]}>{info}</Text>
-        </View>
-      </View>
+      </Pressable>
+      <Pressable style={cardStyles.quitarBtn} onPress={onQuitarGuardado} hitSlop={8}>
+        <Ionicons name="bookmark" size={14} color={colors.primary} />
+        <Text style={cardStyles.quitarTexto}>Quitar de guardados</Text>
+      </Pressable>
     </View>
   );
 }
@@ -184,7 +188,7 @@ const styles = StyleSheet.create({
   headerTitulo: { ...typography.heading3, color: colors.text.primary },
   headerRight: { width: 40, alignItems: 'flex-end' },
   contador: {
-    backgroundColor: '#F8B133',
+    backgroundColor: colors.primary,
     borderRadius: borderRadius.full,
     minWidth: 24,
     height: 24,
@@ -192,7 +196,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.sm,
   },
-  contadorTexto: { fontSize: 12, fontFamily: 'Poppins_700Bold', color: colors.white },
+  contadorTexto: { ...typography.caption, color: colors.white, fontWeight: '700' },
   lista: { padding: spacing.lg, paddingBottom: spacing.xxxl },
   centrado: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   emptyWrapper: { alignItems: 'center', gap: spacing.md },
@@ -200,12 +204,22 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: borderRadius.full,
-    backgroundColor: '#F8B13320',
+    backgroundColor: colors.primary + '20',
     alignItems: 'center',
     justifyContent: 'center',
   },
   emptyTitulo: { ...typography.heading3, color: colors.text.primary, textAlign: 'center' },
-  emptySubtitulo: { ...typography.body, color: colors.text.secondary, textAlign: 'center' },
+  explorarBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    marginTop: spacing.sm,
+  },
+  explorarBtnTexto: { ...typography.label, color: colors.white, fontWeight: '700' },
 });
 
 const cardStyles = StyleSheet.create({
@@ -215,20 +229,35 @@ const cardStyles = StyleSheet.create({
     overflow: 'hidden',
     ...shadows.sm,
   },
-  imagen: { height: 130, alignItems: 'center', justifyContent: 'center' },
-  imagenIcono: {
-    width: 72,
-    height: 72,
-    borderRadius: borderRadius.full,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  imagen: { width: '100%', height: 140 },
+  imagenPlaceholder: {
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  dificultadBadge: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 3,
+    borderRadius: borderRadius.full,
+  },
+  dificultadTexto: { ...typography.caption, color: colors.white, fontWeight: '700' },
   cuerpo: { padding: spacing.lg, gap: spacing.sm },
   titulo: { ...typography.heading3, color: colors.text.primary },
-  metaRow: { flexDirection: 'row', gap: spacing.lg },
+  descripcion: { ...typography.body, color: colors.text.secondary },
+  metaRow: { flexDirection: 'row', gap: spacing.lg, marginTop: spacing.xs },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   metaTexto: { ...typography.caption, color: colors.text.secondary },
-  footerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.xs },
-  footerTexto: { ...typography.caption, fontFamily: 'Poppins_600SemiBold' },
+  quitarBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.grayLight,
+  },
+  quitarTexto: { ...typography.caption, color: colors.primary, fontWeight: '700' },
 });
