@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { despensaService } from '@/services/despensaService';
 import { useDespensaStore } from '@/store/despensaStore';
 
@@ -31,9 +32,10 @@ const estadoInicial = {
   busquedaActiva: '',
 };
 
-beforeEach(() => {
-  useDespensaStore.setState(estadoInicial);
+beforeEach(async () => {
+  useDespensaStore.setState({ ...estadoInicial, ordenActivo: 'reciente_primero' });
   jest.clearAllMocks();
+  await AsyncStorage.clear();
 });
 
 // -------------------------------------------------------------------------
@@ -159,6 +161,48 @@ it('limpiarFiltros_resetea_filtros_y_busqueda_al_estado_inicial', () => {
   useDespensaStore.getState().limpiarFiltros();
   expect(useDespensaStore.getState().busquedaActiva).toBe('');
   expect(useDespensaStore.getState().filtrosActivos).toEqual({});
+});
+
+// -------------------------------------------------------------------------
+// setOrden / inicializarOrden — ordenación persistente (#137)
+// -------------------------------------------------------------------------
+
+it('setOrden_actualiza_ordenActivo_en_store', async () => {
+  mockService.listarProductos.mockResolvedValue([]);
+  await useDespensaStore.getState().setOrden('nombre_asc');
+  expect(useDespensaStore.getState().ordenActivo).toBe('nombre_asc');
+});
+
+it('setOrden_guarda_orden_en_asyncstorage', async () => {
+  mockService.listarProductos.mockResolvedValue([]);
+  await useDespensaStore.getState().setOrden('cantidad_desc');
+  const guardado = await AsyncStorage.getItem('despensa_orden');
+  expect(guardado).toBe('cantidad_desc');
+});
+
+it('setOrden_llama_a_cargarProductos_automaticamente', async () => {
+  mockService.listarProductos.mockResolvedValue([mockProducto]);
+  await useDespensaStore.getState().setOrden('categoria');
+  expect(mockService.listarProductos).toHaveBeenCalledWith('categoria');
+  expect(useDespensaStore.getState().productos).toHaveLength(1);
+});
+
+it('inicializarOrden_recupera_orden_de_asyncstorage', async () => {
+  await AsyncStorage.setItem('despensa_orden', 'caducidad_asc');
+  await useDespensaStore.getState().inicializarOrden();
+  expect(useDespensaStore.getState().ordenActivo).toBe('caducidad_asc');
+});
+
+it('inicializarOrden_usa_reciente_primero_si_no_hay_guardado', async () => {
+  await useDespensaStore.getState().inicializarOrden();
+  expect(useDespensaStore.getState().ordenActivo).toBe('reciente_primero');
+});
+
+it('cargarProductos_usa_ordenActivo_al_llamar_al_servicio', async () => {
+  useDespensaStore.setState({ ...estadoInicial, ordenActivo: 'nombre_desc' });
+  mockService.listarProductos.mockResolvedValue([]);
+  await useDespensaStore.getState().cargarProductos();
+  expect(mockService.listarProductos).toHaveBeenCalledWith('nombre_desc');
 });
 
 // -------------------------------------------------------------------------

@@ -22,6 +22,8 @@ const mockEliminarProducto = jest.fn();
 const mockSetBusqueda      = jest.fn();
 const mockSetFiltros       = jest.fn();
 const mockLimpiarFiltros   = jest.fn();
+const mockSetOrden         = jest.fn();
+const mockInicializarOrden = jest.fn().mockResolvedValue(undefined);
 
 const mockProducto = {
   id: 'prod-1',
@@ -38,12 +40,15 @@ const storeBase = {
   productos: [],
   isLoading: false,
   busquedaActiva: '',
+  ordenActivo: 'reciente_primero',
   cargarProductos: mockCargarProductos,
   actualizarCantidad: mockActualizarCantidad,
   eliminarProducto: mockEliminarProducto,
   setBusqueda: mockSetBusqueda,
   setFiltros: mockSetFiltros,
   limpiarFiltros: mockLimpiarFiltros,
+  setOrden: mockSetOrden,
+  inicializarOrden: mockInicializarOrden,
 };
 
 beforeEach(() => {
@@ -86,6 +91,24 @@ it('llama_cargarProductos_al_montar_el_componente', async () => {
   await waitFor(() => {
     expect(mockCargarProductos).toHaveBeenCalledTimes(1);
   });
+});
+
+it('inicializa_orden_al_montar_la_pantalla', async () => {
+  render(<DespensaScreen />);
+  await waitFor(() => {
+    expect(mockInicializarOrden).toHaveBeenCalledTimes(1);
+  });
+});
+
+it('orden_recuperado_se_refleja_en_filtrosbar', () => {
+  (useDespensaStore as unknown as jest.Mock).mockReturnValue({
+    ...storeBase,
+    ordenActivo: 'nombre_asc',
+  });
+  const { getByText } = render(<DespensaScreen />);
+  const texto = getByText('Nombre A-Z');
+  const estilo = Object.assign({}, ...[texto.props.style].flat());
+  expect(estilo.color).toBe('#7FC62A');
 });
 
 // -------------------------------------------------------------------------
