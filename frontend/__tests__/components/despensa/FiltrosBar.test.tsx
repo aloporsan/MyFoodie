@@ -2,6 +2,8 @@ import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
 import { FiltrosBar } from '@/components/despensa/FiltrosBar';
 
+jest.mock('@expo/vector-icons', () => ({ FontAwesome: 'FontAwesome' }));
+
 const onFiltroChange = jest.fn();
 
 beforeEach(() => jest.clearAllMocks());

@@ -9,7 +9,7 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 );
 jest.mock('expo-router', () => ({ useRouter: jest.fn() }));
 jest.mock('@/store/despensaStore', () => ({ useDespensaStore: jest.fn() }));
-jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
+jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons', FontAwesome: 'FontAwesome' }));
 jest.mock('react-native-safe-area-context', () => {
   const { View } = require('react-native');
   return { SafeAreaView: View };
