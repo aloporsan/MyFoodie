@@ -962,6 +962,237 @@
       ]
     },
     {
+      "name": "🔀 Ordenación",
+      "item": [
+        {
+          "name": "O1. orderBy=nombre_asc → orden alfabético ascendente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Orden alfabético ascendente', () => {",
+                  "  for (let i = 1; i < json.length; i++) {",
+                  "    pm.expect(json[i - 1].nombre.toLowerCase() <= json[i].nombre.toLowerCase()).to.be.true;",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos?orderBy=nombre_asc", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"], "query": [{ "key": "orderBy", "value": "nombre_asc" }] }
+          }
+        },
+        {
+          "name": "O2. orderBy=nombre_desc → orden alfabético inverso",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Orden alfabético descendente', () => {",
+                  "  for (let i = 1; i < json.length; i++) {",
+                  "    pm.expect(json[i - 1].nombre.toLowerCase() >= json[i].nombre.toLowerCase()).to.be.true;",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos?orderBy=nombre_desc", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"], "query": [{ "key": "orderBy", "value": "nombre_desc" }] }
+          }
+        },
+        {
+          "name": "O3. orderBy=caducidad_asc → fecha más próxima primero (sin fecha al final)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Fechas ascendentes y nulos al final', () => {",
+                  "  let vistoSinFecha = false;",
+                  "  let anterior = null;",
+                  "  json.forEach(p => {",
+                  "    if (p.fechaCaducidad === null) {",
+                  "      vistoSinFecha = true;",
+                  "    } else {",
+                  "      pm.expect(vistoSinFecha).to.be.false;",
+                  "      if (anterior !== null) pm.expect(anterior <= p.fechaCaducidad).to.be.true;",
+                  "      anterior = p.fechaCaducidad;",
+                  "    }",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos?orderBy=caducidad_asc", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"], "query": [{ "key": "orderBy", "value": "caducidad_asc" }] }
+          }
+        },
+        {
+          "name": "O4. orderBy=cantidad_desc → cantidad mayor primero",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Cantidad descendente', () => {",
+                  "  for (let i = 1; i < json.length; i++) {",
+                  "    pm.expect(json[i - 1].cantidad >= json[i].cantidad).to.be.true;",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos?orderBy=cantidad_desc", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"], "query": [{ "key": "orderBy", "value": "cantidad_desc" }] }
+          }
+        },
+        {
+          "name": "O5. orderBy=cantidad_asc → cantidad menor primero",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Cantidad ascendente', () => {",
+                  "  for (let i = 1; i < json.length; i++) {",
+                  "    pm.expect(json[i - 1].cantidad <= json[i].cantidad).to.be.true;",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos?orderBy=cantidad_asc", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"], "query": [{ "key": "orderBy", "value": "cantidad_asc" }] }
+          }
+        },
+        {
+          "name": "O6. orderBy=reciente_primero → fecha de añadido más reciente primero",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('createdAt descendente', () => {",
+                  "  for (let i = 1; i < json.length; i++) {",
+                  "    pm.expect(json[i - 1].createdAt >= json[i].createdAt).to.be.true;",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos?orderBy=reciente_primero", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"], "query": [{ "key": "orderBy", "value": "reciente_primero" }] }
+          }
+        },
+        {
+          "name": "O7. orderBy=categoria → agrupación por categoría",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Agrupado por categoría (sin categoría al final)', () => {",
+                  "  let vistoSinCategoria = false;",
+                  "  let anterior = null;",
+                  "  json.forEach(p => {",
+                  "    if (p.categoria === null) {",
+                  "      vistoSinCategoria = true;",
+                  "    } else {",
+                  "      pm.expect(vistoSinCategoria).to.be.false;",
+                  "      if (anterior !== null) pm.expect(anterior.toLowerCase() <= p.categoria.toLowerCase()).to.be.true;",
+                  "      anterior = p.categoria;",
+                  "    }",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos?orderBy=categoria", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"], "query": [{ "key": "orderBy", "value": "categoria" }] }
+          }
+        },
+        {
+          "name": "O8. Sin orderBy → orden por defecto reciente_primero",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('createdAt descendente por defecto', () => {",
+                  "  for (let i = 1; i < json.length; i++) {",
+                  "    pm.expect(json[i - 1].createdAt >= json[i].createdAt).to.be.true;",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "O9. orderBy=invalido → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos?orderBy=invalido", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"], "query": [{ "key": "orderBy", "value": "invalido" }] }
+          }
+        }
+      ]
+    },
+    {
       "name": "❌ Negativos",
       "item": [
         {

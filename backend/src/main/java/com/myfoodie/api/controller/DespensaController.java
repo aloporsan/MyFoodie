@@ -27,8 +27,10 @@ public class DespensaController {
     private final UsuarioRepository usuarioRepository;
 
     @GetMapping
-    public ResponseEntity<List<ProductoResponseDTO>> listar(Principal principal) {
-        return ResponseEntity.ok(despensaService.listarProductos(getUsuarioId(principal)));
+    public ResponseEntity<List<ProductoResponseDTO>> listar(
+            @RequestParam(required = false) String orderBy,
+            Principal principal) {
+        return ResponseEntity.ok(despensaService.listarProductos(getUsuarioId(principal), orderBy));
     }
 
     @GetMapping("/buscar")

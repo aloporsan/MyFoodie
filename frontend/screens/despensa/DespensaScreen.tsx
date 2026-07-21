@@ -44,12 +44,15 @@ export function DespensaScreen() {
     productos,
     isLoading,
     busquedaActiva,
+    ordenActivo,
     cargarProductos,
     actualizarCantidad,
     eliminarProducto,
     setBusqueda,
     setFiltros,
     limpiarFiltros,
+    setOrden,
+    inicializarOrden,
   } = useDespensaStore();
 
   const [filtroActivo, setFiltroActivo] = useState<FiltroId>('todos');
@@ -76,7 +79,11 @@ export function DespensaScreen() {
   categoriaActivaRef.current = categoriaActiva;
 
   useEffect(() => {
-    cargarProductos();
+    const iniciar = async () => {
+      await inicializarOrden();
+      cargarProductos();
+    };
+    iniciar();
   }, []);
 
   useEffect(() => {
@@ -202,11 +209,13 @@ export function DespensaScreen() {
         </Pressable>
       </View>
 
-      {/* Filtros de estado */}
+      {/* Filtros de estado y ordenación */}
       <FiltrosBar
         filtroActivo={filtroActivo}
         estadosPresentes={estadosPresentesBase}
         onFiltroChange={handleFiltroEstado}
+        ordenActivo={ordenActivo}
+        onOrdenChange={setOrden}
       />
 
       {/* Lista */}

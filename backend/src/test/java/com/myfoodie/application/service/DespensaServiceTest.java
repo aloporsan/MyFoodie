@@ -24,6 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -69,6 +70,13 @@ class DespensaServiceTest {
 
     private ProductoRequestDTO dto(String nombre, double cantidad) {
         return new ProductoRequestDTO(nombre, cantidad, "unidades", null, null, null, null, null, null);
+    }
+
+    private ProductoResponseDTO porNombre(List<ProductoResponseDTO> lista, String nombre) {
+        return lista.stream()
+                .filter(p -> p.nombre().equals(nombre))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("No se encontró el producto: " + nombre));
     }
 
     // -------------------------------------------------------------------------
@@ -724,8 +732,8 @@ class DespensaServiceTest {
 
         List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
 
-        assertThat(lista.get(0).estado()).isEqualTo("caduca_semana");
-        assertThat(lista.get(1).estado()).isEqualTo("caduca_mes");
+        assertThat(porNombre(lista, "Queso semana").estado()).isEqualTo("caduca_semana");
+        assertThat(porNombre(lista, "Queso mes").estado()).isEqualTo("caduca_mes");
     }
 
     @Test
@@ -740,8 +748,8 @@ class DespensaServiceTest {
 
         List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
 
-        assertThat(lista.get(0).estado()).isEqualTo("caduca_mes");
-        assertThat(lista.get(1).estado()).isEqualTo("normal");
+        assertThat(porNombre(lista, "Leche mes").estado()).isEqualTo("caduca_mes");
+        assertThat(porNombre(lista, "Leche normal").estado()).isEqualTo("normal");
     }
 
     @Test
@@ -829,5 +837,198 @@ class DespensaServiceTest {
                 "user-1", new ProductoFiltroDTO(null, null, null));
 
         assertThat(resultado).hasSize(3);
+    }
+
+    // -------------------------------------------------------------------------
+    // MEJORA 4 — Ordenación de productos (#137)
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("listarProductos ordena por nombre ascendente (A-Z)")
+    void listarProductos_ordenado_por_nombre_asc_correctamente() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto zanahoria = producto("p-1", "desp-1", "Zanahoria", 2, null);
+        Producto arroz     = producto("p-2", "desp-1", "Arroz", 3, null);
+        Producto manzana   = producto("p-3", "desp-1", "Manzana", 1, null);
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1"))
+                .thenReturn(List.of(zanahoria, arroz, manzana));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1", "nombre_asc");
+
+        assertThat(lista).extracting(ProductoResponseDTO::nombre)
+                .containsExactly("Arroz", "Manzana", "Zanahoria");
+    }
+
+    @Test
+    @DisplayName("listarProductos ordena por nombre descendente (Z-A)")
+    void listarProductos_ordenado_por_nombre_desc_correctamente() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto zanahoria = producto("p-1", "desp-1", "Zanahoria", 2, null);
+        Producto arroz     = producto("p-2", "desp-1", "Arroz", 3, null);
+        Producto manzana   = producto("p-3", "desp-1", "Manzana", 1, null);
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1"))
+                .thenReturn(List.of(zanahoria, arroz, manzana));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1", "nombre_desc");
+
+        assertThat(lista).extracting(ProductoResponseDTO::nombre)
+                .containsExactly("Zanahoria", "Manzana", "Arroz");
+    }
+
+    @Test
+    @DisplayName("listarProductos ordena por caducidad ascendente, dejando los productos sin fecha al final")
+    void listarProductos_ordenado_por_caducidad_asc_correctamente() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto sinFecha = producto("p-1", "desp-1", "Sal", 5, null);
+        Producto lejana   = producto("p-2", "desp-1", "Arroz", 5, LocalDate.now().plusDays(20));
+        Producto cercana  = producto("p-3", "desp-1", "Yogur", 2, LocalDate.now().plusDays(2));
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1"))
+                .thenReturn(List.of(sinFecha, lejana, cercana));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1", "caducidad_asc");
+
+        assertThat(lista).extracting(ProductoResponseDTO::nombre)
+                .containsExactly("Yogur", "Arroz", "Sal");
+    }
+
+    @Test
+    @DisplayName("listarProductos ordena por cantidad descendente (mayor a menor)")
+    void listarProductos_ordenado_por_cantidad_desc_correctamente() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p1 = producto("p-1", "desp-1", "A", 2, null);
+        Producto p2 = producto("p-2", "desp-1", "B", 8, null);
+        Producto p3 = producto("p-3", "desp-1", "C", 5, null);
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p1, p2, p3));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1", "cantidad_desc");
+
+        assertThat(lista).extracting(ProductoResponseDTO::cantidad)
+                .containsExactly(8.0, 5.0, 2.0);
+    }
+
+    @Test
+    @DisplayName("listarProductos ordena por cantidad ascendente (menor a mayor)")
+    void listarProductos_ordenado_por_cantidad_asc_correctamente() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p1 = producto("p-1", "desp-1", "A", 2, null);
+        Producto p2 = producto("p-2", "desp-1", "B", 8, null);
+        Producto p3 = producto("p-3", "desp-1", "C", 5, null);
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p1, p2, p3));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1", "cantidad_asc");
+
+        assertThat(lista).extracting(ProductoResponseDTO::cantidad)
+                .containsExactly(2.0, 5.0, 8.0);
+    }
+
+    @Test
+    @DisplayName("listarProductos ordena por fecha de añadido, el más reciente primero")
+    void listarProductos_ordenado_por_reciente_primero_correctamente() {
+        Despensa d = despensa("desp-1", "user-1");
+        LocalDateTime base = LocalDateTime.now();
+        Producto antiguo  = Producto.builder().id("p-1").despensaId("desp-1")
+                .nombre("Antiguo").cantidad(1).unidad("unidades")
+                .createdAt(base.minusDays(2)).build();
+        Producto reciente = Producto.builder().id("p-2").despensaId("desp-1")
+                .nombre("Reciente").cantidad(1).unidad("unidades")
+                .createdAt(base).build();
+        Producto medio    = Producto.builder().id("p-3").despensaId("desp-1")
+                .nombre("Medio").cantidad(1).unidad("unidades")
+                .createdAt(base.minusDays(1)).build();
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1"))
+                .thenReturn(List.of(antiguo, reciente, medio));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1", "reciente_primero");
+
+        assertThat(lista).extracting(ProductoResponseDTO::nombre)
+                .containsExactly("Reciente", "Medio", "Antiguo");
+    }
+
+    @Test
+    @DisplayName("listarProductos ordena por categoría alfabéticamente, dejando los sin categoría al final")
+    void listarProductos_ordenado_por_categoria_correctamente() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto verduras = Producto.builder().id("p-1").despensaId("desp-1")
+                .nombre("Zanahoria").cantidad(2).unidad("unidades").categoria("Verduras").build();
+        Producto lacteos  = Producto.builder().id("p-2").despensaId("desp-1")
+                .nombre("Leche").cantidad(2).unidad("litros").categoria("Lácteos").build();
+        Producto sinCategoria = Producto.builder().id("p-3").despensaId("desp-1")
+                .nombre("Varios").cantidad(1).unidad("unidades").build();
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1"))
+                .thenReturn(List.of(verduras, lacteos, sinCategoria));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1", "categoria");
+
+        assertThat(lista).extracting(ProductoResponseDTO::nombre)
+                .containsExactly("Leche", "Zanahoria", "Varios");
+    }
+
+    @Test
+    @DisplayName("listarProductos sin orderBy usa 'reciente_primero' por defecto")
+    void listarProductos_sin_orderBy_usa_reciente_primero() {
+        Despensa d = despensa("desp-1", "user-1");
+        LocalDateTime base = LocalDateTime.now();
+        Producto antiguo  = Producto.builder().id("p-1").despensaId("desp-1")
+                .nombre("Antiguo").cantidad(1).unidad("unidades")
+                .createdAt(base.minusDays(2)).build();
+        Producto reciente = Producto.builder().id("p-2").despensaId("desp-1")
+                .nombre("Reciente").cantidad(1).unidad("unidades")
+                .createdAt(base).build();
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1"))
+                .thenReturn(List.of(antiguo, reciente));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista).extracting(ProductoResponseDTO::nombre)
+                .containsExactly("Reciente", "Antiguo");
+    }
+
+    @Test
+    @DisplayName("listarProductos combina el cálculo de estado con la ordenación solicitada")
+    void listarProductos_filtro_estado_combinable_con_ordenacion() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto caducado  = producto("p-1", "desp-1", "Zanahoria caducada", 2, LocalDate.now().minusDays(1));
+        Producto bajoStock = producto("p-2", "desp-1", "Arroz bajo", 1, null);
+        Producto normal    = producto("p-3", "desp-1", "Manzana normal", 10, LocalDate.now().plusDays(60));
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1"))
+                .thenReturn(List.of(caducado, bajoStock, normal));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1", "nombre_asc");
+
+        assertThat(lista).extracting(ProductoResponseDTO::nombre)
+                .containsExactly("Arroz bajo", "Manzana normal", "Zanahoria caducada");
+        assertThat(lista.get(0).estado()).isEqualTo("bajoStock");
+        assertThat(lista.get(1).estado()).isEqualTo("normal");
+        assertThat(lista.get(2).estado()).isEqualTo("caducado");
+    }
+
+    @Test
+    @DisplayName("listarProductos lanza 400 si orderBy no es un valor válido")
+    void listarProductos_devuelve_400_con_orderBy_invalido() {
+        Despensa d = despensa("desp-1", "user-1");
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+
+        assertThatThrownBy(() -> despensaService.listarProductos("user-1", "invalido"))
+                .isInstanceOf(ApiException.class)
+                .satisfies(ex -> assertThat(((ApiException) ex).getStatus())
+                        .isEqualTo(HttpStatus.BAD_REQUEST));
     }
 }

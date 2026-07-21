@@ -67,8 +67,10 @@ export interface MovimientoProducto {
 }
 
 export const despensaService = {
-  listarProductos: async (): Promise<Producto[]> => {
-    const { data } = await apiClient.get<Producto[]>('/despensa/productos');
+  listarProductos: async (orderBy?: string): Promise<Producto[]> => {
+    const { data } = orderBy
+      ? await apiClient.get<Producto[]>('/despensa/productos', { params: { orderBy } })
+      : await apiClient.get<Producto[]>('/despensa/productos');
     return data;
   },
 

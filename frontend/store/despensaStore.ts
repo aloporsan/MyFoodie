@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import {
   despensaService,
@@ -11,6 +12,8 @@ import { handleApiError } from '@/utils/errorHandler';
 import { useDashboardStore } from './dashboardStore';
 
 const FILTRO_VACIO: ProductoFiltro = {};
+const ORDEN_STORAGE_KEY = 'despensa_orden';
+const ORDEN_POR_DEFECTO = 'reciente_primero';
 
 interface DespensaState {
   productos: Producto[];
@@ -19,6 +22,7 @@ interface DespensaState {
   error: string | null;
   filtrosActivos: ProductoFiltro;
   busquedaActiva: string;
+  ordenActivo: string;
 }
 
 interface DespensaActions {
@@ -31,6 +35,8 @@ interface DespensaActions {
   setBusqueda: (texto: string) => void;
   setFiltros: (filtros: ProductoFiltro) => void;
   limpiarFiltros: () => void;
+  setOrden: (orden: string) => Promise<void>;
+  inicializarOrden: () => Promise<void>;
   clearError: () => void;
 }
 
@@ -44,11 +50,12 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
   error: null,
   filtrosActivos: FILTRO_VACIO,
   busquedaActiva: '',
+  ordenActivo: ORDEN_POR_DEFECTO,
 
   cargarProductos: async () => {
     set({ isLoading: true, error: null });
     try {
-      const { busquedaActiva, filtrosActivos } = get();
+      const { busquedaActiva, filtrosActivos, ordenActivo } = get();
       let productos: Producto[];
 
       if (busquedaActiva.trim()) {
@@ -56,7 +63,7 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
       } else if (hayFiltrosActivos(filtrosActivos)) {
         productos = await despensaService.filtrarProductos(filtrosActivos);
       } else {
-        productos = await despensaService.listarProductos();
+        productos = await despensaService.listarProductos(ordenActivo);
       }
 
       set({ productos, isLoading: false });
@@ -136,6 +143,17 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
   setFiltros: (filtros) => set({ filtrosActivos: filtros }),
 
   limpiarFiltros: () => set({ filtrosActivos: FILTRO_VACIO, busquedaActiva: '' }),
+
+  setOrden: async (orden) => {
+    set({ ordenActivo: orden });
+    await AsyncStorage.setItem(ORDEN_STORAGE_KEY, orden);
+    await get().cargarProductos();
+  },
+
+  inicializarOrden: async () => {
+    const guardado = await AsyncStorage.getItem(ORDEN_STORAGE_KEY);
+    set({ ordenActivo: guardado ?? ORDEN_POR_DEFECTO });
+  },
 
   clearError: () => set({ error: null }),
 }));
