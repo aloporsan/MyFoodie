@@ -14,7 +14,7 @@ import { useRouter } from 'expo-router';
 import { EstadisticaItem } from '@/components/perfil/EstadisticaItem';
 import { usePerfilStore } from '@/store/perfilStore';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
-import type { EstadisticasPerfil } from '@/services/perfilService';
+import type { EstadisticasPerfil, MotivosEliminacion } from '@/services/perfilService';
 
 type NivelInfo = {
   icono: React.ComponentProps<typeof Ionicons>['name'];
@@ -31,6 +31,14 @@ function getNivel(totalProductos: number): NivelInfo {
 }
 
 function calcularEficiencia(stats: EstadisticasPerfil): number | null {
+  const m = stats.motivosEliminacion;
+  if (m) {
+    const bienUsados = m.consumido + m.usado_en_receta + m.donado;
+    const desperdiciados = m.caducado + m.perdido;
+    const total = bienUsados + desperdiciados;
+    if (total === 0) return null;
+    return Math.round((bienUsados / total) * 100);
+  }
   if (stats.totalProductosRegistrados === 0) return null;
   return Math.round((stats.totalProductosConsumidos / stats.totalProductosRegistrados) * 100);
 }
@@ -49,6 +57,13 @@ export function EstadisticasScreen() {
 
   const nivel = getNivel(estadisticas?.totalProductosRegistrados ?? 0);
   const eficiencia = estadisticas ? calcularEficiencia(estadisticas) : null;
+  const motivos = estadisticas?.motivosEliminacion;
+  const bienUsados = motivos
+    ? motivos.consumido + motivos.usado_en_receta + motivos.donado
+    : (estadisticas?.totalProductosConsumidos ?? 0);
+  const desperdiciados = motivos
+    ? motivos.caducado + motivos.perdido
+    : (estadisticas?.totalProductosCaducados ?? 0);
   const totalResueltos =
     (estadisticas?.totalProductosConsumidos ?? 0) + (estadisticas?.totalProductosCaducados ?? 0);
   const pendientes = Math.max(
@@ -85,7 +100,7 @@ export function EstadisticasScreen() {
                 </Text>
                 {estadisticas && (
                   <Text style={styles.heroSub}>
-                    {estadisticas.totalProductosConsumidos} consumidos · {estadisticas.totalProductosCaducados} caducados
+                    {bienUsados} bien usados · {desperdiciados} desperdiciados
                   </Text>
                 )}
               </View>
@@ -97,24 +112,18 @@ export function EstadisticasScreen() {
 
             {/* Barra de progreso */}
             <View style={styles.progressTrack}>
-              {totalResueltos > 0 || pendientes > 0 ? (
+              {bienUsados > 0 || desperdiciados > 0 ? (
                 <>
-                  {(estadisticas?.totalProductosConsumidos ?? 0) > 0 && (
+                  {bienUsados > 0 && (
                     <View style={[styles.progressSeg, {
-                      flex: estadisticas!.totalProductosConsumidos,
+                      flex: bienUsados,
                       backgroundColor: 'rgba(255,255,255,0.85)',
                     }]} />
                   )}
-                  {(estadisticas?.totalProductosCaducados ?? 0) > 0 && (
+                  {desperdiciados > 0 && (
                     <View style={[styles.progressSeg, {
-                      flex: estadisticas!.totalProductosCaducados,
+                      flex: desperdiciados,
                       backgroundColor: 'rgba(239,68,68,0.75)',
-                    }]} />
-                  )}
-                  {pendientes > 0 && (
-                    <View style={[styles.progressSeg, {
-                      flex: pendientes,
-                      backgroundColor: 'rgba(255,255,255,0.25)',
                     }]} />
                   )}
                 </>
@@ -123,9 +132,8 @@ export function EstadisticasScreen() {
               )}
             </View>
             <View style={styles.progressLeyenda}>
-              <LeyendaItem color="rgba(255,255,255,0.85)" label="Consumidos" />
-              <LeyendaItem color="rgba(239,68,68,0.9)" label="Caducados" />
-              <LeyendaItem color="rgba(255,255,255,0.4)" label="Pendientes" />
+              <LeyendaItem color="rgba(255,255,255,0.85)" label="Bien usados" />
+              <LeyendaItem color="rgba(239,68,68,0.9)" label="Desperdiciados" />
             </View>
           </LinearGradient>
 
@@ -156,10 +164,15 @@ export function EstadisticasScreen() {
                 icono="time-outline"
                 valor={pendientes}
                 etiqueta="Pendientes"
-                color="#888"
+                color="#888888"
               />
             </View>
           </Seccion>
+
+          {/* Motivos de eliminación */}
+          {estadisticas.motivosEliminacion && (
+            <SeccionMotivos motivos={estadisticas.motivosEliminacion} />
+          )}
 
           {/* Recetas */}
           <Seccion titulo="Recetas">
@@ -215,6 +228,39 @@ export function EstadisticasScreen() {
         </ScrollView>
       ) : null}
     </SafeAreaView>
+  );
+}
+
+const MOTIVOS_CONFIG: {
+  key: keyof MotivosEliminacion;
+  label: string;
+  icono: React.ComponentProps<typeof Ionicons>['name'];
+  color: string;
+}[] = [
+  { key: 'consumido',       label: 'Consumido',       icono: 'checkmark-circle-outline', color: colors.primary },
+  { key: 'caducado',        label: 'Caducado',        icono: 'warning-outline',           color: colors.error },
+  { key: 'usado_en_receta', label: 'En receta',       icono: 'restaurant-outline',        color: '#F5A623' },
+  { key: 'donado',          label: 'Donado',          icono: 'heart-outline',             color: '#E91E8C' },
+  { key: 'perdido',         label: 'Perdido',         icono: 'help-circle-outline',       color: '#888888' },
+  { key: 'otro',            label: 'Otro',            icono: 'ellipsis-horizontal-circle-outline', color: '#7C5CBF' },
+];
+
+function SeccionMotivos({ motivos }: { motivos: MotivosEliminacion }) {
+  return (
+    <View style={seccionStyles.wrapper}>
+      <Text style={seccionStyles.titulo}>Motivos de eliminación</Text>
+      <View style={[seccionStyles.card, motivosStyles.grid]}>
+        {MOTIVOS_CONFIG.map((m) => (
+          <View key={m.key} style={motivosStyles.item}>
+            <View style={[motivosStyles.iconoBg, { backgroundColor: m.color + '20' }]}>
+              <Ionicons name={m.icono} size={20} color={m.color} />
+            </View>
+            <Text style={motivosStyles.valor}>{motivos[m.key]}</Text>
+            <Text style={motivosStyles.label}>{m.label}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -361,6 +407,36 @@ const seccionStyles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     ...shadows.sm,
+  },
+});
+
+const motivosStyles = StyleSheet.create({
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+  item: {
+    width: '30%',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  iconoBg: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  valor: {
+    fontSize: 20,
+    fontFamily: 'Poppins_700Bold',
+    color: colors.text.primary,
+  },
+  label: {
+    ...typography.caption,
+    color: colors.text.secondary,
+    textAlign: 'center',
   },
 });
 

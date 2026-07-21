@@ -8,5 +8,15 @@ public record EstadisticasPerfilDTO(
         int totalProductosCaducados,
         int totalRecetasPublicadas,
         int totalRecetasGuardadas,
-        LocalDateTime fechaRegistro
-) {}
+        LocalDateTime fechaRegistro,
+        MotivosEliminacion motivosEliminacion
+) {
+    public record MotivosEliminacion(
+            int consumido,
+            int caducado,
+            int usado_en_receta,
+            int donado,
+            int perdido,
+            int otro
+    ) {}
+}

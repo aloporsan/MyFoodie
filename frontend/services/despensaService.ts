@@ -47,6 +47,25 @@ export interface ProductoFiltro {
   caducaAntesDe?: string;
 }
 
+export type MotivoEliminacion =
+  | 'consumido'
+  | 'caducado'
+  | 'usado_en_receta'
+  | 'donado'
+  | 'perdido'
+  | 'otro';
+
+export interface MovimientoProducto {
+  id: string;
+  tipo: 'añadido' | 'editado' | 'cantidad_actualizada' | 'eliminado';
+  descripcion: string;
+  cantidadAnterior?: number | null;
+  cantidadNueva?: number | null;
+  motivo?: MotivoEliminacion | null;
+  motivoDetalle?: string | null;
+  createdAt: string;
+}
+
 export const despensaService = {
   listarProductos: async (): Promise<Producto[]> => {
     const { data } = await apiClient.get<Producto[]>('/despensa/productos');
@@ -68,12 +87,33 @@ export const despensaService = {
     return data;
   },
 
-  eliminarProducto: async (id: string): Promise<void> => {
-    await apiClient.delete(`/despensa/productos/${id}`);
+  eliminarProducto: async (
+    id: string,
+    motivo?: MotivoEliminacion,
+    motivoDetalle?: string
+  ): Promise<void> => {
+    const body = motivo ? { motivo, motivoDetalle } : undefined;
+    await apiClient.delete(`/despensa/productos/${id}`, { data: body });
   },
 
-  actualizarCantidad: async (id: string, delta: number): Promise<Producto> => {
-    const { data } = await apiClient.patch<Producto>(`/despensa/productos/${id}/cantidad`, { delta });
+  obtenerHistorial: async (id: string): Promise<MovimientoProducto[]> => {
+    const { data } = await apiClient.get<MovimientoProducto[]>(
+      `/despensa/productos/${id}/historial`
+    );
+    return data;
+  },
+
+  actualizarCantidad: async (
+    id: string,
+    delta: number,
+    motivo?: MotivoEliminacion,
+    motivoDetalle?: string
+  ): Promise<Producto> => {
+    const { data } = await apiClient.patch<Producto>(`/despensa/productos/${id}/cantidad`, {
+      delta,
+      motivo,
+      motivoDetalle,
+    });
     return data;
   },
 

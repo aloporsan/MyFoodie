@@ -1,13 +1,17 @@
 package com.myfoodie.application.service;
 
+import com.myfoodie.application.dto.despensa.EliminarProductoRequestDTO;
+import com.myfoodie.application.dto.despensa.MovimientoProductoResponseDTO;
 import com.myfoodie.application.dto.despensa.ProductoFiltroDTO;
 import com.myfoodie.application.dto.despensa.ProductoRequestDTO;
 import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.despensa.ProductoUpdateCantidadDTO;
 import com.myfoodie.domain.model.Despensa;
+import com.myfoodie.domain.model.MovimientoProducto;
 import com.myfoodie.domain.model.Preferencias;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.repository.DespensaRepository;
+import com.myfoodie.domain.repository.MovimientoProductoRepository;
 import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.ProductoRepository;
 import com.myfoodie.exception.ApiException;
@@ -27,6 +31,7 @@ public class DespensaService {
     private final DespensaRepository despensaRepository;
     private final ProductoRepository productoRepository;
     private final PreferenciasRepository preferenciasRepository;
+    private final MovimientoProductoRepository movimientoRepository;
 
     // -------------------------------------------------------------------------
     // CRUD básico
@@ -54,6 +59,8 @@ public class DespensaService {
 
         Producto saved = productoRepository.save(producto);
         actualizarDespensa(despensa);
+        registrarMovimiento(saved, usuarioId, "añadido", "Producto añadido a la despensa",
+                null, saved.getCantidad(), null, null);
 
         List<ProductoResponseDTO> duplicados = similares.stream()
                 .map(p -> toDTO(p, null, resolverUmbral(p, globalUmbral)))
@@ -96,12 +103,18 @@ public class DespensaService {
 
         Producto saved = productoRepository.save(p);
         actualizarDespensa(despensa);
+        registrarMovimiento(saved, usuarioId, "editado", "Producto actualizado",
+                null, null, null, null);
         return toDTO(saved, null, resolverUmbral(saved, globalUmbral));
     }
 
-    public void eliminarProducto(String usuarioId, String productoId) {
+    public void eliminarProducto(String usuarioId, String productoId, EliminarProductoRequestDTO dto) {
         Despensa despensa = getDespensaDeUsuario(usuarioId);
         Producto p = getProductoDeUsuario(despensa.getId(), productoId);
+        String motivo = dto != null ? dto.motivo() : null;
+        String motivoDetalle = dto != null ? dto.motivoDetalle() : null;
+        registrarMovimiento(p, usuarioId, "eliminado", "Producto eliminado de la despensa",
+                p.getCantidad(), null, motivo, motivoDetalle);
         productoRepository.delete(p);
         actualizarDespensa(despensa);
     }
@@ -112,12 +125,15 @@ public class DespensaService {
         int globalUmbral = obtenerGlobalUmbral(usuarioId);
         Producto p = getProductoDeUsuario(despensa.getId(), productoId);
 
-        double nuevaCantidad = Math.max(0, p.getCantidad() + dto.delta());
+        double cantidadAnterior = p.getCantidad();
+        double nuevaCantidad = Math.max(0, cantidadAnterior + dto.delta());
         p.setCantidad(nuevaCantidad);
         p.setUpdatedAt(LocalDateTime.now());
 
         Producto saved = productoRepository.save(p);
         actualizarDespensa(despensa);
+        registrarMovimiento(saved, usuarioId, "cantidad_actualizada", "Cantidad actualizada",
+                cantidadAnterior, nuevaCantidad, dto.motivo(), dto.motivoDetalle());
         return toDTO(saved, null, resolverUmbral(saved, globalUmbral));
     }
 
@@ -179,6 +195,34 @@ public class DespensaService {
 
     private int resolverUmbral(Producto p, int globalUmbral) {
         return p.getStockMinimo() != null ? p.getStockMinimo() : globalUmbral;
+    }
+
+    private void registrarMovimiento(Producto p, String usuarioId, String tipo, String descripcion,
+                                     Double cantidadAnterior, Double cantidadNueva,
+                                     String motivo, String motivoDetalle) {
+        movimientoRepository.save(MovimientoProducto.builder()
+                .productoId(p.getId())
+                .despensaId(p.getDespensaId())
+                .usuarioId(usuarioId)
+                .tipo(tipo)
+                .descripcion(descripcion)
+                .cantidadAnterior(cantidadAnterior)
+                .cantidadNueva(cantidadNueva)
+                .motivo(motivo)
+                .motivoDetalle(motivoDetalle)
+                .build());
+    }
+
+    public List<MovimientoProductoResponseDTO> obtenerHistorial(String usuarioId, String productoId) {
+        Despensa despensa = getDespensaDeUsuario(usuarioId);
+        getProductoDeUsuario(despensa.getId(), productoId);
+        return movimientoRepository.findByProductoIdOrderByCreatedAtDesc(productoId)
+                .stream()
+                .map(m -> new MovimientoProductoResponseDTO(
+                        m.getId(), m.getTipo(), m.getDescripcion(),
+                        m.getCantidadAnterior(), m.getCantidadNueva(),
+                        m.getMotivo(), m.getMotivoDetalle(), m.getCreatedAt()))
+                .toList();
     }
 
     String calcularEstado(Producto p, int umbral) {

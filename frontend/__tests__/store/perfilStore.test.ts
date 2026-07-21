@@ -37,6 +37,14 @@ const mockEstadisticas = {
   totalRecetasPublicadas: 8,
   totalRecetasGuardadas: 15,
   fechaRegistro: '2024-01-15T00:00:00.000Z',
+  motivosEliminacion: {
+    consumido: 20,
+    caducado: 5,
+    usado_en_receta: 4,
+    donado: 1,
+    perdido: 0,
+    otro: 0,
+  },
 };
 
 beforeEach(() => {

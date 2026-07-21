@@ -223,6 +223,19 @@ class DespensaControllerIntegrationTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    @DisplayName("DELETE /productos/{id} con body de motivo devuelve 204 y el motivo queda en el historial")
+    void DELETE_productos_devuelve204_conMotivoEnBody() throws Exception {
+        String productoId = añadirProductoYObtenerID(tokenA, "Yogur", 1, "unidades");
+
+        mockMvc.perform(delete("/api/despensa/productos/" + productoId)
+                        .header("Authorization", "Bearer " + tokenA)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("motivo", "caducado"))))
+                .andExpect(status().isNoContent());
+    }
+
     // -------------------------------------------------------------------------
     // PATCH /api/despensa/productos/{id}/cantidad
     // -------------------------------------------------------------------------
@@ -251,6 +264,68 @@ class DespensaControllerIntegrationTest {
                         .content(objectMapper.writeValueAsString(Map.of("delta", -10))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.cantidad").value(0.0));
+    }
+
+    @Test
+    @DisplayName("PATCH /productos/{id}/cantidad con motivo devuelve 200 y el movimiento queda en el historial")
+    void PATCH_cantidad_devuelve200_conMotivo_yApareceEnHistorial() throws Exception {
+        String productoId = añadirProductoYObtenerID(tokenA, "Peras", 4, "unidades");
+
+        mockMvc.perform(patch("/api/despensa/productos/" + productoId + "/cantidad")
+                        .header("Authorization", "Bearer " + tokenA)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("delta", -2, "motivo", "consumido"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cantidad").value(2.0));
+
+        mockMvc.perform(get("/api/despensa/productos/" + productoId + "/historial")
+                        .header("Authorization", "Bearer " + tokenA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].tipo").value("cantidad_actualizada"))
+                .andExpect(jsonPath("$[0].motivo").value("consumido"));
+    }
+
+    // -------------------------------------------------------------------------
+    // GET /api/despensa/productos/{id}/historial
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("GET /productos/{id}/historial devuelve 200 con el movimiento de creación tras añadir")
+    void GET_historial_devuelve200_conMovimientoDeCreacion() throws Exception {
+        String productoId = añadirProductoYObtenerID(tokenA, "Miel", 1, "unidades");
+
+        mockMvc.perform(get("/api/despensa/productos/" + productoId + "/historial")
+                        .header("Authorization", "Bearer " + tokenA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].tipo").value("añadido"));
+    }
+
+    @Test
+    @DisplayName("GET /productos/{id}/historial devuelve 404 tras eliminar el producto (ya no pertenece a la despensa)")
+    void GET_historial_devuelve404_trasEliminarProducto() throws Exception {
+        String productoId = añadirProductoYObtenerID(tokenA, "Nata", 1, "unidades");
+
+        mockMvc.perform(delete("/api/despensa/productos/" + productoId)
+                        .header("Authorization", "Bearer " + tokenA)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("motivo", "otro", "motivoDetalle", "Se derramó"))));
+
+        mockMvc.perform(get("/api/despensa/productos/" + productoId + "/historial")
+                        .header("Authorization", "Bearer " + tokenA))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("GET /productos/{id}/historial devuelve 404 si el producto pertenece a otro usuario")
+    void GET_historial_devuelve404_siNoPropietario() throws Exception {
+        String productoId = añadirProductoYObtenerID(tokenA, "Café", 1, "unidades");
+
+        mockMvc.perform(get("/api/despensa/productos/" + productoId + "/historial")
+                        .header("Authorization", "Bearer " + tokenB))
+                .andExpect(status().isNotFound());
     }
 
     // -------------------------------------------------------------------------

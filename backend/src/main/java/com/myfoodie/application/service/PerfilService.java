@@ -12,6 +12,7 @@ import com.myfoodie.domain.model.Preferencias;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.DespensaRepository;
+import com.myfoodie.domain.repository.MovimientoProductoRepository;
 import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.ProductoRepository;
 import com.myfoodie.domain.repository.RecetaRepository;
@@ -36,6 +37,7 @@ public class PerfilService {
     private final DespensaRepository despensaRepository;
     private final ProductoRepository productoRepository;
     private final RecetaRepository recetaRepository;
+    private final MovimientoProductoRepository movimientoRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final RedisTemplate<String, String> redisTemplate;
 
@@ -119,13 +121,16 @@ public class PerfilService {
 
         int totalRecetasPublicadas = (int) recetaRepository.countByAutorIdAndEstado(usuarioId, "publicada");
 
+        EstadisticasPerfilDTO.MotivosEliminacion motivos = calcularMotivosEliminacion(usuarioId, despensa);
+
         return new EstadisticasPerfilDTO(
                 totalProductos,
                 productosConsumidos,
                 productosCaducados,
                 totalRecetasPublicadas,
                 0,
-                usuario.getFechaRegistro()
+                usuario.getFechaRegistro(),
+                motivos
         );
     }
 
@@ -156,6 +161,27 @@ public class PerfilService {
         usuario.setFotoPerfil(null);
         usuario.setBiografia(null);
         usuarioRepository.save(usuario);
+    }
+
+    private EstadisticasPerfilDTO.MotivosEliminacion calcularMotivosEliminacion(String usuarioId, Despensa despensa) {
+        if (despensa == null) {
+            return new EstadisticasPerfilDTO.MotivosEliminacion(0, 0, 0, 0, 0, 0);
+        }
+        var eliminados = movimientoRepository.findByDespensaIdAndTipo(despensa.getId(), "eliminado");
+        int consumido = 0, caducado = 0, usado_en_receta = 0, donado = 0, perdido = 0, otro = 0;
+        for (var m : eliminados) {
+            if (m.getMotivo() == null) continue;
+            switch (m.getMotivo()) {
+                case "consumido"      -> consumido++;
+                case "caducado"       -> caducado++;
+                case "usado_en_receta"-> usado_en_receta++;
+                case "donado"         -> donado++;
+                case "perdido"        -> perdido++;
+                case "otro"           -> otro++;
+            }
+        }
+        return new EstadisticasPerfilDTO.MotivosEliminacion(
+                consumido, caducado, usado_en_receta, donado, perdido, otro);
     }
 
     private PerfilResponseDTO toPerfilResponse(Usuario usuario) {

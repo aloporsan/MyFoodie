@@ -33,6 +33,15 @@ export interface PrivacidadUpdate {
   permitirMensajes?: boolean;
 }
 
+export interface MotivosEliminacion {
+  consumido: number;
+  caducado: number;
+  usado_en_receta: number;
+  donado: number;
+  perdido: number;
+  otro: number;
+}
+
 export interface EstadisticasPerfil {
   totalProductosRegistrados: number;
   totalProductosConsumidos: number;
@@ -40,6 +49,7 @@ export interface EstadisticasPerfil {
   totalRecetasPublicadas: number;
   totalRecetasGuardadas: number;
   fechaRegistro: string;
+  motivosEliminacion: MotivosEliminacion;
 }
 
 export const perfilService = {

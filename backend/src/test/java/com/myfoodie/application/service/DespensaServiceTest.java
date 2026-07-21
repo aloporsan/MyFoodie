@@ -1,19 +1,23 @@
 package com.myfoodie.application.service;
 
+import com.myfoodie.application.dto.despensa.EliminarProductoRequestDTO;
 import com.myfoodie.application.dto.despensa.ProductoFiltroDTO;
 import com.myfoodie.application.dto.despensa.ProductoRequestDTO;
 import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.despensa.ProductoUpdateCantidadDTO;
 import com.myfoodie.domain.model.Despensa;
+import com.myfoodie.domain.model.MovimientoProducto;
 import com.myfoodie.domain.model.Preferencias;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.repository.DespensaRepository;
+import com.myfoodie.domain.repository.MovimientoProductoRepository;
 import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.ProductoRepository;
 import com.myfoodie.exception.ApiException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -36,6 +40,7 @@ class DespensaServiceTest {
     @Mock private DespensaRepository despensaRepository;
     @Mock private ProductoRepository productoRepository;
     @Mock private PreferenciasRepository preferenciasRepository;
+    @Mock private MovimientoProductoRepository movimientoRepository;
 
     @InjectMocks private DespensaService despensaService;
 
@@ -206,9 +211,52 @@ class DespensaServiceTest {
         when(productoRepository.findByDespensaIdAndId("desp-1", "prod-1")).thenReturn(Optional.of(p));
         when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
 
-        despensaService.eliminarProducto("user-1", "prod-1");
+        despensaService.eliminarProducto("user-1", "prod-1", null);
 
         verify(productoRepository).delete(p);
+    }
+
+    @Test
+    @DisplayName("eliminarProducto persiste el motivo y motivoDetalle en el movimiento registrado")
+    void eliminarProducto_persisteMotivoYMotivoDetalle_enElMovimiento() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p = producto("prod-1", "desp-1", "Aceite", 2, null);
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaIdAndId("desp-1", "prod-1")).thenReturn(Optional.of(p));
+        when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
+
+        despensaService.eliminarProducto("user-1", "prod-1",
+                new EliminarProductoRequestDTO("otro", "Se rompió el envase"));
+
+        ArgumentCaptor<MovimientoProducto> captor = ArgumentCaptor.forClass(MovimientoProducto.class);
+        verify(movimientoRepository).save(captor.capture());
+        MovimientoProducto movimiento = captor.getValue();
+
+        assertThat(movimiento.getTipo()).isEqualTo("eliminado");
+        assertThat(movimiento.getMotivo()).isEqualTo("otro");
+        assertThat(movimiento.getMotivoDetalle()).isEqualTo("Se rompió el envase");
+        assertThat(movimiento.getCantidadAnterior()).isEqualTo(2.0);
+        assertThat(movimiento.getCantidadNueva()).isNull();
+    }
+
+    @Test
+    @DisplayName("eliminarProducto registra motivo null cuando no se envía body")
+    void eliminarProducto_registraMotivoNull_cuandoDtoEsNull() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p = producto("prod-1", "desp-1", "Aceite", 2, null);
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaIdAndId("desp-1", "prod-1")).thenReturn(Optional.of(p));
+        when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
+
+        despensaService.eliminarProducto("user-1", "prod-1", null);
+
+        ArgumentCaptor<MovimientoProducto> captor = ArgumentCaptor.forClass(MovimientoProducto.class);
+        verify(movimientoRepository).save(captor.capture());
+
+        assertThat(captor.getValue().getMotivo()).isNull();
+        assertThat(captor.getValue().getMotivoDetalle()).isNull();
     }
 
     // -------------------------------------------------------------------------
@@ -227,7 +275,7 @@ class DespensaServiceTest {
         when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
 
         ProductoResponseDTO resultado = despensaService.actualizarCantidad(
-                "user-1", "prod-1", new ProductoUpdateCantidadDTO(2.0));
+                "user-1", "prod-1", new ProductoUpdateCantidadDTO(2.0, null, null));
 
         assertThat(resultado.cantidad()).isEqualTo(5.0);
     }
@@ -244,7 +292,7 @@ class DespensaServiceTest {
         when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
 
         ProductoResponseDTO resultado = despensaService.actualizarCantidad(
-                "user-1", "prod-1", new ProductoUpdateCantidadDTO(-1.0));
+                "user-1", "prod-1", new ProductoUpdateCantidadDTO(-1.0, null, null));
 
         assertThat(resultado.cantidad()).isEqualTo(2.0);
     }
@@ -261,9 +309,54 @@ class DespensaServiceTest {
         when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
 
         ProductoResponseDTO resultado = despensaService.actualizarCantidad(
-                "user-1", "prod-1", new ProductoUpdateCantidadDTO(-99.0));
+                "user-1", "prod-1", new ProductoUpdateCantidadDTO(-99.0, null, null));
 
         assertThat(resultado.cantidad()).isEqualTo(0.0);
+    }
+
+    @Test
+    @DisplayName("actualizarCantidad persiste el motivo y motivoDetalle cuando decrementa (restar)")
+    void actualizarCantidad_persisteMotivoYMotivoDetalle_enElMovimiento() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p = producto("prod-1", "desp-1", "Manzanas", 3, null);
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaIdAndId("desp-1", "prod-1")).thenReturn(Optional.of(p));
+        when(productoRepository.save(any(Producto.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
+
+        despensaService.actualizarCantidad("user-1", "prod-1",
+                new ProductoUpdateCantidadDTO(-1.0, "consumido", null));
+
+        ArgumentCaptor<MovimientoProducto> captor = ArgumentCaptor.forClass(MovimientoProducto.class);
+        verify(movimientoRepository).save(captor.capture());
+        MovimientoProducto movimiento = captor.getValue();
+
+        assertThat(movimiento.getTipo()).isEqualTo("cantidad_actualizada");
+        assertThat(movimiento.getMotivo()).isEqualTo("consumido");
+        assertThat(movimiento.getMotivoDetalle()).isNull();
+        assertThat(movimiento.getCantidadAnterior()).isEqualTo(3.0);
+        assertThat(movimiento.getCantidadNueva()).isEqualTo(2.0);
+    }
+
+    @Test
+    @DisplayName("actualizarCantidad registra motivo null cuando suma (sin motivo)")
+    void actualizarCantidad_registraMotivoNull_cuandoIncrementaSinMotivo() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p = producto("prod-1", "desp-1", "Manzanas", 3, null);
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaIdAndId("desp-1", "prod-1")).thenReturn(Optional.of(p));
+        when(productoRepository.save(any(Producto.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
+
+        despensaService.actualizarCantidad("user-1", "prod-1",
+                new ProductoUpdateCantidadDTO(2.0, null, null));
+
+        ArgumentCaptor<MovimientoProducto> captor = ArgumentCaptor.forClass(MovimientoProducto.class);
+        verify(movimientoRepository).save(captor.capture());
+
+        assertThat(captor.getValue().getMotivo()).isNull();
     }
 
     // -------------------------------------------------------------------------
@@ -386,7 +479,7 @@ class DespensaServiceTest {
         when(productoRepository.findByDespensaIdAndId("desp-1", "no-existe"))
                 .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> despensaService.eliminarProducto("user-1", "no-existe"))
+        assertThatThrownBy(() -> despensaService.eliminarProducto("user-1", "no-existe", null))
                 .isInstanceOf(ApiException.class)
                 .hasMessage("Producto no encontrado")
                 .satisfies(ex -> assertThat(((ApiException) ex).getStatus())
@@ -402,7 +495,7 @@ class DespensaServiceTest {
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> despensaService.actualizarCantidad(
-                "user-1", "no-existe", new ProductoUpdateCantidadDTO(1.0)))
+                "user-1", "no-existe", new ProductoUpdateCantidadDTO(1.0, null, null)))
                 .isInstanceOf(ApiException.class)
                 .hasMessage("Producto no encontrado")
                 .satisfies(ex -> assertThat(((ApiException) ex).getStatus())

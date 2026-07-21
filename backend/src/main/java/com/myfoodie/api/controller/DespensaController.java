@@ -1,5 +1,7 @@
 package com.myfoodie.api.controller;
 
+import com.myfoodie.application.dto.despensa.EliminarProductoRequestDTO;
+import com.myfoodie.application.dto.despensa.MovimientoProductoResponseDTO;
 import com.myfoodie.application.dto.despensa.ProductoFiltroDTO;
 import com.myfoodie.application.dto.despensa.ProductoRequestDTO;
 import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
@@ -69,9 +71,17 @@ public class DespensaController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(
             @PathVariable String id,
+            @RequestBody(required = false) EliminarProductoRequestDTO dto,
             Principal principal) {
-        despensaService.eliminarProducto(getUsuarioId(principal), id);
+        despensaService.eliminarProducto(getUsuarioId(principal), id, dto);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/historial")
+    public ResponseEntity<List<MovimientoProductoResponseDTO>> historial(
+            @PathVariable String id,
+            Principal principal) {
+        return ResponseEntity.ok(despensaService.obtenerHistorial(getUsuarioId(principal), id));
     }
 
     @PatchMapping("/{id}/cantidad")
