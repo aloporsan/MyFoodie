@@ -309,9 +309,13 @@ public class RecetaService {
                                 p.getId(), p.getOrden(), p.getDescripcion(), p.getImagenUrl()))
                         .toList();
 
+        Usuario autor = usuarioRepository.findById(receta.getAutorId()).orElse(null);
+
         return new RecetaResponseDTO(
                 receta.getId(),
                 receta.getAutorId(),
+                autor != null ? autor.getNombre() : null,
+                autor != null ? autor.getNombreUsuario() : null,
                 receta.getTitulo(),
                 receta.getDescripcion(),
                 receta.getTiempoEstimado(),

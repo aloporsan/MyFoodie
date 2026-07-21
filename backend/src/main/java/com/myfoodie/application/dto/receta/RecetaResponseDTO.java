@@ -6,6 +6,8 @@ import java.util.List;
 public record RecetaResponseDTO(
         String id,
         String autorId,
+        String autorNombre,
+        String autorNombreUsuario,
         String titulo,
         String descripcion,
         int tiempoEstimado,
