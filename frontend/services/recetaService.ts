@@ -20,6 +20,8 @@ export interface PasoReceta {
 export interface Receta {
   id: string;
   autorId: string;
+  autorNombre?: string;
+  autorNombreUsuario?: string;
   titulo: string;
   descripcion: string;
   tiempoEstimado: number;
@@ -28,6 +30,8 @@ export interface Receta {
   etiquetas: string[];
   imagenUrl?: string;
   estado: EstadoReceta;
+  totalLikes?: number;
+  likeUsuario?: boolean;
   ingredientes: IngredienteReceta[];
   pasos: PasoReceta[];
   createdAt: string;
@@ -134,13 +138,26 @@ export const recetaService = {
     return data;
   },
 
-  misRecetas: async (): Promise<RecetaResumen[]> => {
-    const { data } = await apiClient.get<RecetaResumen[]>('/recetas/mis-recetas');
+  misRecetas: async (): Promise<Receta[]> => {
+    const { data } = await apiClient.get<Receta[]>('/recetas/mis-recetas');
     return data;
   },
 
   misBorradores: async (): Promise<RecetaResumen[]> => {
     const { data } = await apiClient.get<RecetaResumen[]>('/recetas/mis-borradores');
     return data;
+  },
+
+  recetasGuardadas: async (): Promise<Receta[]> => {
+    const { data } = await apiClient.get<Receta[]>('/recetas/guardadas');
+    return data;
+  },
+
+  guardarReceta: async (id: string): Promise<void> => {
+    await apiClient.post(`/recetas/${id}/guardar`);
+  },
+
+  eliminarGuardado: async (id: string): Promise<void> => {
+    await apiClient.delete(`/recetas/${id}/guardar`);
   },
 };
