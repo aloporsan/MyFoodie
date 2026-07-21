@@ -72,6 +72,13 @@ class DespensaServiceTest {
         return new ProductoRequestDTO(nombre, cantidad, "unidades", null, null, null, null, null, null);
     }
 
+    private ProductoResponseDTO porNombre(List<ProductoResponseDTO> lista, String nombre) {
+        return lista.stream()
+                .filter(p -> p.nombre().equals(nombre))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("No se encontró el producto: " + nombre));
+    }
+
     // -------------------------------------------------------------------------
     // añadirProducto — positivos
     // -------------------------------------------------------------------------
@@ -725,8 +732,8 @@ class DespensaServiceTest {
 
         List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
 
-        assertThat(lista.get(0).estado()).isEqualTo("caduca_semana");
-        assertThat(lista.get(1).estado()).isEqualTo("caduca_mes");
+        assertThat(porNombre(lista, "Queso semana").estado()).isEqualTo("caduca_semana");
+        assertThat(porNombre(lista, "Queso mes").estado()).isEqualTo("caduca_mes");
     }
 
     @Test
@@ -741,8 +748,8 @@ class DespensaServiceTest {
 
         List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
 
-        assertThat(lista.get(0).estado()).isEqualTo("caduca_mes");
-        assertThat(lista.get(1).estado()).isEqualTo("normal");
+        assertThat(porNombre(lista, "Leche mes").estado()).isEqualTo("caduca_mes");
+        assertThat(porNombre(lista, "Leche normal").estado()).isEqualTo("normal");
     }
 
     @Test
