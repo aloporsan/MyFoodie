@@ -22,11 +22,18 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class DespensaService {
+
+    private static final List<String> ORDENES_VALIDOS = List.of(
+            "nombre_asc", "nombre_desc", "caducidad_asc", "cantidad_desc",
+            "cantidad_asc", "reciente_primero", "categoria");
+
+    private static final String ORDEN_POR_DEFECTO = "reciente_primero";
 
     private final DespensaRepository despensaRepository;
     private final ProductoRepository productoRepository;
@@ -70,11 +77,17 @@ public class DespensaService {
     }
 
     public List<ProductoResponseDTO> listarProductos(String usuarioId) {
+        return listarProductos(usuarioId, null);
+    }
+
+    public List<ProductoResponseDTO> listarProductos(String usuarioId, String orderBy) {
         Despensa despensa = getDespensaDeUsuario(usuarioId);
         int globalUmbral = obtenerGlobalUmbral(usuarioId);
+        String orden = validarOrden(orderBy);
         return productoRepository.findByDespensaId(despensa.getId())
                 .stream()
                 .map(p -> toDTO(p, null, resolverUmbral(p, globalUmbral)))
+                .sorted(comparadorPorOrden(orden))
                 .toList();
     }
 
@@ -170,6 +183,32 @@ public class DespensaService {
     // -------------------------------------------------------------------------
     // Helpers privados
     // -------------------------------------------------------------------------
+
+    private String validarOrden(String orderBy) {
+        if (orderBy == null || orderBy.isBlank()) {
+            return ORDEN_POR_DEFECTO;
+        }
+        if (!ORDENES_VALIDOS.contains(orderBy)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "orderBy inválido: " + orderBy);
+        }
+        return orderBy;
+    }
+
+    private Comparator<ProductoResponseDTO> comparadorPorOrden(String orden) {
+        return switch (orden) {
+            case "nombre_asc" -> Comparator.comparing(ProductoResponseDTO::nombre, String.CASE_INSENSITIVE_ORDER);
+            case "nombre_desc" -> Comparator.comparing(ProductoResponseDTO::nombre, String.CASE_INSENSITIVE_ORDER)
+                    .reversed();
+            case "caducidad_asc" -> Comparator.comparing(ProductoResponseDTO::fechaCaducidad,
+                    Comparator.nullsLast(Comparator.naturalOrder()));
+            case "cantidad_desc" -> Comparator.comparingDouble(ProductoResponseDTO::cantidad).reversed();
+            case "cantidad_asc" -> Comparator.comparingDouble(ProductoResponseDTO::cantidad);
+            case "categoria" -> Comparator.comparing(ProductoResponseDTO::categoria,
+                    Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER));
+            default -> Comparator.comparing(ProductoResponseDTO::createdAt,
+                    Comparator.nullsLast(Comparator.reverseOrder()));
+        };
+    }
 
     private Despensa getDespensaDeUsuario(String usuarioId) {
         return despensaRepository.findByUsuarioId(usuarioId)
