@@ -17,14 +17,14 @@ it('renderiza_texto_Caduca_pronto_si_estado_caduca_pronto', () => {
   expect(getByText('Caduca pronto')).toBeTruthy();
 });
 
-it('renderiza_texto_Esta_semana_si_estado_caduca_semana', () => {
+it('renderiza_texto_Caduca_esta_semana_si_estado_caduca_semana', () => {
   const { getByText } = render(<ProductoEstadoBadge estado="caduca_semana" />);
-  expect(getByText('Esta semana')).toBeTruthy();
+  expect(getByText('Caduca esta semana')).toBeTruthy();
 });
 
-it('renderiza_texto_Este_mes_si_estado_caduca_mes', () => {
+it('renderiza_texto_Caduca_este_mes_si_estado_caduca_mes', () => {
   const { getByText } = render(<ProductoEstadoBadge estado="caduca_mes" />);
-  expect(getByText('Este mes')).toBeTruthy();
+  expect(getByText('Caduca este mes')).toBeTruthy();
 });
 
 it('renderiza_texto_Bajo_stock_si_estado_bajoStock', () => {

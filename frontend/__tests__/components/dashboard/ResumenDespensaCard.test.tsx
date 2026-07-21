@@ -55,7 +55,7 @@ it('navega_a_lista_filtrada_caduca_pronto_al_pulsar_contador', () => {
 
 it('navega_a_lista_filtrada_caduca_semana_al_pulsar_contador', () => {
   const { getByText } = render(<ResumenDespensaCard resumen={resumenBase} />);
-  fireEvent.press(getByText('Esta semana'));
+  fireEvent.press(getByText('Caduca esta semana'));
   expect(mockPush).toHaveBeenCalledWith(
     expect.objectContaining({ params: expect.objectContaining({ filtro: 'caduca_semana' }) })
   );
@@ -63,7 +63,7 @@ it('navega_a_lista_filtrada_caduca_semana_al_pulsar_contador', () => {
 
 it('navega_a_lista_filtrada_caduca_mes_al_pulsar_contador', () => {
   const { getByText } = render(<ResumenDespensaCard resumen={resumenBase} />);
-  fireEvent.press(getByText('Este mes'));
+  fireEvent.press(getByText('Caduca este mes'));
   expect(mockPush).toHaveBeenCalledWith(
     expect.objectContaining({ params: expect.objectContaining({ filtro: 'caduca_mes' }) })
   );
