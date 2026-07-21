@@ -114,6 +114,21 @@ public class RecetaService {
                 .toList();
     }
 
+    public void guardarReceta(String usuarioId, String recetaId) {
+        getReceta(recetaId);
+        if (!recetaGuardadaRepository.existsByUsuarioIdAndRecetaId(usuarioId, recetaId)) {
+            recetaGuardadaRepository.save(RecetaGuardada.builder()
+                    .usuarioId(usuarioId)
+                    .recetaId(recetaId)
+                    .build());
+        }
+    }
+
+    public void quitarGuardado(String usuarioId, String recetaId) {
+        recetaGuardadaRepository.findByUsuarioIdAndRecetaId(usuarioId, recetaId)
+                .ifPresent(recetaGuardadaRepository::delete);
+    }
+
     public List<RecetaFeedDTO> recetasGuardadas(String usuarioId) {
         List<RecetaGuardada> guardadas = recetaGuardadaRepository.findByUsuarioIdOrderBySavedAtDesc(usuarioId);
 

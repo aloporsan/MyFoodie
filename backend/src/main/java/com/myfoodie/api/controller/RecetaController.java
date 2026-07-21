@@ -143,6 +143,22 @@ public class RecetaController {
         return ResponseEntity.ok(recetaService.recetasGuardadas(getUsuarioId(principal)));
     }
 
+    @PostMapping("/{id}/guardar")
+    public ResponseEntity<Void> guardar(
+            @PathVariable String id,
+            Principal principal) {
+        recetaService.guardarReceta(getUsuarioId(principal), id);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @DeleteMapping("/{id}/guardar")
+    public ResponseEntity<Void> quitarGuardado(
+            @PathVariable String id,
+            Principal principal) {
+        recetaService.quitarGuardado(getUsuarioId(principal), id);
+        return ResponseEntity.noContent().build();
+    }
+
     private String getUsuarioId(Principal principal) {
         return usuarioRepository.findByEmail(principal.getName())
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "Usuario no encontrado"))
