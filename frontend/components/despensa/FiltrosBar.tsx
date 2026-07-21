@@ -1,4 +1,5 @@
 import React from 'react';
+import { FontAwesome } from '@expo/vector-icons';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { EstadoProducto } from '@/services/despensaService';
 import { borderRadius } from '@/theme/borderRadius';
@@ -24,13 +25,39 @@ const ESTADO_CHIPS: Record<EstadoProducto, Chip> = {
   normal:        { id: 'normal',        label: 'En stock',      color: colors.primary },
 };
 
+const ORDEN_ACTIVO_COLOR = '#7FC62A';
+
+interface OrdenOpcion {
+  id: string;
+  label: string;
+  icono: React.ComponentProps<typeof FontAwesome>['name'];
+}
+
+const ORDEN_OPCIONES: OrdenOpcion[] = [
+  { id: 'nombre_asc',       label: 'Nombre A-Z',     icono: 'sort-alpha-asc' },
+  { id: 'nombre_desc',      label: 'Nombre Z-A',     icono: 'sort-alpha-desc' },
+  { id: 'caducidad_asc',    label: 'Caduca antes',   icono: 'calendar' },
+  { id: 'cantidad_desc',    label: 'Más cantidad',   icono: 'arrow-up' },
+  { id: 'cantidad_asc',     label: 'Menos cantidad', icono: 'arrow-down' },
+  { id: 'reciente_primero', label: 'Más reciente',   icono: 'clock-o' },
+  { id: 'categoria',        label: 'Por categoría',  icono: 'tag' },
+];
+
 interface Props {
   filtroActivo: FiltroId | string;
   estadosPresentes: EstadoProducto[];
   onFiltroChange: (filtro: FiltroId) => void;
+  ordenActivo?: string;
+  onOrdenChange?: (orden: string) => void;
 }
 
-export function FiltrosBar({ filtroActivo, estadosPresentes, onFiltroChange }: Props) {
+export function FiltrosBar({
+  filtroActivo,
+  estadosPresentes,
+  onFiltroChange,
+  ordenActivo = 'reciente_primero',
+  onOrdenChange,
+}: Props) {
   const chips: Chip[] = [
     { id: 'todos', label: 'Todos' },
     ...estadosPresentes
@@ -38,34 +65,71 @@ export function FiltrosBar({ filtroActivo, estadosPresentes, onFiltroChange }: P
       .map((e) => ESTADO_CHIPS[e]),
   ];
 
-  if (chips.length <= 1) return null;
+  const mostrarEstados = chips.length > 1;
 
   return (
     <View style={styles.wrapper}>
+      {mostrarEstados && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.content}
+        >
+          {chips.map((chip) => {
+            const activo = filtroActivo === chip.id;
+            const accentColor = chip.color ?? colors.primary;
+            return (
+              <Pressable
+                key={chip.id}
+                style={[
+                  styles.chip,
+                  activo && { backgroundColor: accentColor + '22', borderColor: accentColor },
+                ]}
+                onPress={() => onFiltroChange(chip.id)}
+              >
+                <Text
+                  style={[
+                    styles.chipText,
+                    activo && { color: accentColor, fontWeight: '700' },
+                  ]}
+                >
+                  {chip.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      )}
+
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
-        {chips.map((chip) => {
-          const activo = filtroActivo === chip.id;
-          const accentColor = chip.color ?? colors.primary;
+        {ORDEN_OPCIONES.map((opcion) => {
+          const activo = ordenActivo === opcion.id;
           return (
             <Pressable
-              key={chip.id}
+              key={opcion.id}
               style={[
                 styles.chip,
-                activo && { backgroundColor: accentColor + '22', borderColor: accentColor },
+                activo && { backgroundColor: ORDEN_ACTIVO_COLOR + '22', borderColor: ORDEN_ACTIVO_COLOR },
               ]}
-              onPress={() => onFiltroChange(chip.id)}
+              onPress={() => onOrdenChange?.(opcion.id)}
             >
+              <FontAwesome
+                name={opcion.icono}
+                size={12}
+                color={activo ? ORDEN_ACTIVO_COLOR : colors.text.secondary}
+                style={styles.ordenIcon}
+              />
               <Text
                 style={[
                   styles.chipText,
-                  activo && { color: accentColor, fontWeight: '700' },
+                  activo && { color: ORDEN_ACTIVO_COLOR, fontWeight: '700' },
                 ]}
               >
-                {chip.label}
+                {opcion.label}
               </Text>
             </Pressable>
           );
@@ -77,7 +141,6 @@ export function FiltrosBar({ filtroActivo, estadosPresentes, onFiltroChange }: P
 
 const styles = StyleSheet.create({
   wrapper: {
-    height: 44,
     backgroundColor: colors.white,
     borderBottomWidth: 1,
     borderBottomColor: colors.gray,
@@ -89,6 +152,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: spacing.md,
     paddingVertical: 6,
     borderRadius: borderRadius.xl,
@@ -100,5 +165,8 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.text.secondary,
     fontWeight: '500',
+  },
+  ordenIcon: {
+    marginRight: 6,
   },
 });
