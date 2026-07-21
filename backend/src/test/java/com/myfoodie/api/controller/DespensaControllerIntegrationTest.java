@@ -80,6 +80,56 @@ class DespensaControllerIntegrationTest {
     }
 
     // -------------------------------------------------------------------------
+    // GET /api/despensa/productos?orderBy=... (MEJORA 4 — #137)
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("GET /productos?orderBy=nombre_asc devuelve la lista ordenada alfabéticamente")
+    void GET_productos_devuelve200_ordenadoPorNombreAsc() throws Exception {
+        añadirProducto(tokenA, "Zanahoria", 2, "unidades");
+        añadirProducto(tokenA, "Arroz", 3, "kg");
+        añadirProducto(tokenA, "Manzana", 1, "unidades");
+
+        mockMvc.perform(get("/api/despensa/productos")
+                        .header("Authorization", "Bearer " + tokenA)
+                        .param("orderBy", "nombre_asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(3)))
+                .andExpect(jsonPath("$[0].nombre").value("Arroz"))
+                .andExpect(jsonPath("$[1].nombre").value("Manzana"))
+                .andExpect(jsonPath("$[2].nombre").value("Zanahoria"));
+    }
+
+    @Test
+    @DisplayName("GET /productos sin orderBy devuelve la lista ordenada por reciente_primero (por defecto)")
+    void GET_productos_devuelve200_sinOrderBy_usaRecientePrimero() throws Exception {
+        añadirProducto(tokenA, "Primero", 1, "unidades");
+        añadirProducto(tokenA, "Segundo", 1, "unidades");
+
+        mockMvc.perform(get("/api/despensa/productos")
+                        .header("Authorization", "Bearer " + tokenA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].nombre").value("Segundo"))
+                .andExpect(jsonPath("$[1].nombre").value("Primero"));
+    }
+
+    @Test
+    @DisplayName("GET /productos?orderBy=invalido devuelve 400")
+    void GET_productos_devuelve400_conOrderByInvalido() throws Exception {
+        mockMvc.perform(get("/api/despensa/productos")
+                        .header("Authorization", "Bearer " + tokenA)
+                        .param("orderBy", "invalido"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("GET /productos?orderBy=nombre_asc devuelve 401 sin token JWT")
+    void GET_productos_devuelve401_sinToken_conOrderBy() throws Exception {
+        mockMvc.perform(get("/api/despensa/productos").param("orderBy", "nombre_asc"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    // -------------------------------------------------------------------------
     // POST /api/despensa/productos
     // -------------------------------------------------------------------------
 
