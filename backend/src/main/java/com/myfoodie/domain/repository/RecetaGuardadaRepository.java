@@ -10,6 +10,8 @@ public interface RecetaGuardadaRepository extends MongoRepository<RecetaGuardada
 
     List<RecetaGuardada> findByUsuarioId(String usuarioId);
 
+    List<RecetaGuardada> findByUsuarioIdOrderBySavedAtDesc(String usuarioId);
+
     Optional<RecetaGuardada> findByUsuarioIdAndRecetaId(String usuarioId, String recetaId);
 
     boolean existsByUsuarioIdAndRecetaId(String usuarioId, String recetaId);
