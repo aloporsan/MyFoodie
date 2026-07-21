@@ -85,7 +85,47 @@ it('editarProducto_devuelve_producto_actualizado', async () => {
 it('eliminarProducto_resuelve_sin_error', async () => {
   mockDelete.mockResolvedValue({});
   await expect(despensaService.eliminarProducto('prod-1')).resolves.not.toThrow();
-  expect(mockDelete).toHaveBeenCalledWith('/despensa/productos/prod-1');
+  expect(mockDelete).toHaveBeenCalledWith('/despensa/productos/prod-1', { data: undefined });
+});
+
+// -------------------------------------------------------------------------
+// MEJORA 3 — Motivo de eliminación e historial (#014/#015)
+// -------------------------------------------------------------------------
+
+it('eliminarProducto_envia_motivo_y_motivoDetalle_en_el_body', async () => {
+  mockDelete.mockResolvedValue({});
+  await despensaService.eliminarProducto('prod-1', 'otro', 'Se rompió el envase');
+  expect(mockDelete).toHaveBeenCalledWith('/despensa/productos/prod-1', {
+    data: { motivo: 'otro', motivoDetalle: 'Se rompió el envase' },
+  });
+});
+
+it('actualizarCantidad_envia_motivo_y_motivoDetalle_en_el_body', async () => {
+  mockPatch.mockResolvedValue({ data: { ...mockProducto, cantidad: 1 } });
+  await despensaService.actualizarCantidad('prod-1', -1, 'consumido');
+  expect(mockPatch).toHaveBeenCalledWith('/despensa/productos/prod-1/cantidad', {
+    delta: -1,
+    motivo: 'consumido',
+    motivoDetalle: undefined,
+  });
+});
+
+it('obtenerHistorial_devuelve_lista_de_movimientos', async () => {
+  const movimiento = {
+    id: 'mov-1',
+    tipo: 'cantidad_actualizada' as const,
+    descripcion: 'Cantidad actualizada',
+    cantidadAnterior: 3,
+    cantidadNueva: 2,
+    motivo: 'consumido' as const,
+    motivoDetalle: null,
+    createdAt: '2026-01-02T10:00:00',
+  };
+  mockGet.mockResolvedValue({ data: [movimiento] });
+  const result = await despensaService.obtenerHistorial('prod-1');
+  expect(result).toHaveLength(1);
+  expect(result[0].motivo).toBe('consumido');
+  expect(mockGet).toHaveBeenCalledWith('/despensa/productos/prod-1/historial');
 });
 
 // -------------------------------------------------------------------------
