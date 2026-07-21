@@ -232,6 +232,39 @@ it('eliminarPaso_filtra_y_renumera_pasos', async () => {
 });
 
 // -------------------------------------------------------------------------
+// cargarRecetasGuardadas
+// -------------------------------------------------------------------------
+
+it('cargarRecetasGuardadas_actualiza_recetasGuardadas_en_store', async () => {
+  mockService.recetasGuardadas.mockResolvedValue([mockReceta]);
+  await useRecetaStore.getState().cargarRecetasGuardadas();
+  expect(useRecetaStore.getState().recetasGuardadas).toHaveLength(1);
+  expect(useRecetaStore.getState().recetasGuardadas[0].id).toBe('r1');
+  expect(useRecetaStore.getState().isLoading).toBe(false);
+});
+
+// -------------------------------------------------------------------------
+// guardarReceta / eliminarGuardado
+// -------------------------------------------------------------------------
+
+it('guardarReceta_añade_receta_a_recetasGuardadas_inmediatamente', async () => {
+  mockService.guardarReceta.mockResolvedValue(undefined);
+  mockService.obtenerReceta.mockResolvedValue(mockReceta);
+  await useRecetaStore.getState().guardarReceta('r1');
+  expect(mockService.guardarReceta).toHaveBeenCalledWith('r1');
+  expect(useRecetaStore.getState().recetasGuardadas).toHaveLength(1);
+  expect(useRecetaStore.getState().recetasGuardadas[0].id).toBe('r1');
+});
+
+it('eliminarGuardado_elimina_receta_de_recetasGuardadas_inmediatamente', async () => {
+  useRecetaStore.setState({ ...estadoInicial, recetasGuardadas: [mockReceta] });
+  mockService.eliminarGuardado.mockResolvedValue(undefined);
+  await useRecetaStore.getState().eliminarGuardado('r1');
+  expect(mockService.eliminarGuardado).toHaveBeenCalledWith('r1');
+  expect(useRecetaStore.getState().recetasGuardadas).toHaveLength(0);
+});
+
+// -------------------------------------------------------------------------
 // clearError / reset
 // -------------------------------------------------------------------------
 
