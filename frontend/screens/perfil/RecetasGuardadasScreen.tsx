@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Image,
   Pressable,
@@ -13,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
+import { showConfirm } from '@/hooks/useConfirm';
 import { Receta } from '@/services/recetaService';
 import { useRecetaStore } from '@/store/recetaStore';
 import { borderRadius } from '@/theme/borderRadius';
@@ -46,7 +46,7 @@ export function RecetasGuardadasScreen() {
   };
 
   const confirmarQuitarGuardado = (id: string, titulo: string) => {
-    Alert.alert(
+    showConfirm(
       'Quitar de guardados',
       `¿Quitar "${titulo}" de tus recetas guardadas?`,
       [
@@ -56,7 +56,8 @@ export function RecetasGuardadasScreen() {
           style: 'destructive',
           onPress: () => eliminarGuardado(id),
         },
-      ]
+      ],
+      { icon: 'bookmark-outline' }
     );
   };
 

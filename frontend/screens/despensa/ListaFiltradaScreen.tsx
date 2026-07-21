@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -13,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { ProductoEstadoBadge } from '@/components/despensa/ProductoEstadoBadge';
+import { showConfirm } from '@/hooks/useConfirm';
 import { despensaService, EstadoProducto, Producto } from '@/services/despensaService';
 import { useDespensaStore } from '@/store/despensaStore';
 import { borderRadius } from '@/theme/borderRadius';
@@ -68,7 +68,7 @@ export function ListaFiltradaScreen() {
   }, [cargar]);
 
   const handleEliminar = useCallback((id: string, nombre: string) => {
-    Alert.alert(
+    showConfirm(
       'Eliminar producto',
       `¿Eliminar "${nombre}" de tu despensa?`,
       [
@@ -81,7 +81,8 @@ export function ListaFiltradaScreen() {
             setProductos((prev) => prev.filter((p) => p.id !== id));
           },
         },
-      ]
+      ],
+      { icon: 'trash-outline' }
     );
   }, []);
 

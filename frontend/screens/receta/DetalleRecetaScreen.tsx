@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -13,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ErrorScreen } from '@/components/common/ErrorScreen';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
+import { showConfirm } from '@/hooks/useConfirm';
 import { IngredienteReceta, PasoReceta } from '@/services/recetaService';
 import { useAuthStore } from '@/store/authStore';
 import { useRecetaStore } from '@/store/recetaStore';
@@ -64,14 +64,16 @@ export function DetalleRecetaScreen() {
     try {
       await guardarReceta(receta.id);
     } catch {
-      Alert.alert('Error', 'No se pudo guardar la receta. Inténtalo de nuevo.');
+      showConfirm('Error', 'No se pudo guardar la receta. Inténtalo de nuevo.', undefined, {
+        icon: 'alert-circle-outline',
+      });
     } finally {
       setGuardando(false);
     }
   };
 
   const confirmarEliminar = () => {
-    Alert.alert(
+    showConfirm(
       'Eliminar receta',
       `¿Seguro que quieres eliminar "${receta?.titulo}"? Esta acción no se puede deshacer.`,
       [
@@ -84,11 +86,14 @@ export function DetalleRecetaScreen() {
               await eliminarReceta(receta!.id);
               goBack();
             } catch {
-              Alert.alert('Error', 'No se pudo eliminar la receta. Inténtalo de nuevo.');
+              showConfirm('Error', 'No se pudo eliminar la receta. Inténtalo de nuevo.', undefined, {
+                icon: 'alert-circle-outline',
+              });
             }
           },
         },
-      ]
+      ],
+      { icon: 'trash-outline' }
     );
   };
 

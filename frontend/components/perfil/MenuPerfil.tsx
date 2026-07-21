@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import type React from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { showConfirm } from '@/hooks/useConfirm';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
 import { useAuthStore } from '@/store/authStore';
 import { usePerfilStore } from '@/store/perfilStore';
@@ -19,22 +20,27 @@ export function MenuPerfil() {
   const { cerrarSesion, eliminarCuenta, reset } = usePerfilStore();
 
   const handleCerrarSesion = () => {
-    Alert.alert('Cerrar sesión', '¿Seguro que quieres cerrar sesión?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Cerrar sesión',
-        style: 'destructive',
-        onPress: async () => {
-          await cerrarSesion();
-          reset();
-          await logout();
+    showConfirm(
+      'Cerrar sesión',
+      '¿Seguro que quieres cerrar sesión?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Cerrar sesión',
+          style: 'destructive',
+          onPress: async () => {
+            await cerrarSesion();
+            reset();
+            await logout();
+          },
         },
-      },
-    ]);
+      ],
+      { icon: 'log-out-outline' }
+    );
   };
 
   const handleEliminarCuenta = () => {
-    Alert.alert(
+    showConfirm(
       'Eliminar cuenta',
       'Esta acción es irreversible. Se eliminarán todos tus datos personales y no podrás recuperar tu cuenta.',
       [
@@ -43,7 +49,7 @@ export function MenuPerfil() {
           text: 'Continuar',
           style: 'destructive',
           onPress: () => {
-            Alert.alert(
+            showConfirm(
               '¿Estás completamente seguro?',
               'Tus recetas publicadas quedarán disociadas de tu perfil. Esta operación no se puede deshacer.',
               [
@@ -57,15 +63,19 @@ export function MenuPerfil() {
                       reset();
                       await logout();
                     } catch {
-                      Alert.alert('Error', 'No se pudo eliminar la cuenta. Inténtalo de nuevo.');
+                      showConfirm('Error', 'No se pudo eliminar la cuenta. Inténtalo de nuevo.', undefined, {
+                        icon: 'alert-circle-outline',
+                      });
                     }
                   },
                 },
-              ]
+              ],
+              { icon: 'warning-outline' }
             );
           },
         },
-      ]
+      ],
+      { icon: 'trash-outline' }
     );
   };
 

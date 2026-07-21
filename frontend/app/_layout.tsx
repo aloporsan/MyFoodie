@@ -11,6 +11,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
+import { ConfirmModal } from '@/components/common/ConfirmModal';
 import { ToastMessage } from '@/components/common/ToastMessage';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -72,6 +73,7 @@ function RootLayoutNav() {
       </Stack>
       <StatusBar style="auto" />
       <ToastMessage visible={visible} tipo={tipo} mensaje={mensaje} onDismiss={hide} />
+      <ConfirmModal />
     </ThemeProvider>
   );
 }

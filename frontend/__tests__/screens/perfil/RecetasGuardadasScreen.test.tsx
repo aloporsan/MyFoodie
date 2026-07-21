@@ -1,7 +1,8 @@
 import React from 'react';
-import { Alert } from 'react-native';
 import { fireEvent, render, act, waitFor } from '@testing-library/react-native';
 import { RecetasGuardadasScreen } from '@/screens/perfil/RecetasGuardadasScreen';
+import { ConfirmModal } from '@/components/common/ConfirmModal';
+import { useConfirmStore } from '@/hooks/useConfirm';
 import { useRecetaStore } from '@/store/recetaStore';
 
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
@@ -28,13 +29,29 @@ const MOCK_GUARDADAS = [
 beforeEach(() => {
   jest.clearAllMocks();
   useRecetaStore.setState({ recetasGuardadas: [], isLoading: false, error: null });
+  useConfirmStore.setState({
+    visible: false,
+    title: '',
+    message: undefined,
+    icon: undefined,
+    variant: 'default',
+    buttons: [],
+  });
   recetaService.recetasGuardadas.mockResolvedValue(MOCK_GUARDADAS);
   recetaService.eliminarGuardado.mockResolvedValue(undefined);
-  jest.spyOn(Alert, 'alert');
 });
 
+function renderPantalla() {
+  return render(
+    <>
+      <RecetasGuardadasScreen />
+      <ConfirmModal />
+    </>
+  );
+}
+
 it('renderiza_lista_de_recetas_guardadas_con_datos_reales', async () => {
-  const { getByText } = render(<RecetasGuardadasScreen />);
+  const { getByText } = renderPantalla();
   await waitFor(() => {
     expect(getByText('Pasta carbonara')).toBeTruthy();
     expect(getByText('Pollo al horno con verduras')).toBeTruthy();
@@ -43,7 +60,7 @@ it('renderiza_lista_de_recetas_guardadas_con_datos_reales', async () => {
 
 it('muestra_empty_state_con_boton_explorar_si_lista_vacia', async () => {
   recetaService.recetasGuardadas.mockResolvedValue([]);
-  const { getByText } = render(<RecetasGuardadasScreen />);
+  const { getByText } = renderPantalla();
   await waitFor(() => {
     expect(getByText('Aún no has guardado ninguna receta')).toBeTruthy();
     expect(getByText('Explorar recetas')).toBeTruthy();
@@ -52,39 +69,34 @@ it('muestra_empty_state_con_boton_explorar_si_lista_vacia', async () => {
 
 it('navega_a_Feed_al_pulsar_explorar_recetas', async () => {
   recetaService.recetasGuardadas.mockResolvedValue([]);
-  const { getByText } = render(<RecetasGuardadasScreen />);
+  const { getByText } = renderPantalla();
   await waitFor(() => expect(getByText('Explorar recetas')).toBeTruthy());
   fireEvent.press(getByText('Explorar recetas'));
   expect(mockPush).toHaveBeenCalledWith('/(tabs)/feed');
 });
 
 it('navega_a_DetalleReceta_al_pulsar_item', async () => {
-  const { getByText } = render(<RecetasGuardadasScreen />);
+  const { getByText } = renderPantalla();
   await waitFor(() => expect(getByText('Pasta carbonara')).toBeTruthy());
   fireEvent.press(getByText('Pasta carbonara'));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/receta/[id]', params: { id: '1' } });
 });
 
-it('muestra_alert_confirmacion_al_pulsar_quitar_guardado', async () => {
-  const { getByText, getAllByText } = render(<RecetasGuardadasScreen />);
+it('muestra_modal_confirmacion_al_pulsar_quitar_guardado', async () => {
+  const { getByText, getAllByText } = renderPantalla();
   await waitFor(() => expect(getByText('Pasta carbonara')).toBeTruthy());
   fireEvent.press(getAllByText('Quitar de guardados')[0]);
-  expect(Alert.alert).toHaveBeenCalledWith(
-    'Quitar de guardados',
-    expect.stringContaining('Pasta carbonara'),
-    expect.any(Array)
-  );
+  expect(getByText('¿Quitar "Pasta carbonara" de tus recetas guardadas?')).toBeTruthy();
 });
 
 it('elimina_receta_de_guardadas_tras_confirmar', async () => {
-  (Alert.alert as jest.Mock).mockImplementation((_title, _msg, buttons) => {
-    buttons?.[1]?.onPress?.();
-  });
-  const { getByText, getAllByText, queryByText } = render(<RecetasGuardadasScreen />);
+  const { getByText, getAllByText, getByTestId, queryByText } = renderPantalla();
   await waitFor(() => expect(getByText('Pasta carbonara')).toBeTruthy());
 
+  fireEvent.press(getAllByText('Quitar de guardados')[0]);
+
   await act(async () => {
-    fireEvent.press(getAllByText('Quitar de guardados')[0]);
+    fireEvent.press(getByTestId('confirm-modal-btn-1'));
   });
 
   expect(recetaService.eliminarGuardado).toHaveBeenCalledWith('1');
@@ -92,7 +104,7 @@ it('elimina_receta_de_guardadas_tras_confirmar', async () => {
 });
 
 it('actualiza_lista_al_hacer_pull_to_refresh', async () => {
-  const { UNSAFE_getByType, getByText } = render(<RecetasGuardadasScreen />);
+  const { UNSAFE_getByType, getByText } = renderPantalla();
   await waitFor(() => expect(getByText('Pasta carbonara')).toBeTruthy());
   const { FlatList } = require('react-native');
   const flatList = UNSAFE_getByType(FlatList);
