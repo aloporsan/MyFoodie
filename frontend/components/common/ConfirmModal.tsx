@@ -59,6 +59,7 @@ export function ConfirmModal() {
                 testID={`confirm-modal-btn-${i}`}
                 style={[
                   styles.boton,
+                  !apilados && styles.botonEnFila,
                   btn.style === 'cancel' && styles.botonCancelar,
                   btn.style === 'destructive' && styles.botonDestructivo,
                 ]}
@@ -122,13 +123,13 @@ const styles = StyleSheet.create({
   },
   botonesApilados: { flexDirection: 'column' },
   boton: {
-    flex: 1,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.lg,
     borderRadius: borderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary,
   },
+  botonEnFila: { flex: 1 },
   botonCancelar: { backgroundColor: colors.grayLight },
   botonDestructivo: { backgroundColor: colors.error },
   botonTexto: { ...typography.button, color: colors.white },
