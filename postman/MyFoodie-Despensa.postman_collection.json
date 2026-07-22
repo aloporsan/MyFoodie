@@ -1,0 +1,1328 @@
+{
+  "info": {
+    "name": "MyFoodie — Despensa API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "token", "value": "" },
+    { "key": "testUsername", "value": "" },
+    { "key": "testEmail", "value": "" },
+    { "key": "productoId", "value": "" },
+    { "key": "productoIdCaducado", "value": "" },
+    { "key": "productoHistorialId", "value": "" },
+    { "key": "productoConsumoId", "value": "" },
+    { "key": "productoOtroId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "🔧 Setup",
+      "item": [
+        {
+          "name": "Registrar usuario",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const ts = Date.now();",
+                  "pm.collectionVariables.set('testUsername', 'testuser_' + ts);",
+                  "pm.collectionVariables.set('testEmail', 'test_' + ts + '@test.com');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) {",
+                  "  pm.collectionVariables.set('token', json.token);",
+                  "  console.log('Token guardado:', json.token.substring(0, 20) + '...');",
+                  "}",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Tiene token', () => pm.expect(json.token).to.not.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Test User\",\n  \"nombreUsuario\": \"{{testUsername}}\",\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Login (alternativa)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.collectionVariables.set('token', json.token);",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiene token', () => pm.expect(json.token).to.not.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "✅ Positivos",
+      "item": [
+        {
+          "name": "1. Añadir producto normal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.id) pm.collectionVariables.set('productoId', json.id);",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Estado normal', () => pm.expect(json.estado).to.eql('normal'));",
+                  "pm.test('Sin duplicados', () => pm.expect(json.posiblesDuplicados).to.be.null);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Leche\",\n  \"cantidad\": 2,\n  \"unidad\": \"litros\",\n  \"categoria\": \"Lácteos\",\n  \"fechaCompra\": \"2026-05-30\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "2. Añadir producto próximo a caducar",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const d = new Date();",
+                  "d.setDate(d.getDate() + 2);",
+                  "pm.variables.set('fechaProxima', d.toISOString().split('T')[0]);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Estado caduca_pronto', () => pm.expect(json.estado).to.eql('caduca_pronto'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Yogur\",\n  \"cantidad\": 3,\n  \"unidad\": \"unidades\",\n  \"categoria\": \"Lácteos\",\n  \"fechaCaducidad\": \"{{fechaProxima}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "3. Añadir producto caducado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.id) pm.collectionVariables.set('productoIdCaducado', json.id);",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Estado caducado', () => pm.expect(json.estado).to.eql('caducado'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Queso\",\n  \"cantidad\": 2,\n  \"unidad\": \"kg\",\n  \"categoria\": \"Lácteos\",\n  \"fechaCaducidad\": \"2025-01-01\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "4. Añadir producto bajo stock",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Estado bajoStock', () => pm.expect(json.estado).to.eql('bajoStock'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Sal\",\n  \"cantidad\": 1,\n  \"unidad\": \"kg\",\n  \"categoria\": \"Condimentos\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "5. Añadir duplicado → posiblesDuplicados",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Detecta duplicados', () => pm.expect(json.posiblesDuplicados).to.not.be.null);",
+                  "pm.test('Al menos 1 duplicado', () => pm.expect(json.posiblesDuplicados.length).to.be.above(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"leche\",\n  \"cantidad\": 1,\n  \"unidad\": \"litros\",\n  \"categoria\": \"Lácteos\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "5b. Añadir producto con stockMinimo personalizado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('stockMinimo guardado', () => pm.expect(json.stockMinimo).to.eql(5));",
+                  "pm.test('alertaCompra activa (cantidad <= stockMinimo)', () => pm.expect(json.alertaCompra).to.be.true);",
+                  "pm.test('Estado bajoStock', () => pm.expect(json.estado).to.eql('bajoStock'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Aceite de oliva\",\n  \"cantidad\": 2,\n  \"unidad\": \"litros\",\n  \"categoria\": \"Aceites\",\n  \"stockMinimo\": 5\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "6. Listar todos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Es array', () => pm.expect(json).to.be.an('array'));",
+                  "pm.test('Al menos 1 producto', () => pm.expect(json.length).to.be.above(0));",
+                  "pm.test('Todos tienen estado', () => json.forEach(p => pm.expect(p.estado).to.not.be.undefined));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "7. Obtener uno",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Id correcto', () => pm.expect(json.id).to.eql(pm.collectionVariables.get('productoId')));",
+                  "pm.test('Tiene nombre', () => pm.expect(json.nombre).to.not.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoId}}", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoId}}"] }
+          }
+        },
+        {
+          "name": "8. Editar producto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Nombre actualizado', () => pm.expect(json.nombre).to.eql('Leche entera'));",
+                  "pm.test('Cantidad actualizada', () => pm.expect(json.cantidad).to.eql(4));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Leche entera\",\n  \"cantidad\": 4,\n  \"unidad\": \"litros\",\n  \"categoria\": \"Lácteos\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoId}}", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoId}}"] }
+          }
+        },
+        {
+          "name": "9. Incrementar cantidad (+2)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Cantidad = 6', () => pm.expect(json.cantidad).to.eql(6));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"delta\": 2\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoId}}/cantidad", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoId}}", "cantidad"] }
+          }
+        },
+        {
+          "name": "10. Decrementar cantidad (-1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Cantidad = 5', () => pm.expect(json.cantidad).to.eql(5));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"delta\": -1\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoId}}/cantidad", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoId}}", "cantidad"] }
+          }
+        },
+        {
+          "name": "11. Buscar por texto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Encuentra resultados', () => pm.expect(json.length).to.be.above(0));",
+                  "pm.test('Resultados contienen lech', () => json.forEach(p => pm.expect(p.nombre.toLowerCase()).to.include('lech')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/buscar?q=lech", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "buscar"], "query": [{ "key": "q", "value": "lech" }] }
+          }
+        },
+        {
+          "name": "12. Filtrar por categoría",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Solo Lácteos', () => json.forEach(p => pm.expect(p.categoria).to.eql('Lácteos')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/filtrar?categoria=Lácteos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "filtrar"], "query": [{ "key": "categoria", "value": "Lácteos" }] }
+          }
+        },
+        {
+          "name": "13. Filtrar por estado=caducado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Solo caducados', () => json.forEach(p => pm.expect(p.estado).to.eql('caducado')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/filtrar?estado=caducado", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "filtrar"], "query": [{ "key": "estado", "value": "caducado" }] }
+          }
+        },
+        {
+          "name": "14. Filtrar por caducaAntesDe",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/filtrar?caducaAntesDe=2026-12-31", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "filtrar"], "query": [{ "key": "caducaAntesDe", "value": "2026-12-31" }] }
+          }
+        },
+        {
+          "name": "15. Eliminar producto caducado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Sin body', () => pm.expect(pm.response.text()).to.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoIdCaducado}}", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoIdCaducado}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📅 Caducidad — Granularidad",
+      "item": [
+        {
+          "name": "G1. Crear producto caduca_hoy → diasHastaCaducidad=0",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const hoy = new Date().toISOString().split('T')[0];",
+                  "pm.variables.set('fechaHoy', hoy);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('estado es caduca_hoy', () => pm.expect(json.estado).to.eql('caduca_hoy'));",
+                  "pm.test('diasHastaCaducidad es 0', () => pm.expect(json.diasHastaCaducidad).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Caduca Hoy\",\n  \"cantidad\": 5,\n  \"unidad\": \"unidades\",\n  \"fechaCaducidad\": \"{{fechaHoy}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos"] }
+          }
+        },
+        {
+          "name": "G2. Crear producto caduca_pronto → diasHastaCaducidad entre 1 y 3",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const d = new Date(); d.setDate(d.getDate() + 2);",
+                  "pm.variables.set('fechaProximo', d.toISOString().split('T')[0]);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('estado es caduca_pronto', () => pm.expect(json.estado).to.eql('caduca_pronto'));",
+                  "pm.test('diasHastaCaducidad entre 1 y 3', () => {",
+                  "  pm.expect(json.diasHastaCaducidad).to.be.at.least(1);",
+                  "  pm.expect(json.diasHastaCaducidad).to.be.at.most(3);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Caduca Pronto\",\n  \"cantidad\": 5,\n  \"unidad\": \"unidades\",\n  \"fechaCaducidad\": \"{{fechaProximo}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos"] }
+          }
+        },
+        {
+          "name": "G3. Crear producto caduca_semana → diasHastaCaducidad entre 4 y 7",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const d = new Date(); d.setDate(d.getDate() + 5);",
+                  "pm.variables.set('fechaSemana', d.toISOString().split('T')[0]);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('estado es caduca_semana', () => pm.expect(json.estado).to.eql('caduca_semana'));",
+                  "pm.test('diasHastaCaducidad entre 4 y 7', () => {",
+                  "  pm.expect(json.diasHastaCaducidad).to.be.at.least(4);",
+                  "  pm.expect(json.diasHastaCaducidad).to.be.at.most(7);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Caduca Esta Semana\",\n  \"cantidad\": 5,\n  \"unidad\": \"unidades\",\n  \"fechaCaducidad\": \"{{fechaSemana}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos"] }
+          }
+        },
+        {
+          "name": "G4. Crear producto caduca_mes → diasHastaCaducidad entre 8 y 30",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const d = new Date(); d.setDate(d.getDate() + 15);",
+                  "pm.variables.set('fechaMes', d.toISOString().split('T')[0]);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('estado es caduca_mes', () => pm.expect(json.estado).to.eql('caduca_mes'));",
+                  "pm.test('diasHastaCaducidad entre 8 y 30', () => {",
+                  "  pm.expect(json.diasHastaCaducidad).to.be.at.least(8);",
+                  "  pm.expect(json.diasHastaCaducidad).to.be.at.most(30);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Caduca Este Mes\",\n  \"cantidad\": 5,\n  \"unidad\": \"unidades\",\n  \"fechaCaducidad\": \"{{fechaMes}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos"] }
+          }
+        },
+        {
+          "name": "G5. Crear producto normal (sin fecha) → estado normal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('estado es normal', () => pm.expect(json.estado).to.eql('normal'));",
+                  "pm.test('diasHastaCaducidad es null', () => pm.expect(json.diasHastaCaducidad).to.be.null);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Producto Normal\",\n  \"cantidad\": 10,\n  \"unidad\": \"unidades\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos"] }
+          }
+        },
+        {
+          "name": "G6. Crear producto caducado → diasHastaCaducidad negativo",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const d = new Date(); d.setDate(d.getDate() - 3);",
+                  "pm.variables.set('fechaCaducada', d.toISOString().split('T')[0]);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('estado es caducado', () => pm.expect(json.estado).to.eql('caducado'));",
+                  "pm.test('diasHastaCaducidad es negativo', () => pm.expect(json.diasHastaCaducidad).to.be.below(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Producto Caducado\",\n  \"cantidad\": 1,\n  \"unidad\": \"unidades\",\n  \"fechaCaducidad\": \"{{fechaCaducada}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos"] }
+          }
+        },
+        {
+          "name": "G7. GET /dashboard/resumen → 4 contadores de caducidad",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('caducados >= 1', () => pm.expect(json.caducados).to.be.at.least(1));",
+                  "pm.test('caduca_pronto >= 1', () => pm.expect(json.caduca_pronto).to.be.at.least(1));",
+                  "pm.test('caduca_semana >= 1', () => pm.expect(json.caduca_semana).to.be.at.least(1));",
+                  "pm.test('caduca_mes >= 1', () => pm.expect(json.caduca_mes).to.be.at.least(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/dashboard/resumen", "host": ["{{baseUrl}}"], "path": ["api","dashboard","resumen"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📋 Historial y Motivos",
+      "item": [
+        {
+          "name": "H0. Crear producto para historial",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.id) pm.collectionVariables.set('productoHistorialId', json.id);",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Producto Historial\",\n  \"cantidad\": 5,\n  \"unidad\": \"unidades\",\n  \"categoria\": \"Otros\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos"] }
+          }
+        },
+        {
+          "name": "H1. Editar producto → movimiento 'editado'",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Nombre actualizado', () => pm.expect(json.nombre).to.eql('Producto Historial Editado'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Producto Historial Editado\",\n  \"cantidad\": 5,\n  \"unidad\": \"unidades\",\n  \"categoria\": \"Otros\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoHistorialId}}", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos","{{productoHistorialId}}"] }
+          }
+        },
+        {
+          "name": "H2. Actualizar cantidad (+3) → movimiento 'cantidad_actualizada'",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Cantidad = 8', () => pm.expect(json.cantidad).to.eql(8));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"delta\": 3\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoHistorialId}}/cantidad", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos","{{productoHistorialId}}","cantidad"] }
+          }
+        },
+        {
+          "name": "H3. GET historial → array con movimientos y cantidadAnterior/Nueva",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Es array', () => pm.expect(json).to.be.an('array'));",
+                  "pm.test('Al menos 3 movimientos', () => pm.expect(json.length).to.be.at.least(3));",
+                  "pm.test('Todos tienen tipo y descripcion', () => json.forEach(m => {",
+                  "  pm.expect(m.tipo).to.not.be.undefined;",
+                  "  pm.expect(m.descripcion).to.not.be.undefined;",
+                  "}));",
+                  "const cantMov = json.find(m => m.tipo === 'cantidad_actualizada');",
+                  "pm.test('Movimiento cantidad_actualizada existe', () => pm.expect(cantMov).to.not.be.undefined);",
+                  "pm.test('cantidadAnterior = 5', () => pm.expect(cantMov.cantidadAnterior).to.eql(5));",
+                  "pm.test('cantidadNueva = 8', () => pm.expect(cantMov.cantidadNueva).to.eql(8));",
+                  "const editMov = json.find(m => m.tipo === 'editado');",
+                  "pm.test('Movimiento editado existe', () => pm.expect(editMov).to.not.be.undefined);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoHistorialId}}/historial", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos","{{productoHistorialId}}","historial"] }
+          }
+        },
+        {
+          "name": "H4. Crear producto para DELETE con motivo=consumido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.id) pm.collectionVariables.set('productoConsumoId', json.id);",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Para Consumir\",\n  \"cantidad\": 2,\n  \"unidad\": \"unidades\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos"] }
+          }
+        },
+        {
+          "name": "H5. DELETE con motivo=consumido → 204",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Sin body', () => pm.expect(pm.response.text()).to.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"motivo\": \"consumido\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoConsumoId}}", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos","{{productoConsumoId}}"] }
+          }
+        },
+        {
+          "name": "H6. Crear producto para DELETE con motivo=otro",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.id) pm.collectionVariables.set('productoOtroId', json.id);",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Para Motivo Otro\",\n  \"cantidad\": 1,\n  \"unidad\": \"unidades\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos"] }
+          }
+        },
+        {
+          "name": "H7. DELETE con motivo=otro y motivoDetalle → 204",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Sin body', () => pm.expect(pm.response.text()).to.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"motivo\": \"otro\",\n  \"motivoDetalle\": \"Lo perdí en la mudanza\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoOtroId}}", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos","{{productoOtroId}}"] }
+          }
+        },
+        {
+          "name": "H8. DELETE sin body → 204 (motivo opcional)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));",
+                  "pm.test('Sin body', () => pm.expect(pm.response.text()).to.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoHistorialId}}", "host": ["{{baseUrl}}"], "path": ["api","despensa","productos","{{productoHistorialId}}"] }
+          }
+        },
+        {
+          "name": "H9. GET /perfil/estadisticas → campo motivosEliminacion con desglose",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiene campo motivosEliminacion', () => pm.expect(json.motivosEliminacion).to.not.be.undefined);",
+                  "pm.test('consumido >= 1', () => pm.expect(json.motivosEliminacion.consumido).to.be.at.least(1));",
+                  "pm.test('otro >= 1', () => pm.expect(json.motivosEliminacion.otro).to.be.at.least(1));",
+                  "pm.test('Tiene campo caducado', () => pm.expect(json.motivosEliminacion.caducado).to.not.be.undefined);",
+                  "pm.test('Tiene campo donado', () => pm.expect(json.motivosEliminacion.donado).to.not.be.undefined);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/perfil/estadisticas", "host": ["{{baseUrl}}"], "path": ["api","perfil","estadisticas"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔀 Ordenación",
+      "item": [
+        {
+          "name": "O1. orderBy=nombre_asc → orden alfabético ascendente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Orden alfabético ascendente', () => {",
+                  "  for (let i = 1; i < json.length; i++) {",
+                  "    pm.expect(json[i - 1].nombre.toLowerCase() <= json[i].nombre.toLowerCase()).to.be.true;",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos?orderBy=nombre_asc", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"], "query": [{ "key": "orderBy", "value": "nombre_asc" }] }
+          }
+        },
+        {
+          "name": "O2. orderBy=nombre_desc → orden alfabético inverso",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Orden alfabético descendente', () => {",
+                  "  for (let i = 1; i < json.length; i++) {",
+                  "    pm.expect(json[i - 1].nombre.toLowerCase() >= json[i].nombre.toLowerCase()).to.be.true;",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos?orderBy=nombre_desc", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"], "query": [{ "key": "orderBy", "value": "nombre_desc" }] }
+          }
+        },
+        {
+          "name": "O3. orderBy=caducidad_asc → fecha más próxima primero (sin fecha al final)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Fechas ascendentes y nulos al final', () => {",
+                  "  let vistoSinFecha = false;",
+                  "  let anterior = null;",
+                  "  json.forEach(p => {",
+                  "    if (p.fechaCaducidad === null) {",
+                  "      vistoSinFecha = true;",
+                  "    } else {",
+                  "      pm.expect(vistoSinFecha).to.be.false;",
+                  "      if (anterior !== null) pm.expect(anterior <= p.fechaCaducidad).to.be.true;",
+                  "      anterior = p.fechaCaducidad;",
+                  "    }",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos?orderBy=caducidad_asc", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"], "query": [{ "key": "orderBy", "value": "caducidad_asc" }] }
+          }
+        },
+        {
+          "name": "O4. orderBy=cantidad_desc → cantidad mayor primero",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Cantidad descendente', () => {",
+                  "  for (let i = 1; i < json.length; i++) {",
+                  "    pm.expect(json[i - 1].cantidad >= json[i].cantidad).to.be.true;",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos?orderBy=cantidad_desc", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"], "query": [{ "key": "orderBy", "value": "cantidad_desc" }] }
+          }
+        },
+        {
+          "name": "O5. orderBy=cantidad_asc → cantidad menor primero",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Cantidad ascendente', () => {",
+                  "  for (let i = 1; i < json.length; i++) {",
+                  "    pm.expect(json[i - 1].cantidad <= json[i].cantidad).to.be.true;",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos?orderBy=cantidad_asc", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"], "query": [{ "key": "orderBy", "value": "cantidad_asc" }] }
+          }
+        },
+        {
+          "name": "O6. orderBy=reciente_primero → fecha de añadido más reciente primero",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('createdAt descendente', () => {",
+                  "  for (let i = 1; i < json.length; i++) {",
+                  "    pm.expect(json[i - 1].createdAt >= json[i].createdAt).to.be.true;",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos?orderBy=reciente_primero", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"], "query": [{ "key": "orderBy", "value": "reciente_primero" }] }
+          }
+        },
+        {
+          "name": "O7. orderBy=categoria → agrupación por categoría",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Agrupado por categoría (sin categoría al final)', () => {",
+                  "  let vistoSinCategoria = false;",
+                  "  let anterior = null;",
+                  "  json.forEach(p => {",
+                  "    if (p.categoria === null) {",
+                  "      vistoSinCategoria = true;",
+                  "    } else {",
+                  "      pm.expect(vistoSinCategoria).to.be.false;",
+                  "      if (anterior !== null) pm.expect(anterior.toLowerCase() <= p.categoria.toLowerCase()).to.be.true;",
+                  "      anterior = p.categoria;",
+                  "    }",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos?orderBy=categoria", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"], "query": [{ "key": "orderBy", "value": "categoria" }] }
+          }
+        },
+        {
+          "name": "O8. Sin orderBy → orden por defecto reciente_primero",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('createdAt descendente por defecto', () => {",
+                  "  for (let i = 1; i < json.length; i++) {",
+                  "    pm.expect(json[i - 1].createdAt >= json[i].createdAt).to.be.true;",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "O9. orderBy=invalido → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos?orderBy=invalido", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"], "query": [{ "key": "orderBy", "value": "invalido" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "❌ Negativos",
+      "item": [
+        {
+          "name": "16. Sin token → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "17. Campos obligatorios vacíos → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"cantidad\": 2\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "18. Cantidad negativa → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Arroz\",\n  \"cantidad\": -5,\n  \"unidad\": \"kg\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "19. Producto inexistente → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Mensaje correcto', () => pm.expect(pm.response.json().message).to.include('no encontrado'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/id-que-no-existe", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "id-que-no-existe"] }
+          }
+        },
+        {
+          "name": "20. Delta nulo → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoId}}/cantidad", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoId}}", "cantidad"] }
+          }
+        },
+        {
+          "name": "21. Cantidad no baja de 0",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Cantidad >= 0', () => pm.expect(json.cantidad).to.be.at.least(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"delta\": -9999\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoId}}/cantidad", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoId}}", "cantidad"] }
+          }
+        }
+      ]
+    }
+  ]
+}
