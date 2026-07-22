@@ -8,7 +8,8 @@
     { "key": "token",         "value": "" },
     { "key": "tokenOtro",     "value": "" },
     { "key": "recetaId",      "value": "" },
-    { "key": "recetaIdVacia", "value": "" }
+    { "key": "recetaIdVacia", "value": "" },
+    { "key": "tokenVacio",    "value": "" }
   ],
   "item": [
     {
@@ -580,6 +581,221 @@
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer token.invalido.aqui" }],
             "url": { "raw": "{{baseUrl}}/api/recetas/mis-recetas", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "mis-recetas"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Perfil — Recetas",
+      "item": [
+        {
+          "name": "Registrar usuario sin recetas (para tests de lista vacía)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 o 409 (ya existe)', () => pm.expect([201, 409]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Sin Recetas User\",\n  \"nombreUsuario\": \"sinrecetas_perfil\",\n  \"email\": \"sinrecetas@test.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Login usuario sin recetas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.collectionVariables.set('tokenVacio', json.token);",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiene token', () => pm.expect(json.token).to.not.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"sinrecetas@test.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Guardar receta (para poblar /guardadas)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaId}}/guardar", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaId}}", "guardar"] }
+          }
+        },
+        {
+          "name": "GET mis-recetas → 200 con ingredientes y pasos incluidos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es array no vacío', () => { pm.expect(json).to.be.an('array'); pm.expect(json.length).to.be.greaterThan(0); });",
+                  "pm.test('Incluye ingredientes y pasos', () => { pm.expect(json[0].ingredientes).to.be.an('array'); pm.expect(json[0].pasos).to.be.an('array'); });",
+                  "pm.test('Incluye datos de autor', () => { pm.expect(json[0].autorNombre).to.not.be.empty; pm.expect(json[0].autorNombreUsuario).to.not.be.empty; });",
+                  "pm.test('Incluye likes', () => { pm.expect(json[0]).to.have.property('totalLikes'); pm.expect(json[0]).to.have.property('likeUsuario'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/recetas/mis-recetas", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "mis-recetas"] }
+          }
+        },
+        {
+          "name": "GET mis-recetas con lista vacía → 200 array vacío",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Array vacío', () => { pm.expect(json).to.be.an('array'); pm.expect(json.length).to.eql(0); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenVacio}}" }],
+            "url": { "raw": "{{baseUrl}}/api/recetas/mis-recetas", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "mis-recetas"] }
+          }
+        },
+        {
+          "name": "GET guardadas → 200 con ingredientes y pasos incluidos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Respuesta es array no vacío', () => { pm.expect(json).to.be.an('array'); pm.expect(json.length).to.be.greaterThan(0); });",
+                  "pm.test('Incluye ingredientes y pasos', () => { pm.expect(json[0].ingredientes).to.be.an('array'); pm.expect(json[0].pasos).to.be.an('array'); });",
+                  "pm.test('Incluye datos de autor', () => { pm.expect(json[0].autorNombre).to.not.be.empty; pm.expect(json[0].autorNombreUsuario).to.not.be.empty; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/recetas/guardadas", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "guardadas"] }
+          }
+        },
+        {
+          "name": "GET guardadas con lista vacía → 200 array vacío",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Array vacío', () => { pm.expect(json).to.be.an('array'); pm.expect(json.length).to.eql(0); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenVacio}}" }],
+            "url": { "raw": "{{baseUrl}}/api/recetas/guardadas", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "guardadas"] }
+          }
+        },
+        {
+          "name": "GET receta {id} → incluye pasos numerados correctamente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Pasos ordenados y numerados desde 1', () => {",
+                  "  pm.expect(json.pasos).to.be.an('array');",
+                  "  pm.expect(json.pasos.length).to.be.greaterThan(0);",
+                  "  json.pasos.forEach((p, i) => pm.expect(p.orden).to.eql(i + 1));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaId}}", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaId}}"] }
+          }
+        },
+        {
+          "name": "GET mis-recetas sin token → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/recetas/mis-recetas", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "mis-recetas"] }
+          }
+        },
+        {
+          "name": "GET guardadas sin token → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/recetas/guardadas", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "guardadas"] }
           }
         }
       ]

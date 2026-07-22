@@ -16,8 +16,8 @@ const CONTADORES = [
   { key: 'totalProductos' as const, label: 'Total',         icon: 'basket-outline',    color: colors.primary,     bg: '#E8F5D0', filtro: null },
   { key: 'caducados'      as const, label: 'Caducados',     icon: 'warning-outline',   color: colors.error,       bg: '#FFEBEE', filtro: 'caducado' },
   { key: 'caduca_pronto'  as const, label: 'Caduca pronto', icon: 'time-outline',      color: '#FF6D00',          bg: '#FBE9E7', filtro: 'caduca_pronto' },
-  { key: 'caduca_semana'  as const, label: 'Esta semana',   icon: 'calendar-outline',  color: colors.secondary,   bg: '#FFF3E0', filtro: 'caduca_semana' },
-  { key: 'caduca_mes'     as const, label: 'Este mes',      icon: 'leaf-outline',      color: colors.primaryDark, bg: '#F1F8E9', filtro: 'caduca_mes' },
+  { key: 'caduca_semana'  as const, label: 'Caduca esta semana', icon: 'calendar-outline',  color: colors.secondary,   bg: '#FFF3E0', filtro: 'caduca_semana' },
+  { key: 'caduca_mes'     as const, label: 'Caduca este mes',   icon: 'leaf-outline',      color: colors.primaryDark, bg: '#F1F8E9', filtro: 'caduca_mes' },
   { key: 'bajoStock'      as const, label: 'Bajo stock',    icon: 'arrow-down-outline', color: '#C79100',         bg: '#FFF8E1', filtro: 'bajoStock' },
 ];
 

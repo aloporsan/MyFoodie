@@ -3,7 +3,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   InputAccessoryView,
   Platform,
@@ -13,6 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { showConfirm } from '@/hooks/useConfirm';
 import { PasoInput } from '@/services/recetaService';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
@@ -35,7 +35,7 @@ export function FormPaso({ onGuardar, isLoading = false }: Props) {
     if (fuente === 'galeria') {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permiso necesario', 'Necesitamos acceso a tu galería.');
+        showConfirm('Permiso necesario', 'Necesitamos acceso a tu galería.', undefined, { icon: 'images-outline' });
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -50,7 +50,7 @@ export function FormPaso({ onGuardar, isLoading = false }: Props) {
     } else {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permiso necesario', 'Necesitamos acceso a tu cámara.');
+        showConfirm('Permiso necesario', 'Necesitamos acceso a tu cámara.', undefined, { icon: 'camera-outline' });
         return;
       }
       const result = await ImagePicker.launchCameraAsync({ quality: 0.7, base64: true });

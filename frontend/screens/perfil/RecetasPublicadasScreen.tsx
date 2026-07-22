@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { useEffect, useState } from 'react';
 import {
   FlatList,
@@ -12,7 +11,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { RecetaResumen, recetaService } from '@/services/recetaService';
+import { LoadingScreen } from '@/components/common/LoadingScreen';
+import { Receta } from '@/services/recetaService';
+import { useRecetaStore } from '@/store/recetaStore';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
 import { shadows } from '@/theme/shadows';
@@ -27,30 +28,22 @@ const DIFICULTAD_COLOR: Record<string, string> = {
 
 export function RecetasPublicadasScreen() {
   const router = useRouter();
-  const [recetas, setRecetas] = useState<RecetaResumen[]>([]);
+  const recetas = useRecetaStore((s) => s.recetas);
+  const cargarMisRecetas = useRecetaStore((s) => s.cargarMisRecetas);
   const [refreshing, setRefreshing] = useState(false);
-  const [cargando, setCargando] = useState(true);
+  const [cargandoInicial, setCargandoInicial] = useState(true);
 
-  const cargar = async () => {
-    try {
-      const todas = await recetaService.misRecetas();
-      setRecetas(todas.filter((r) => r.estado === 'publicada'));
-    } catch {
-      // mantener lista vacía en error
-    } finally {
-      setCargando(false);
-    }
-  };
-
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => {
+    cargarMisRecetas().finally(() => setCargandoInicial(false));
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await cargar();
+    await cargarMisRecetas();
     setRefreshing(false);
   };
 
-  if (cargando) {
+  if (cargandoInicial) {
     return <LoadingScreen />;
   }
 
@@ -73,33 +66,37 @@ export function RecetasPublicadasScreen() {
       <FlatList
         data={recetas}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={recetas.length === 0 && !cargando ? styles.centrado : styles.lista}
+        contentContainerStyle={recetas.length === 0 ? styles.centrado : styles.lista}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing || cargando}
+            refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={colors.primary}
             colors={[colors.primary]}
           />
         }
         ListEmptyComponent={
-          cargando ? null : (
-            <View style={styles.emptyWrapper}>
-              <View style={styles.emptyIcono}>
-                <Ionicons name="book-outline" size={48} color={colors.primary} />
-              </View>
-              <Text style={styles.emptyTitulo}>Aún no has publicado ninguna receta</Text>
-              <Text style={styles.emptySubtitulo}>
-                Crea tu primera receta desde la pestaña Crear
-              </Text>
+          <View style={styles.emptyWrapper}>
+            <View style={styles.emptyIcono}>
+              <Ionicons name="book-outline" size={48} color={colors.primary} />
             </View>
-          )
+            <Text style={styles.emptyTitulo}>Aún no has publicado ninguna receta</Text>
+            <Pressable
+              style={styles.crearBtn}
+              onPress={() => router.push('/(tabs)/receta')}
+            >
+              <Ionicons name="add" size={18} color={colors.white} />
+              <Text style={styles.crearBtnTexto}>Crear mi primera receta</Text>
+            </Pressable>
+          </View>
         }
         renderItem={({ item }) => (
-          <Pressable onPress={() => router.push({ pathname: '/receta/[id]', params: { id: item.id } })}>
-            <RecetaCard receta={item} />
-          </Pressable>
+          <RecetaCard
+            receta={item}
+            onPress={() => router.push({ pathname: '/receta/[id]', params: { id: item.id } })}
+            onEditar={() => router.push(`/receta/editar?id=${item.id}`)}
+          />
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
       />
@@ -107,39 +104,62 @@ export function RecetasPublicadasScreen() {
   );
 }
 
-function RecetaCard({ receta }: { receta: RecetaResumen }) {
+function RecetaCard({
+  receta,
+  onPress,
+  onEditar,
+}: {
+  receta: Receta;
+  onPress: () => void;
+  onEditar: () => void;
+}) {
   const dificultadColor = DIFICULTAD_COLOR[receta.dificultad] ?? colors.grayMid;
+  const esPublicada = receta.estado === 'publicada';
 
   return (
     <View style={cardStyles.container}>
-      {receta.imagenUrl ? (
-        <Image
-          source={{ uri: receta.imagenUrl }}
-          style={cardStyles.imagen}
-          resizeMode="cover"
-        />
-      ) : (
-        <View style={[cardStyles.imagen, cardStyles.imagenPlaceholder]}>
-          <Ionicons name="restaurant-outline" size={36} color="rgba(255,255,255,0.7)" />
-        </View>
-      )}
-      <View style={[cardStyles.dificultadBadge, { backgroundColor: dificultadColor }]}>
-        <Text style={cardStyles.dificultadTexto}>{receta.dificultad}</Text>
-      </View>
-      <View style={cardStyles.cuerpo}>
-        <Text style={cardStyles.titulo} numberOfLines={2}>{receta.titulo}</Text>
-        <Text style={cardStyles.descripcion} numberOfLines={2}>{receta.descripcion}</Text>
-        <View style={cardStyles.metaRow}>
-          <View style={cardStyles.metaItem}>
-            <Ionicons name="time-outline" size={13} color={colors.text.secondary} />
-            <Text style={cardStyles.metaTexto}>{receta.tiempoEstimado} min</Text>
+      <Pressable onPress={onPress}>
+        {receta.imagenUrl ? (
+          <Image
+            source={{ uri: receta.imagenUrl }}
+            style={cardStyles.imagen}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={[cardStyles.imagen, cardStyles.imagenPlaceholder]}>
+            <Ionicons name="restaurant-outline" size={36} color="rgba(255,255,255,0.7)" />
           </View>
-          <View style={cardStyles.metaItem}>
-            <Ionicons name="restaurant-outline" size={13} color={colors.text.secondary} />
-            <Text style={cardStyles.metaTexto}>{receta.categoria}</Text>
+        )}
+        <View style={[cardStyles.dificultadBadge, { backgroundColor: dificultadColor }]}>
+          <Text style={cardStyles.dificultadTexto}>{receta.dificultad}</Text>
+        </View>
+        <View
+          style={[
+            cardStyles.estadoBadge,
+            { backgroundColor: esPublicada ? colors.primary : colors.grayMid },
+          ]}
+        >
+          <Text style={cardStyles.estadoTexto}>{esPublicada ? 'Publicada' : 'Borrador'}</Text>
+        </View>
+        <View style={cardStyles.cuerpo}>
+          <Text style={cardStyles.titulo} numberOfLines={2}>{receta.titulo}</Text>
+          <Text style={cardStyles.descripcion} numberOfLines={2}>{receta.descripcion}</Text>
+          <View style={cardStyles.metaRow}>
+            <View style={cardStyles.metaItem}>
+              <Ionicons name="time-outline" size={13} color={colors.text.secondary} />
+              <Text style={cardStyles.metaTexto}>{receta.tiempoEstimado} min</Text>
+            </View>
+            <View style={cardStyles.metaItem}>
+              <Ionicons name="heart-outline" size={13} color={colors.text.secondary} />
+              <Text style={cardStyles.metaTexto}>{receta.totalLikes ?? 0}</Text>
+            </View>
           </View>
         </View>
-      </View>
+      </Pressable>
+      <Pressable style={cardStyles.editarBtn} onPress={onEditar} hitSlop={8}>
+        <Ionicons name="pencil-outline" size={14} color={colors.primary} />
+        <Text style={cardStyles.editarTexto}>Editar</Text>
+      </Pressable>
     </View>
   );
 }
@@ -181,7 +201,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyTitulo: { ...typography.heading3, color: colors.text.primary, textAlign: 'center' },
-  emptySubtitulo: { ...typography.body, color: colors.text.secondary, textAlign: 'center' },
+  crearBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    marginTop: spacing.sm,
+  },
+  crearBtnTexto: { ...typography.label, color: colors.white, fontWeight: '700' },
 });
 
 const cardStyles = StyleSheet.create({
@@ -206,10 +236,29 @@ const cardStyles = StyleSheet.create({
     borderRadius: borderRadius.full,
   },
   dificultadTexto: { ...typography.caption, color: colors.white, fontWeight: '700' },
+  estadoBadge: {
+    position: 'absolute',
+    top: spacing.md,
+    left: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 3,
+    borderRadius: borderRadius.full,
+  },
+  estadoTexto: { ...typography.caption, color: colors.white, fontWeight: '700' },
   cuerpo: { padding: spacing.lg, gap: spacing.sm },
   titulo: { ...typography.heading3, color: colors.text.primary },
   descripcion: { ...typography.body, color: colors.text.secondary },
   metaRow: { flexDirection: 'row', gap: spacing.lg, marginTop: spacing.xs },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   metaTexto: { ...typography.caption, color: colors.text.secondary },
+  editarBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.grayLight,
+  },
+  editarTexto: { ...typography.caption, color: colors.primary, fontWeight: '700' },
 });

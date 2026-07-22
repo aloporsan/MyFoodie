@@ -108,6 +108,38 @@ class RecetaControllerIntegrationTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    @DisplayName("GET /api/recetas/{id} devuelve 200 con pasos numerados correctamente")
+    void GET_receta_devuelve200_conPasosNumeradosCorrectamente() throws Exception {
+        String recetaId = crearRecetaYObtenerID(tokenA);
+        añadirPasoYObtenerID(tokenA, recetaId, "Primer paso");
+        añadirPasoYObtenerID(tokenA, recetaId, "Segundo paso");
+        añadirPasoYObtenerID(tokenA, recetaId, "Tercer paso");
+
+        mockMvc.perform(get("/api/recetas/" + recetaId)
+                        .header("Authorization", "Bearer " + tokenA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pasos", hasSize(3)))
+                .andExpect(jsonPath("$.pasos[0].orden").value(1))
+                .andExpect(jsonPath("$.pasos[0].descripcion").value("Primer paso"))
+                .andExpect(jsonPath("$.pasos[1].orden").value(2))
+                .andExpect(jsonPath("$.pasos[1].descripcion").value("Segundo paso"))
+                .andExpect(jsonPath("$.pasos[2].orden").value(3))
+                .andExpect(jsonPath("$.pasos[2].descripcion").value("Tercer paso"));
+    }
+
+    @Test
+    @DisplayName("GET /api/recetas/{id} devuelve 200 con autor incluido")
+    void GET_receta_devuelve200_conAutorIncluido() throws Exception {
+        String recetaId = crearRecetaYObtenerID(tokenA);
+
+        mockMvc.perform(get("/api/recetas/" + recetaId)
+                        .header("Authorization", "Bearer " + tokenA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.autorNombre").value("userA"))
+                .andExpect(jsonPath("$.autorNombreUsuario").value("userA"));
+    }
+
     // -------------------------------------------------------------------------
     // PUT /api/recetas/{id}
     // -------------------------------------------------------------------------
@@ -354,6 +386,27 @@ class RecetaControllerIntegrationTest {
     }
 
     @Test
+    @DisplayName("GET /api/recetas/mis-recetas devuelve 200 con ingredientes y pasos incluidos")
+    void GET_misRecetas_devuelve200_conIngredientesYPasos() throws Exception {
+        crearRecetaCompletaYObtenerID(tokenA);
+
+        mockMvc.perform(get("/api/recetas/mis-recetas")
+                        .header("Authorization", "Bearer " + tokenA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].ingredientes", hasSize(1)))
+                .andExpect(jsonPath("$[0].pasos", hasSize(1)))
+                .andExpect(jsonPath("$[0].autorNombre").value("userA"))
+                .andExpect(jsonPath("$[0].autorNombreUsuario").value("userA"));
+    }
+
+    @Test
+    @DisplayName("GET /api/recetas/mis-recetas devuelve 401 sin token")
+    void GET_misRecetas_devuelve401_sinToken() throws Exception {
+        mockMvc.perform(get("/api/recetas/mis-recetas"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     @DisplayName("GET /api/recetas/mis-borradores devuelve 200 con solo borradores")
     void GET_misBorradores_devuelve200_conSoloBorradores() throws Exception {
         String recetaId = crearRecetaCompletaYObtenerID(tokenA);
@@ -367,6 +420,44 @@ class RecetaControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$", hasSize(1)));
+    }
+
+    // -------------------------------------------------------------------------
+    // GET /api/recetas/guardadas
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("GET /api/recetas/guardadas devuelve 200 con recetas completas")
+    void GET_guardadas_devuelve200_conRecetasCompletas() throws Exception {
+        String recetaId = crearRecetaCompletaYObtenerID(tokenA);
+        guardarReceta(tokenB, recetaId);
+
+        mockMvc.perform(get("/api/recetas/guardadas")
+                        .header("Authorization", "Bearer " + tokenB))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value(recetaId))
+                .andExpect(jsonPath("$[0].ingredientes", hasSize(1)))
+                .andExpect(jsonPath("$[0].pasos", hasSize(1)))
+                .andExpect(jsonPath("$[0].autorNombre").value("userA"))
+                .andExpect(jsonPath("$[0].autorNombreUsuario").value("userA"));
+    }
+
+    @Test
+    @DisplayName("GET /api/recetas/guardadas devuelve 200 con lista vacía si no hay guardadas")
+    void GET_guardadas_devuelve200_listaVaciaSinGuardadas() throws Exception {
+        mockMvc.perform(get("/api/recetas/guardadas")
+                        .header("Authorization", "Bearer " + tokenB))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
+    @DisplayName("GET /api/recetas/guardadas devuelve 401 sin token")
+    void GET_guardadas_devuelve401_sinToken() throws Exception {
+        mockMvc.perform(get("/api/recetas/guardadas"))
+                .andExpect(status().isUnauthorized());
     }
 
     // -------------------------------------------------------------------------
@@ -414,6 +505,12 @@ class RecetaControllerIntegrationTest {
                 .andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString())
                 .get("ingredientes").get(0).get("id").asText();
+    }
+
+    private void guardarReceta(String token, String recetaId) throws Exception {
+        mockMvc.perform(post("/api/recetas/" + recetaId + "/guardar")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isCreated());
     }
 
     private String añadirPasoYObtenerID(String token, String recetaId, String descripcion) throws Exception {

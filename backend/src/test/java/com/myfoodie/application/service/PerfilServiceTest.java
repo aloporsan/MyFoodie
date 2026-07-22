@@ -173,6 +173,7 @@ class PerfilServiceTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void cerrarSesion_añade_token_a_blacklist_redis() {
         String token = "valid.jwt.token";
         ValueOperations<String, String> valueOps = mock(ValueOperations.class);

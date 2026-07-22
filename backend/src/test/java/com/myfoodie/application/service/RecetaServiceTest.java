@@ -9,6 +9,7 @@ import com.myfoodie.domain.repository.LikeRepository;
 import com.myfoodie.domain.repository.PasoRepository;
 import com.myfoodie.domain.repository.RecetaGuardadaRepository;
 import com.myfoodie.domain.repository.RecetaRepository;
+import com.myfoodie.domain.repository.UsuarioRepository;
 import com.myfoodie.exception.ApiException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,6 +37,7 @@ class RecetaServiceTest {
     @Mock private PasoRepository pasoRepository;
     @Mock private RecetaGuardadaRepository recetaGuardadaRepository;
     @Mock private LikeRepository likeRepository;
+    @Mock private UsuarioRepository usuarioRepository;
 
     @InjectMocks private RecetaService recetaService;
 
@@ -64,12 +66,6 @@ class RecetaServiceTest {
     private Paso paso(String id, String recetaId, int orden) {
         return Paso.builder().id(id).recetaId(recetaId)
                 .orden(orden).descripcion("Descripción del paso").build();
-    }
-
-    private void stubToDTO(String recetaId, Receta receta) {
-        when(recetaRepository.findById(recetaId)).thenReturn(Optional.of(receta));
-        when(ingredienteRepository.findByRecetaId(recetaId)).thenReturn(List.of());
-        when(pasoRepository.findByRecetaIdOrderByOrdenAsc(recetaId)).thenReturn(List.of());
     }
 
     // -------------------------------------------------------------------------

@@ -1,7 +1,8 @@
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { showConfirm } from '@/hooks/useConfirm';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -31,7 +32,7 @@ export function ImagenReceta({ imagenUrl, onActualizar, isLoading = false }: Pro
   const abrirGaleria = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permiso necesario', 'Necesitamos acceso a tu galería para seleccionar una imagen.');
+      showConfirm('Permiso necesario', 'Necesitamos acceso a tu galería para seleccionar una imagen.', undefined, { icon: 'images-outline' });
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -45,7 +46,7 @@ export function ImagenReceta({ imagenUrl, onActualizar, isLoading = false }: Pro
   const abrirCamara = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permiso necesario', 'Necesitamos acceso a tu cámara para tomar una foto.');
+      showConfirm('Permiso necesario', 'Necesitamos acceso a tu cámara para tomar una foto.', undefined, { icon: 'camera-outline' });
       return;
     }
     const result = await ImagePicker.launchCameraAsync({

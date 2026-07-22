@@ -10,8 +10,9 @@ import {
 import { handleApiError } from '@/utils/errorHandler';
 
 interface RecetaState {
-  recetas: RecetaResumen[];
+  recetas: Receta[];
   borradores: RecetaResumen[];
+  recetasGuardadas: Receta[];
   recetaActual: Receta | null;
   isLoading: boolean;
   error: string | null;
@@ -20,12 +21,15 @@ interface RecetaState {
 interface RecetaActions {
   cargarMisRecetas: () => Promise<void>;
   cargarMisBorradores: () => Promise<void>;
+  cargarRecetasGuardadas: () => Promise<void>;
   cargarReceta: (id: string) => Promise<void>;
   crearReceta: (datos: RecetaInput) => Promise<Receta>;
   editarReceta: (id: string, datos: RecetaInput) => Promise<void>;
   eliminarReceta: (id: string) => Promise<void>;
   publicarReceta: (id: string) => Promise<void>;
   guardarComoBorrador: (id: string) => Promise<void>;
+  guardarReceta: (id: string) => Promise<void>;
+  eliminarGuardado: (id: string) => Promise<void>;
   actualizarImagen: (id: string, imagenUrl: string) => Promise<void>;
   actualizarEtiquetas: (id: string, etiquetas: string[]) => Promise<void>;
   añadirIngrediente: (id: string, datos: IngredienteInput) => Promise<void>;
@@ -40,6 +44,7 @@ interface RecetaActions {
 export const useRecetaStore = create<RecetaState & RecetaActions>()((set) => ({
   recetas: [],
   borradores: [],
+  recetasGuardadas: [],
   recetaActual: null,
   isLoading: false,
   error: null,
@@ -59,6 +64,16 @@ export const useRecetaStore = create<RecetaState & RecetaActions>()((set) => ({
     try {
       const borradores = await recetaService.misBorradores();
       set({ borradores, isLoading: false });
+    } catch (e) {
+      set({ error: handleApiError(e), isLoading: false });
+    }
+  },
+
+  cargarRecetasGuardadas: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const recetasGuardadas = await recetaService.recetasGuardadas();
+      set({ recetasGuardadas, isLoading: false });
     } catch (e) {
       set({ error: handleApiError(e), isLoading: false });
     }
@@ -142,6 +157,37 @@ export const useRecetaStore = create<RecetaState & RecetaActions>()((set) => ({
         recetaActual: actualizada,
         borradores: [...s.borradores, actualizada],
         recetas: s.recetas.filter((r) => r.id !== id),
+        isLoading: false,
+      }));
+    } catch (e) {
+      set({ error: handleApiError(e), isLoading: false });
+      throw e;
+    }
+  },
+
+  guardarReceta: async (id) => {
+    set({ isLoading: true, error: null });
+    try {
+      await recetaService.guardarReceta(id);
+      const receta = await recetaService.obtenerReceta(id);
+      set((s) => ({
+        recetasGuardadas: s.recetasGuardadas.some((r) => r.id === id)
+          ? s.recetasGuardadas
+          : [receta, ...s.recetasGuardadas],
+        isLoading: false,
+      }));
+    } catch (e) {
+      set({ error: handleApiError(e), isLoading: false });
+      throw e;
+    }
+  },
+
+  eliminarGuardado: async (id) => {
+    set({ isLoading: true, error: null });
+    try {
+      await recetaService.eliminarGuardado(id);
+      set((s) => ({
+        recetasGuardadas: s.recetasGuardadas.filter((r) => r.id !== id),
         isLoading: false,
       }));
     } catch (e) {
@@ -248,5 +294,12 @@ export const useRecetaStore = create<RecetaState & RecetaActions>()((set) => ({
   clearError: () => set({ error: null }),
 
   reset: () =>
-    set({ recetas: [], borradores: [], recetaActual: null, isLoading: false, error: null }),
+    set({
+      recetas: [],
+      borradores: [],
+      recetasGuardadas: [],
+      recetaActual: null,
+      isLoading: false,
+      error: null,
+    }),
 }));

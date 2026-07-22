@@ -4,11 +4,14 @@ import com.myfoodie.application.dto.receta.*;
 import com.myfoodie.domain.model.IngredienteReceta;
 import com.myfoodie.domain.model.Paso;
 import com.myfoodie.domain.model.Receta;
+import com.myfoodie.domain.model.RecetaGuardada;
+import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.IngredienteRecetaRepository;
 import com.myfoodie.domain.repository.LikeRepository;
 import com.myfoodie.domain.repository.PasoRepository;
 import com.myfoodie.domain.repository.RecetaGuardadaRepository;
 import com.myfoodie.domain.repository.RecetaRepository;
+import com.myfoodie.domain.repository.UsuarioRepository;
 import com.myfoodie.exception.ApiException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -17,6 +20,9 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +33,7 @@ public class RecetaService {
     private final PasoRepository pasoRepository;
     private final RecetaGuardadaRepository recetaGuardadaRepository;
     private final LikeRepository likeRepository;
+    private final UsuarioRepository usuarioRepository;
 
     // -------------------------------------------------------------------------
     // CRUD básico
@@ -93,10 +100,10 @@ public class RecetaService {
         return toDTO(recetaRepository.save(receta));
     }
 
-    public List<RecetaResumenDTO> misRecetas(String usuarioId) {
+    public List<RecetaFeedDTO> misRecetas(String usuarioId) {
         return recetaRepository.findByAutorId(usuarioId)
                 .stream()
-                .map(this::toResumenDTO)
+                .map(r -> toFeedDTO(r, usuarioId))
                 .toList();
     }
 
@@ -104,6 +111,36 @@ public class RecetaService {
         return recetaRepository.findByAutorIdAndEstado(usuarioId, "borrador")
                 .stream()
                 .map(this::toResumenDTO)
+                .toList();
+    }
+
+    public void guardarReceta(String usuarioId, String recetaId) {
+        getReceta(recetaId);
+        if (!recetaGuardadaRepository.existsByUsuarioIdAndRecetaId(usuarioId, recetaId)) {
+            recetaGuardadaRepository.save(RecetaGuardada.builder()
+                    .usuarioId(usuarioId)
+                    .recetaId(recetaId)
+                    .build());
+        }
+    }
+
+    public void quitarGuardado(String usuarioId, String recetaId) {
+        recetaGuardadaRepository.findByUsuarioIdAndRecetaId(usuarioId, recetaId)
+                .ifPresent(recetaGuardadaRepository::delete);
+    }
+
+    public List<RecetaFeedDTO> recetasGuardadas(String usuarioId) {
+        List<RecetaGuardada> guardadas = recetaGuardadaRepository.findByUsuarioIdOrderBySavedAtDesc(usuarioId);
+
+        Map<String, Receta> recetasPorId = recetaRepository
+                .findAllById(guardadas.stream().map(RecetaGuardada::getRecetaId).toList())
+                .stream()
+                .collect(Collectors.toMap(Receta::getId, Function.identity()));
+
+        return guardadas.stream()
+                .map(g -> recetasPorId.get(g.getRecetaId()))
+                .filter(r -> r != null)
+                .map(r -> toFeedDTO(r, usuarioId))
                 .toList();
     }
 
@@ -272,9 +309,13 @@ public class RecetaService {
                                 p.getId(), p.getOrden(), p.getDescripcion(), p.getImagenUrl()))
                         .toList();
 
+        Usuario autor = usuarioRepository.findById(receta.getAutorId()).orElse(null);
+
         return new RecetaResponseDTO(
                 receta.getId(),
                 receta.getAutorId(),
+                autor != null ? autor.getNombre() : null,
+                autor != null ? autor.getNombreUsuario() : null,
                 receta.getTitulo(),
                 receta.getDescripcion(),
                 receta.getTiempoEstimado(),
@@ -283,6 +324,47 @@ public class RecetaService {
                 receta.getEtiquetas(),
                 receta.getImagenUrl(),
                 receta.getEstado(),
+                ingredientes,
+                pasos,
+                receta.getCreatedAt(),
+                receta.getUpdatedAt()
+        );
+    }
+
+    RecetaFeedDTO toFeedDTO(Receta receta, String usuarioId) {
+        List<RecetaResponseDTO.IngredienteResponseDTO> ingredientes =
+                ingredienteRepository.findByRecetaId(receta.getId())
+                        .stream()
+                        .map(i -> new RecetaResponseDTO.IngredienteResponseDTO(
+                                i.getId(), i.getNombre(), i.getCantidad(), i.getUnidad(), i.getObservacion()))
+                        .toList();
+
+        List<RecetaResponseDTO.PasoResponseDTO> pasos =
+                pasoRepository.findByRecetaIdOrderByOrdenAsc(receta.getId())
+                        .stream()
+                        .map(p -> new RecetaResponseDTO.PasoResponseDTO(
+                                p.getId(), p.getOrden(), p.getDescripcion(), p.getImagenUrl()))
+                        .toList();
+
+        Usuario autor = usuarioRepository.findById(receta.getAutorId()).orElse(null);
+        long totalLikes = likeRepository.countByRecetaId(receta.getId());
+        boolean likeUsuario = likeRepository.existsByUsuarioIdAndRecetaId(usuarioId, receta.getId());
+
+        return new RecetaFeedDTO(
+                receta.getId(),
+                receta.getAutorId(),
+                autor != null ? autor.getNombre() : null,
+                autor != null ? autor.getNombreUsuario() : null,
+                receta.getTitulo(),
+                receta.getDescripcion(),
+                receta.getTiempoEstimado(),
+                receta.getDificultad(),
+                receta.getCategoria(),
+                receta.getEtiquetas(),
+                receta.getImagenUrl(),
+                receta.getEstado(),
+                totalLikes,
+                likeUsuario,
                 ingredientes,
                 pasos,
                 receta.getCreatedAt(),

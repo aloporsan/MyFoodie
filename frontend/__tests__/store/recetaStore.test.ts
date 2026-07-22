@@ -45,6 +45,7 @@ const mockResumen: RecetaResumen = {
 const estadoInicial = {
   recetas: [],
   borradores: [],
+  recetasGuardadas: [],
   recetaActual: null,
   isLoading: false,
   error: null,
@@ -60,7 +61,7 @@ beforeEach(() => {
 // -------------------------------------------------------------------------
 
 it('cargarMisRecetas_actualiza_lista_recetas', async () => {
-  mockService.misRecetas.mockResolvedValue([mockResumen]);
+  mockService.misRecetas.mockResolvedValue([mockReceta]);
   await useRecetaStore.getState().cargarMisRecetas();
   expect(useRecetaStore.getState().recetas).toHaveLength(1);
   expect(useRecetaStore.getState().recetas[0].titulo).toBe('Paella valenciana');
@@ -147,7 +148,7 @@ it('editarReceta_actualiza_recetaActual_y_listas', async () => {
 // -------------------------------------------------------------------------
 
 it('eliminarReceta_borra_de_ambas_listas', async () => {
-  useRecetaStore.setState({ ...estadoInicial, recetas: [mockResumen], borradores: [mockResumen] });
+  useRecetaStore.setState({ ...estadoInicial, recetas: [mockReceta], borradores: [mockResumen] });
   mockService.eliminarReceta.mockResolvedValue(undefined);
   await useRecetaStore.getState().eliminarReceta('r1');
   expect(useRecetaStore.getState().recetas).toHaveLength(0);
@@ -181,7 +182,7 @@ it('publicarReceta_mueve_de_borradores_a_recetas', async () => {
 
 it('guardarComoBorrador_mueve_de_recetas_a_borradores', async () => {
   const borrador = { ...mockReceta, estado: 'borrador' as const };
-  useRecetaStore.setState({ ...estadoInicial, recetas: [{ ...mockResumen, estado: 'publicada' }] });
+  useRecetaStore.setState({ ...estadoInicial, recetas: [{ ...mockReceta, estado: 'publicada' as const }] });
   mockService.guardarComoBorrador.mockResolvedValue(borrador);
   await useRecetaStore.getState().guardarComoBorrador('r1');
   expect(useRecetaStore.getState().borradores).toHaveLength(1);
@@ -231,6 +232,39 @@ it('eliminarPaso_filtra_y_renumera_pasos', async () => {
 });
 
 // -------------------------------------------------------------------------
+// cargarRecetasGuardadas
+// -------------------------------------------------------------------------
+
+it('cargarRecetasGuardadas_actualiza_recetasGuardadas_en_store', async () => {
+  mockService.recetasGuardadas.mockResolvedValue([mockReceta]);
+  await useRecetaStore.getState().cargarRecetasGuardadas();
+  expect(useRecetaStore.getState().recetasGuardadas).toHaveLength(1);
+  expect(useRecetaStore.getState().recetasGuardadas[0].id).toBe('r1');
+  expect(useRecetaStore.getState().isLoading).toBe(false);
+});
+
+// -------------------------------------------------------------------------
+// guardarReceta / eliminarGuardado
+// -------------------------------------------------------------------------
+
+it('guardarReceta_añade_receta_a_recetasGuardadas_inmediatamente', async () => {
+  mockService.guardarReceta.mockResolvedValue(undefined);
+  mockService.obtenerReceta.mockResolvedValue(mockReceta);
+  await useRecetaStore.getState().guardarReceta('r1');
+  expect(mockService.guardarReceta).toHaveBeenCalledWith('r1');
+  expect(useRecetaStore.getState().recetasGuardadas).toHaveLength(1);
+  expect(useRecetaStore.getState().recetasGuardadas[0].id).toBe('r1');
+});
+
+it('eliminarGuardado_elimina_receta_de_recetasGuardadas_inmediatamente', async () => {
+  useRecetaStore.setState({ ...estadoInicial, recetasGuardadas: [mockReceta] });
+  mockService.eliminarGuardado.mockResolvedValue(undefined);
+  await useRecetaStore.getState().eliminarGuardado('r1');
+  expect(mockService.eliminarGuardado).toHaveBeenCalledWith('r1');
+  expect(useRecetaStore.getState().recetasGuardadas).toHaveLength(0);
+});
+
+// -------------------------------------------------------------------------
 // clearError / reset
 // -------------------------------------------------------------------------
 
@@ -242,8 +276,9 @@ it('clearError_limpia_el_error', () => {
 
 it('reset_devuelve_al_estado_inicial', () => {
   useRecetaStore.setState({
-    recetas: [mockResumen],
+    recetas: [mockReceta],
     borradores: [mockResumen],
+    recetasGuardadas: [mockReceta],
     recetaActual: mockReceta,
     isLoading: true,
     error: 'error',

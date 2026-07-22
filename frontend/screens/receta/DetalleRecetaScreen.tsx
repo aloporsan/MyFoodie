@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -13,7 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ErrorScreen } from '@/components/common/ErrorScreen';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
-import { IngredienteReceta, PasoReceta, Receta, recetaService } from '@/services/recetaService';
+import { showConfirm } from '@/hooks/useConfirm';
+import { IngredienteReceta, PasoReceta } from '@/services/recetaService';
 import { useAuthStore } from '@/store/authStore';
 import { useRecetaStore } from '@/store/recetaStore';
 import { borderRadius } from '@/theme/borderRadius';
@@ -34,24 +34,46 @@ export function DetalleRecetaScreen() {
   const id = Array.isArray(rawId) ? rawId[0] : rawId;
   const currentUserId = useAuthStore((s) => s.usuario?.userId);
 
-  const [receta, setReceta] = useState<Receta | null>(null);
+  const receta = useRecetaStore((s) => s.recetaActual);
+  const error = useRecetaStore((s) => s.error);
+  const cargarReceta = useRecetaStore((s) => s.cargarReceta);
+  const eliminarReceta = useRecetaStore((s) => s.eliminarReceta);
+  const recetasGuardadas = useRecetaStore((s) => s.recetasGuardadas);
+  const cargarRecetasGuardadas = useRecetaStore((s) => s.cargarRecetasGuardadas);
+  const guardarReceta = useRecetaStore((s) => s.guardarReceta);
+
   const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
     if (!id) return;
-    recetaService
-      .obtenerReceta(id)
-      .then(setReceta)
-      .catch(() => setError('No se pudo cargar la receta'))
-      .finally(() => setCargando(false));
+    cargarReceta(id).finally(() => setCargando(false));
   }, [id]);
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)'));
   const esPropia = receta?.autorId === currentUserId;
+  const estaGuardada = recetasGuardadas.some((r) => r.id === receta?.id);
+
+  useEffect(() => {
+    if (receta && !esPropia) cargarRecetasGuardadas();
+  }, [receta?.id, esPropia]);
+
+  const handleGuardar = async () => {
+    if (!receta) return;
+    setGuardando(true);
+    try {
+      await guardarReceta(receta.id);
+    } catch {
+      showConfirm('Error', 'No se pudo guardar la receta. Inténtalo de nuevo.', undefined, {
+        icon: 'alert-circle-outline',
+      });
+    } finally {
+      setGuardando(false);
+    }
+  };
 
   const confirmarEliminar = () => {
-    Alert.alert(
+    showConfirm(
       'Eliminar receta',
       `¿Seguro que quieres eliminar "${receta?.titulo}"? Esta acción no se puede deshacer.`,
       [
@@ -61,14 +83,17 @@ export function DetalleRecetaScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await useRecetaStore.getState().eliminarReceta(receta!.id);
+              await eliminarReceta(receta!.id);
               goBack();
             } catch {
-              Alert.alert('Error', 'No se pudo eliminar la receta. Inténtalo de nuevo.');
+              showConfirm('Error', 'No se pudo eliminar la receta. Inténtalo de nuevo.', undefined, {
+                icon: 'alert-circle-outline',
+              });
             }
           },
         },
-      ]
+      ],
+      { icon: 'trash-outline' }
     );
   };
 
@@ -101,17 +126,32 @@ export function DetalleRecetaScreen() {
         {esPropia ? (
           <View style={styles.headerActions}>
             <Pressable
+              testID="btn-editar-receta"
               onPress={() => router.push(`/receta/editar?id=${receta.id}`)}
               hitSlop={8}
             >
               <Ionicons name="pencil-outline" size={22} color={colors.primary} />
             </Pressable>
-            <Pressable onPress={confirmarEliminar} hitSlop={8}>
+            <Pressable testID="btn-eliminar-receta" onPress={confirmarEliminar} hitSlop={8}>
               <Ionicons name="trash-outline" size={22} color={colors.error} />
             </Pressable>
           </View>
         ) : (
-          <View style={styles.headerActions} />
+          <Pressable
+            testID="btn-guardar-receta"
+            style={[styles.guardarBtn, estaGuardada && styles.guardarBtnDisabled]}
+            onPress={estaGuardada || guardando ? undefined : handleGuardar}
+            disabled={estaGuardada || guardando}
+          >
+            <Ionicons
+              name={estaGuardada ? 'bookmark' : 'bookmark-outline'}
+              size={16}
+              color={estaGuardada ? colors.grayMid : colors.primary}
+            />
+            <Text style={[styles.guardarBtnTexto, estaGuardada && styles.guardarBtnTextoDisabled]}>
+              {estaGuardada ? 'Guardada' : 'Guardar receta'}
+            </Text>
+          </Pressable>
         )}
       </View>
 
@@ -294,6 +334,18 @@ const styles = StyleSheet.create({
   backBtn: { padding: spacing.xs },
   headerTitulo: { ...typography.heading3, color: colors.text.primary, flex: 1 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  guardarBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: '#E8F5D0',
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  guardarBtnDisabled: { backgroundColor: colors.grayLight },
+  guardarBtnTexto: { ...typography.caption, color: colors.primaryDark, fontWeight: '700' },
+  guardarBtnTextoDisabled: { color: colors.grayMid },
 
   scroll: { paddingBottom: spacing.xxxl },
 

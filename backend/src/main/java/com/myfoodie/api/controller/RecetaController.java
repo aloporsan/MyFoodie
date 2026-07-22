@@ -129,13 +129,34 @@ public class RecetaController {
     }
 
     @GetMapping("/mis-recetas")
-    public ResponseEntity<List<RecetaResumenDTO>> misRecetas(Principal principal) {
+    public ResponseEntity<List<RecetaFeedDTO>> misRecetas(Principal principal) {
         return ResponseEntity.ok(recetaService.misRecetas(getUsuarioId(principal)));
     }
 
     @GetMapping("/mis-borradores")
     public ResponseEntity<List<RecetaResumenDTO>> misBorradores(Principal principal) {
         return ResponseEntity.ok(recetaService.misBorradores(getUsuarioId(principal)));
+    }
+
+    @GetMapping("/guardadas")
+    public ResponseEntity<List<RecetaFeedDTO>> guardadas(Principal principal) {
+        return ResponseEntity.ok(recetaService.recetasGuardadas(getUsuarioId(principal)));
+    }
+
+    @PostMapping("/{id}/guardar")
+    public ResponseEntity<Void> guardar(
+            @PathVariable String id,
+            Principal principal) {
+        recetaService.guardarReceta(getUsuarioId(principal), id);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @DeleteMapping("/{id}/guardar")
+    public ResponseEntity<Void> quitarGuardado(
+            @PathVariable String id,
+            Principal principal) {
+        recetaService.quitarGuardado(getUsuarioId(principal), id);
+        return ResponseEntity.noContent().build();
     }
 
     private String getUsuarioId(Principal principal) {

@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   BackHandler,
   KeyboardAvoidingView,
   Platform,
@@ -26,6 +25,7 @@ import {
   ListaPasos,
   ValidacionReceta,
 } from '@/components/receta';
+import { showConfirm } from '@/hooks/useConfirm';
 import { IngredienteInput, PasoInput, recetaService } from '@/services/recetaService';
 import { usePerfilStore } from '@/store/perfilStore';
 import { useRecetaStore } from '@/store/recetaStore';
@@ -201,7 +201,7 @@ export function EditarRecetaScreen() {
 
   const confirmarSalida = () => {
     if (esPublicada) {
-      Alert.alert(
+      showConfirm(
         '¿Salir de la edición?',
         'Los cambios no guardados se perderán.',
         [
@@ -213,14 +213,22 @@ export function EditarRecetaScreen() {
               else router.replace('/(tabs)');
             },
           },
-        ]
+        ],
+        { icon: 'help-circle-outline' }
       );
     } else {
-      Alert.alert(
+      showConfirm(
         '¿Salir de la receta?',
         'La receta quedará guardada como borrador y podrás continuarla más tarde desde la pestaña Crear.',
         [
           { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Guardar borrador',
+            onPress: () => {
+              if (router.canGoBack()) router.back();
+              else router.replace('/(tabs)');
+            },
+          },
           {
             text: 'Eliminar borrador',
             style: 'destructive',
@@ -233,14 +241,8 @@ export function EditarRecetaScreen() {
               else router.replace('/(tabs)');
             },
           },
-          {
-            text: 'Guardar borrador',
-            onPress: () => {
-              if (router.canGoBack()) router.back();
-              else router.replace('/(tabs)');
-            },
-          },
-        ]
+        ],
+        { icon: 'help-circle-outline' }
       );
     }
   };
