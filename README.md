@@ -1,11 +1,24 @@
 # MyFoodie
 
-Gestion Inteligente de Despensa
+**MyFoodie** es una app móvil para gestionar la despensa de casa de forma inteligente: controla qué productos tienes, cuándo caducan, cuánto consumes y te ayuda a aprovechar mejor la comida antes de que se estropee. También incluye un apartado de recetas para aprovechar lo que ya tienes en casa.
 
-Proyecto dividido en dos partes:
+Es un Trabajo de Fin de Grado (TFG) en desarrollo, por lo que algunas funcionalidades todavía están en construcción.
 
-- `backend`: API Spring Boot.
-- `frontend`: app movil con Expo / React Native.
+### ¿Qué puedes hacer con MyFoodie?
+
+- 📦 **Despensa**: añadir, editar y organizar tus productos, con fechas de caducidad y alertas de stock mínimo.
+- 📊 **Dashboard**: un resumen visual del estado de tu despensa y tu aprovechamiento alimentario.
+- 🍳 **Recetas**: crear, guardar y consultar recetas relacionadas con lo que tienes disponible.
+- 👤 **Perfil**: gestión de cuenta, preferencias y privacidad.
+
+### Tecnología
+
+El proyecto está dividido en dos partes:
+
+- `backend`: API en Spring Boot (Java).
+- `frontend`: app móvil hecha con Expo / React Native.
+
+Las siguientes secciones son para desarrolladores que quieran ejecutar el proyecto en local.
 
 ## Requisitos
 
@@ -83,23 +96,6 @@ La app intenta conectarse al backend usando la IP del host cuando es posible. Si
 
 ```powershell
 set EXPO_PUBLIC_API_BASE_URL=http://192.168.1.35:8080/api
-```
-
-## Verificacion rapida
-
-Cuando todo esta correcto, la pantalla principal muestra el mensaje devuelto por:
-
-```http
-GET /api/health
-```
-
-Respuesta esperada:
-
-```json
-{
-	"status": "OK",
-	"message": "Spring Boot backend running"
-}
 ```
 
 ## Problemas comunes
