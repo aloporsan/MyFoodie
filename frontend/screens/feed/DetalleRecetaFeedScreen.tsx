@@ -15,7 +15,7 @@ import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
 
 const DIFICULTAD_COLOR: Record<string, string> = {
   'fácil': colors.primary,
-  medio: colors.secondary,
+  media: colors.secondary,
   'difícil': colors.error,
 };
 

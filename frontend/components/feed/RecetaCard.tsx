@@ -14,7 +14,7 @@ interface RecetaCardProps {
 
 const DIFICULTAD_COLOR: Record<string, string> = {
   'fácil': colors.primary,
-  medio: colors.secondary,
+  media: colors.secondary,
   'difícil': colors.error,
 };
 
