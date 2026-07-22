@@ -69,6 +69,7 @@ function RootLayoutNav() {
         <Stack.Screen name="perfil/recetas-publicadas"  options={{ headerShown: false }} />
         <Stack.Screen name="receta/[id]"                options={{ headerShown: false }} />
         <Stack.Screen name="receta/editar"              options={{ headerShown: false }} />
+        <Stack.Screen name="feed/[id]"                  options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
       <StatusBar style="auto" />

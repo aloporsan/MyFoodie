@@ -20,9 +20,10 @@ interface GestosCardProps {
   onGuardar: () => void;
   onDescartar: () => void;
   onLike: () => void;
+  onPress?: () => void;
 }
 
-export function GestosCard({ receta, onGuardar, onDescartar, onLike }: GestosCardProps) {
+export function GestosCard({ receta, onGuardar, onDescartar, onLike, onPress }: GestosCardProps) {
   const translateX = useSharedValue(0);
   const likeScale = useSharedValue(0);
   const [mostrarLike, setMostrarLike] = useState(false);
@@ -66,7 +67,14 @@ export function GestosCard({ receta, onGuardar, onDescartar, onLike }: GestosCar
       runOnJS(dispararLike)();
     });
 
-  const gesto = Gesture.Race(panGesture, dobleToqueGesture);
+  const toqueSimpleGesture = Gesture.Tap()
+    .numberOfTaps(1)
+    .onEnd(() => {
+      if (onPress) runOnJS(onPress)();
+    });
+
+  const tapGesture = Gesture.Exclusive(dobleToqueGesture, toqueSimpleGesture);
+  const gesto = Gesture.Race(panGesture, tapGesture);
 
   const cardStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
