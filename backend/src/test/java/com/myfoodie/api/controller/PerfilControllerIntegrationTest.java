@@ -69,6 +69,7 @@ class PerfilControllerIntegrationTest {
     private String usuarioId;
 
     @BeforeEach
+    @SuppressWarnings("unchecked")
     void setUp() {
         mockMvc = MockMvcBuilders.webAppContextSetup(wac)
                 .apply(SecurityMockMvcConfigurers.springSecurity())

@@ -68,12 +68,6 @@ class RecetaServiceTest {
                 .orden(orden).descripcion("Descripción del paso").build();
     }
 
-    private void stubToDTO(String recetaId, Receta receta) {
-        when(recetaRepository.findById(recetaId)).thenReturn(Optional.of(receta));
-        when(ingredienteRepository.findByRecetaId(recetaId)).thenReturn(List.of());
-        when(pasoRepository.findByRecetaIdOrderByOrdenAsc(recetaId)).thenReturn(List.of());
-    }
-
     // -------------------------------------------------------------------------
     // crearReceta — positivos
     // -------------------------------------------------------------------------
