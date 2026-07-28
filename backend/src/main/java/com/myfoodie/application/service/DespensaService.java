@@ -272,7 +272,6 @@ public class DespensaService {
             if (dias <= 3)  return "caduca_pronto";
             if (dias <= 7)  return "caduca_semana";
             if (dias <= 30) return "caduca_mes";
-            return "normal";
         }
         if (p.getCantidad() <= umbral) return "bajoStock";
         return "normal";
