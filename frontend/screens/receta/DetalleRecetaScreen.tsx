@@ -21,6 +21,7 @@ import { colors } from '@/theme/colors';
 import { shadows } from '@/theme/shadows';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
+import { resolveImagenUrl } from '@/utils/media';
 
 const DIFICULTAD_COLOR: Record<string, string> = {
   Fácil: colors.primary,
@@ -160,9 +161,9 @@ export function DetalleRecetaScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Hero imagen */}
-        {receta.imagenUrl ? (
+        {resolveImagenUrl(receta.imagenUrl) ? (
           <Image
-            source={{ uri: receta.imagenUrl }}
+            source={{ uri: resolveImagenUrl(receta.imagenUrl) }}
             style={styles.heroImagen}
             resizeMode="cover"
           />
@@ -304,9 +305,9 @@ function PasoCard({ paso }: { paso: PasoReceta }) {
       </View>
       <View style={pasoStyles.body}>
         <Text style={pasoStyles.descripcion}>{paso.descripcion}</Text>
-        {paso.imagenUrl ? (
+        {resolveImagenUrl(paso.imagenUrl) ? (
           <Image
-            source={{ uri: paso.imagenUrl }}
+            source={{ uri: resolveImagenUrl(paso.imagenUrl) }}
             style={pasoStyles.imagen}
             resizeMode="cover"
           />

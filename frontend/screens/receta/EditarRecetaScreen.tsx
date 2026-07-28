@@ -28,6 +28,7 @@ import {
 import { showConfirm } from '@/hooks/useConfirm';
 import { IngredienteInput, PasoInput, recetaService } from '@/services/recetaService';
 import { usePerfilStore } from '@/store/perfilStore';
+import { resolveImagenUrl } from '@/utils/media';
 import { useRecetaStore } from '@/store/recetaStore';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
@@ -337,7 +338,7 @@ export function EditarRecetaScreen() {
           <View style={styles.card}>
             <SeccionHeader icono="image-outline" titulo="Imagen de portada" opcional />
             <ImagenReceta
-              imagenUrl={recetaActual?.imagenUrl}
+              imagenUrl={resolveImagenUrl(recetaActual?.imagenUrl)}
               onActualizar={(url) => actualizarImagen(id, url)}
               isLoading={isLoading}
             />
