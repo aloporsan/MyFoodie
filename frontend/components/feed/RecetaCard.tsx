@@ -7,6 +7,7 @@ import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
+import { resolveImagenUrl } from '@/utils/media';
 
 interface RecetaCardProps {
   receta: RecetaFeed;
@@ -22,11 +23,12 @@ export function RecetaCard({ receta }: RecetaCardProps) {
   const totalIngredientes = receta.ingredientesDisponibles + receta.ingredientesFaltantes;
   const coincidencia = obtenerCoincidencia(receta.coincidenciaDespensa, receta.ingredientesFaltantes);
   const dificultadColor = DIFICULTAD_COLOR[receta.dificultad?.toLowerCase()] ?? colors.grayMid;
+  const imagenUrl = resolveImagenUrl(receta.imagenUrl);
 
   return (
     <View style={styles.container}>
-      {receta.imagenUrl ? (
-        <Image source={{ uri: receta.imagenUrl }} style={styles.imagen} contentFit="cover" />
+      {imagenUrl ? (
+        <Image source={{ uri: imagenUrl }} style={styles.imagen} contentFit="cover" />
       ) : (
         <View style={[styles.imagen, styles.imagenPlaceholder]}>
           <Ionicons name="restaurant-outline" size={48} color="rgba(255,255,255,0.7)" />

@@ -75,6 +75,7 @@ public class RecetaSeeder implements CommandLineRunner {
                     .dificultad(seed.dificultad())
                     .categoria(seed.categoria())
                     .etiquetas(seed.etiquetas())
+                    .imagenUrl(seed.imagenUrl())
                     .estado("publicada")
                     .build());
 

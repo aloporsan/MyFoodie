@@ -15,6 +15,7 @@ public final class RecetaSeedData {
             String dificultad,
             String categoria,
             List<String> etiquetas,
+            String imagenUrl,
             List<Ingrediente> ingredientes,
             List<String> pasos
     ) {}
@@ -24,7 +25,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Tortilla de patatas",
                         "La clásica tortilla española, jugosa por dentro y dorada por fuera.",
-                        40, "Media", "Almuerzo", List.of("vegetariano", "económico", "tradicional"),
+                        40, "Media", "Almuerzo", List.of("vegetariano", "económico", "tradicional"), "/recetas/tortilla-de-patatas.jpg",
                         List.of(
                                 new Ingrediente("Patatas", 4, "unidades"),
                                 new Ingrediente("Huevos", 6, "unidades"),
@@ -42,7 +43,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Ensalada de tomate y pepino",
                         "Ensalada fresca y ligera, ideal para los días de calor.",
-                        10, "Fácil", "Entrante", List.of("vegetariano", "vegano", "rápido", "saludable"),
+                        10, "Fácil", "Entrante", List.of("vegetariano", "vegano", "rápido", "saludable"), "/recetas/ensalada-de-tomate-y-pepino.jpg",
                         List.of(
                                 new Ingrediente("Tomate", 3, "unidades"),
                                 new Ingrediente("Pepino", 1, "unidad"),
@@ -59,7 +60,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Arroz con pollo",
                         "Arroz meloso con pollo, pimiento y un buen caldo casero.",
-                        45, "Media", "Almuerzo", List.of("tradicional", "proteico"),
+                        45, "Media", "Almuerzo", List.of("tradicional", "proteico"), "/recetas/arroz-con-pollo.jpg",
                         List.of(
                                 new Ingrediente("Arroz", 300, "g"),
                                 new Ingrediente("Pollo", 400, "g"),
@@ -78,7 +79,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Pasta con tomate",
                         "Receta sencilla y rápida para cualquier día de la semana.",
-                        20, "Fácil", "Cena", List.of("vegetariano", "rápido", "económico"),
+                        20, "Fácil", "Cena", List.of("vegetariano", "rápido", "económico"), "/recetas/pasta-con-tomate.jpg",
                         List.of(
                                 new Ingrediente("Pasta", 300, "g"),
                                 new Ingrediente("Tomate", 4, "unidades"),
@@ -95,7 +96,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Tostada con aguacate y huevo",
                         "Desayuno completo, rápido y saludable.",
-                        10, "Fácil", "Desayuno", List.of("vegetariano", "rápido", "saludable"),
+                        10, "Fácil", "Desayuno", List.of("vegetariano", "rápido", "saludable"), "/recetas/tostada-con-aguacate-y-huevo.jpg",
                         List.of(
                                 new Ingrediente("Pan", 2, "rebanadas"),
                                 new Ingrediente("Aguacate", 1, "unidad"),
@@ -112,7 +113,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Gazpacho andaluz",
                         "Sopa fría de verduras, perfecta para el verano.",
-                        15, "Fácil", "Entrante", List.of("vegetariano", "vegano", "sin gluten", "saludable"),
+                        15, "Fácil", "Entrante", List.of("vegetariano", "vegano", "sin gluten", "saludable"), "/recetas/gazpacho-andaluz.jpg",
                         List.of(
                                 new Ingrediente("Tomate", 6, "unidades"),
                                 new Ingrediente("Pepino", 1, "unidad"),
@@ -129,7 +130,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Huevos revueltos con champiñones",
                         "Un desayuno o cena ligera lista en minutos.",
-                        15, "Fácil", "Desayuno", List.of("vegetariano", "rápido", "proteico"),
+                        15, "Fácil", "Desayuno", List.of("vegetariano", "rápido", "proteico"), "/recetas/huevos-revueltos-con-champinones.jpg",
                         List.of(
                                 new Ingrediente("Huevos", 4, "unidades"),
                                 new Ingrediente("Champiñones", 200, "g"),
@@ -145,7 +146,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Sopa de verduras",
                         "Sopa reconfortante con lo que tengas en la despensa.",
-                        30, "Fácil", "Entrante", List.of("vegetariano", "vegano", "sin gluten", "saludable"),
+                        30, "Fácil", "Entrante", List.of("vegetariano", "vegano", "sin gluten", "saludable"), "/recetas/sopa-de-verduras.jpg",
                         List.of(
                                 new Ingrediente("Zanahoria", 2, "unidades"),
                                 new Ingrediente("Patatas", 2, "unidades"),
@@ -162,7 +163,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Lentejas estofadas",
                         "Plato de cuchara tradicional, ideal para los días de frío.",
-                        50, "Media", "Almuerzo", List.of("vegetariano", "vegano", "económico", "tradicional"),
+                        50, "Media", "Almuerzo", List.of("vegetariano", "vegano", "económico", "tradicional"), "/recetas/lentejas-estofadas.jpg",
                         List.of(
                                 new Ingrediente("Lentejas", 300, "g"),
                                 new Ingrediente("Zanahoria", 2, "unidades"),
@@ -179,7 +180,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Pisto manchego",
                         "Verduras de temporada guisadas lentamente en su propio jugo.",
-                        40, "Media", "Cena", List.of("vegetariano", "vegano", "sin gluten", "tradicional"),
+                        40, "Media", "Cena", List.of("vegetariano", "vegano", "sin gluten", "tradicional"), "/recetas/pisto-manchego.jpg",
                         List.of(
                                 new Ingrediente("Calabacín", 2, "unidades"),
                                 new Ingrediente("Pimiento", 2, "unidades"),
@@ -196,7 +197,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Pollo al horno con patatas",
                         "Receta clásica de domingo, fácil y para toda la familia.",
-                        60, "Media", "Cena", List.of("tradicional", "proteico"),
+                        60, "Media", "Cena", List.of("tradicional", "proteico"), "/recetas/pollo-al-horno-con-patatas.jpg",
                         List.of(
                                 new Ingrediente("Pollo", 1, "unidad"),
                                 new Ingrediente("Patatas", 4, "unidades"),
@@ -213,7 +214,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Salmón a la plancha con verduras",
                         "Plato ligero y rápido, rico en proteína.",
-                        25, "Fácil", "Cena", List.of("sin gluten", "saludable", "alto en proteínas"),
+                        25, "Fácil", "Cena", List.of("sin gluten", "saludable", "alto en proteínas"), "/recetas/salmon-a-la-plancha-con-verduras.jpg",
                         List.of(
                                 new Ingrediente("Salmón", 2, "unidades"),
                                 new Ingrediente("Calabacín", 1, "unidad"),
@@ -230,7 +231,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Hummus casero",
                         "Crema de garbanzos suave, perfecta para untar o picar.",
-                        15, "Fácil", "Snack", List.of("vegetariano", "vegano", "sin gluten", "saludable"),
+                        15, "Fácil", "Snack", List.of("vegetariano", "vegano", "sin gluten", "saludable"), "/recetas/hummus-casero.jpg",
                         List.of(
                                 new Ingrediente("Garbanzos", 400, "g"),
                                 new Ingrediente("Ajo", 1, "diente"),
@@ -247,7 +248,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Ensalada de garbanzos",
                         "Ensalada completa y saciante, ideal para el mediodía.",
-                        15, "Fácil", "Entrante", List.of("vegetariano", "vegano", "saludable", "económico"),
+                        15, "Fácil", "Entrante", List.of("vegetariano", "vegano", "saludable", "económico"), "/recetas/ensalada-de-garbanzos.jpg",
                         List.of(
                                 new Ingrediente("Garbanzos", 300, "g"),
                                 new Ingrediente("Tomate", 2, "unidades"),
@@ -264,7 +265,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Arroz con verduras",
                         "Arroz colorido y ligero con verduras salteadas.",
-                        30, "Fácil", "Almuerzo", List.of("vegetariano", "vegano", "económico"),
+                        30, "Fácil", "Almuerzo", List.of("vegetariano", "vegano", "económico"), "/recetas/arroz-con-verduras.jpg",
                         List.of(
                                 new Ingrediente("Arroz", 250, "g"),
                                 new Ingrediente("Zanahoria", 1, "unidad"),
@@ -281,7 +282,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Quiche de espinacas",
                         "Tarta salada cremosa, perfecta para comer fría o caliente.",
-                        55, "Media", "Cena", List.of("vegetariano", "tradicional"),
+                        55, "Media", "Cena", List.of("vegetariano", "tradicional"), "/recetas/quiche-de-espinacas.jpg",
                         List.of(
                                 new Ingrediente("Espinacas", 300, "g"),
                                 new Ingrediente("Huevos", 4, "unidades"),
@@ -299,7 +300,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Crema de calabaza",
                         "Crema suave y reconfortante, ideal para el otoño.",
-                        30, "Fácil", "Entrante", List.of("vegetariano", "vegano", "sin gluten", "saludable"),
+                        30, "Fácil", "Entrante", List.of("vegetariano", "vegano", "sin gluten", "saludable"), "/recetas/crema-de-calabaza.jpg",
                         List.of(
                                 new Ingrediente("Calabaza", 500, "g"),
                                 new Ingrediente("Cebolla", 1, "unidad"),
@@ -315,7 +316,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Macarrones con atún",
                         "Receta rápida y económica, siempre un acierto.",
-                        20, "Fácil", "Almuerzo", List.of("rápido", "económico", "proteico"),
+                        20, "Fácil", "Almuerzo", List.of("rápido", "económico", "proteico"), "/recetas/macarrones-con-atun.jpg",
                         List.of(
                                 new Ingrediente("Pasta", 300, "g"),
                                 new Ingrediente("Atún", 2, "latas"),
@@ -332,7 +333,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Wrap de pollo y verduras",
                         "Ideal para llevar o para una cena ligera.",
-                        15, "Fácil", "Snack", List.of("rápido", "proteico"),
+                        15, "Fácil", "Snack", List.of("rápido", "proteico"), "/recetas/wrap-de-pollo-y-verduras.jpg",
                         List.of(
                                 new Ingrediente("Pollo", 200, "g"),
                                 new Ingrediente("Tortilla de trigo", 2, "unidades"),
@@ -349,7 +350,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Tarta de manzana",
                         "Postre casero clásico, con manzanas caramelizadas por encima.",
-                        60, "Media", "Postre", List.of("vegetariano", "dulce", "tradicional"),
+                        60, "Media", "Postre", List.of("vegetariano", "dulce", "tradicional"), "/recetas/tarta-de-manzana.jpg",
                         List.of(
                                 new Ingrediente("Manzana", 4, "unidades"),
                                 new Ingrediente("Harina", 250, "g"),
@@ -366,7 +367,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Sándwich mixto",
                         "El clásico bocadillo de jamón y queso, listo en un momento.",
-                        5, "Fácil", "Snack", List.of("rápido", "apto niños"),
+                        5, "Fácil", "Snack", List.of("rápido", "apto niños"), "/recetas/sandwich-mixto.jpg",
                         List.of(
                                 new Ingrediente("Pan de molde", 2, "rebanadas"),
                                 new Ingrediente("Jamón cocido", 2, "lonchas"),
@@ -382,7 +383,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Batido de plátano y avena",
                         "Batido energético y fácil, perfecto para el desayuno de los más pequeños.",
-                        5, "Fácil", "Bebida", List.of("vegetariano", "rápido", "apto niños", "saludable"),
+                        5, "Fácil", "Bebida", List.of("vegetariano", "rápido", "apto niños", "saludable"), "/recetas/batido-de-platano-y-avena.jpg",
                         List.of(
                                 new Ingrediente("Plátano", 1, "unidad"),
                                 new Ingrediente("Leche", 200, "ml"),
@@ -398,7 +399,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Palomitas caseras",
                         "Snack sencillo y económico para ver una película en familia.",
-                        10, "Fácil", "Snack", List.of("vegano", "rápido", "apto niños", "económico"),
+                        10, "Fácil", "Snack", List.of("vegano", "rápido", "apto niños", "económico"), "/recetas/palomitas-caseras.jpg",
                         List.of(
                                 new Ingrediente("Maíz para palomitas", 80, "g"),
                                 new Ingrediente("Aceite de oliva", 1, "cucharada"),
@@ -413,7 +414,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Macedonia de frutas",
                         "Postre fresco y colorido, fácil de preparar con los peques de casa.",
-                        10, "Fácil", "Postre", List.of("vegano", "saludable", "apto niños"),
+                        10, "Fácil", "Postre", List.of("vegano", "saludable", "apto niños"), "/recetas/macedonia-de-frutas.jpg",
                         List.of(
                                 new Ingrediente("Manzana", 1, "unidad"),
                                 new Ingrediente("Plátano", 1, "unidad"),
@@ -429,7 +430,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Yogur con granola y frutos rojos",
                         "Desayuno rápido, nutritivo y muy fácil de personalizar.",
-                        5, "Fácil", "Desayuno", List.of("vegetariano", "rápido", "saludable", "apto niños"),
+                        5, "Fácil", "Desayuno", List.of("vegetariano", "rápido", "saludable", "apto niños"), "/recetas/yogur-con-granola-y-frutos-rojos.jpg",
                         List.of(
                                 new Ingrediente("Yogur natural", 2, "unidades"),
                                 new Ingrediente("Granola", 60, "g"),
@@ -445,7 +446,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Quesadillas de queso",
                         "Receta rapidísima que encanta a los más pequeños de la casa.",
-                        10, "Fácil", "Snack", List.of("vegetariano", "rápido", "apto niños"),
+                        10, "Fácil", "Snack", List.of("vegetariano", "rápido", "apto niños"), "/recetas/quesadillas-de-queso.jpg",
                         List.of(
                                 new Ingrediente("Tortilla de trigo", 2, "unidades"),
                                 new Ingrediente("Queso", 100, "g"),
@@ -460,7 +461,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Curry de garbanzos y espinacas",
                         "Curry vegetal cremoso con un toque de leche de coco.",
-                        35, "Media", "Cena", List.of("vegano", "picante", "internacional"),
+                        35, "Media", "Cena", List.of("vegano", "picante", "internacional"), "/recetas/curry-de-garbanzos-y-espinacas.jpg",
                         List.of(
                                 new Ingrediente("Garbanzos", 400, "g"),
                                 new Ingrediente("Espinacas", 200, "g"),
@@ -478,7 +479,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Tacos de pollo picante",
                         "Tacos mexicanos con un toque picante, listos en media hora.",
-                        30, "Media", "Cena", List.of("picante", "proteico", "internacional"),
+                        30, "Media", "Cena", List.of("picante", "proteico", "internacional"), "/recetas/tacos-de-pollo-picante.jpg",
                         List.of(
                                 new Ingrediente("Pollo", 300, "g"),
                                 new Ingrediente("Tortilla de maíz", 6, "unidades"),
@@ -495,7 +496,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Ramen casero",
                         "Sopa japonesa de fideos con un caldo intenso y huevo marinado.",
-                        90, "Difícil", "Cena", List.of("proteico", "internacional", "tradicional"),
+                        90, "Difícil", "Cena", List.of("proteico", "internacional", "tradicional"), "/recetas/ramen-casero.jpg",
                         List.of(
                                 new Ingrediente("Fideos ramen", 200, "g"),
                                 new Ingrediente("Huevos", 2, "unidades"),
@@ -513,7 +514,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Sushi de salmón y aguacate",
                         "Makis caseros con salmón fresco y aguacate cremoso.",
-                        75, "Difícil", "Cena", List.of("saludable", "internacional", "alto en proteínas"),
+                        75, "Difícil", "Cena", List.of("saludable", "internacional", "alto en proteínas"), "/recetas/sushi-de-salmon-y-aguacate.jpg",
                         List.of(
                                 new Ingrediente("Arroz", 300, "g"),
                                 new Ingrediente("Salmón", 200, "g"),
@@ -531,7 +532,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Pad thai de pollo",
                         "Fideos de arroz salteados al estilo tailandés.",
-                        35, "Media", "Cena", List.of("internacional", "picante", "proteico"),
+                        35, "Media", "Cena", List.of("internacional", "picante", "proteico"), "/recetas/pad-thai-de-pollo.jpg",
                         List.of(
                                 new Ingrediente("Fideos de arroz", 250, "g"),
                                 new Ingrediente("Pollo", 200, "g"),
@@ -549,7 +550,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Paella valenciana",
                         "El plato español por excelencia, con pollo, conejo y judía verde.",
-                        90, "Difícil", "Almuerzo", List.of("tradicional", "mediterráneo", "proteico"),
+                        90, "Difícil", "Almuerzo", List.of("tradicional", "mediterráneo", "proteico"), "/recetas/paella-valenciana.jpg",
                         List.of(
                                 new Ingrediente("Arroz", 400, "g"),
                                 new Ingrediente("Pollo", 300, "g"),
@@ -567,7 +568,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Risotto de setas",
                         "Arroz cremoso al estilo italiano con setas de temporada.",
-                        50, "Difícil", "Cena", List.of("vegetariano", "tradicional", "mediterráneo"),
+                        50, "Difícil", "Cena", List.of("vegetariano", "tradicional", "mediterráneo"), "/recetas/risotto-de-setas.jpg",
                         List.of(
                                 new Ingrediente("Arroz", 300, "g"),
                                 new Ingrediente("Setas", 250, "g"),
@@ -585,7 +586,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Solomillo Wellington",
                         "Solomillo envuelto en hojaldre con duxelles de champiñones y jamón.",
-                        120, "Difícil", "Cena", List.of("proteico", "tradicional"),
+                        120, "Difícil", "Cena", List.of("proteico", "tradicional"), "/recetas/solomillo-wellington.jpg",
                         List.of(
                                 new Ingrediente("Solomillo de ternera", 600, "g"),
                                 new Ingrediente("Masa de hojaldre", 1, "unidad"),
@@ -603,7 +604,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Soufflé de queso",
                         "Postre salado esponjoso, todo un reto de repostería.",
-                        55, "Difícil", "Postre", List.of("vegetariano", "tradicional"),
+                        55, "Difícil", "Postre", List.of("vegetariano", "tradicional"), "/recetas/souffle-de-queso.jpg",
                         List.of(
                                 new Ingrediente("Huevos", 4, "unidades"),
                                 new Ingrediente("Queso", 150, "g"),
@@ -621,7 +622,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Ceviche de corvina",
                         "Pescado marinado en cítricos al estilo latinoamericano.",
-                        30, "Difícil", "Entrante", List.of("saludable", "sin gluten", "internacional"),
+                        30, "Difícil", "Entrante", List.of("saludable", "sin gluten", "internacional"), "/recetas/ceviche-de-corvina.jpg",
                         List.of(
                                 new Ingrediente("Corvina", 300, "g"),
                                 new Ingrediente("Limón", 4, "unidades"),
@@ -639,7 +640,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Tarta de chocolate y avellana",
                         "Postre denso y elegante para los amantes del chocolate.",
-                        90, "Difícil", "Postre", List.of("vegetariano", "dulce", "tradicional"),
+                        90, "Difícil", "Postre", List.of("vegetariano", "dulce", "tradicional"), "/recetas/tarta-de-chocolate-y-avellana.jpg",
                         List.of(
                                 new Ingrediente("Chocolate negro", 200, "g"),
                                 new Ingrediente("Avellanas", 100, "g"),
@@ -657,7 +658,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Confit de pato",
                         "Muslos de pato cocinados lentamente en su propia grasa.",
-                        150, "Difícil", "Cena", List.of("proteico", "tradicional"),
+                        150, "Difícil", "Cena", List.of("proteico", "tradicional"), "/recetas/confit-de-pato.jpg",
                         List.of(
                                 new Ingrediente("Muslos de pato", 4, "unidades"),
                                 new Ingrediente("Ajo", 6, "dientes"),
@@ -675,7 +676,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Bizcocho de yogur",
                         "El bizcocho casero de toda la vida, esponjoso y fácil de hacer.",
-                        45, "Fácil", "Postre", List.of("vegetariano", "dulce", "apto niños", "económico"),
+                        45, "Fácil", "Postre", List.of("vegetariano", "dulce", "apto niños", "económico"), "/recetas/bizcocho-de-yogur.jpg",
                         List.of(
                                 new Ingrediente("Yogur natural", 1, "unidad"),
                                 new Ingrediente("Harina", 300, "g"),
@@ -692,7 +693,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Crepes dulces",
                         "Crepes finas y versátiles, perfectas para rellenar al gusto.",
-                        20, "Fácil", "Desayuno", List.of("vegetariano", "dulce", "apto niños"),
+                        20, "Fácil", "Desayuno", List.of("vegetariano", "dulce", "apto niños"), "/recetas/crepes-dulces.jpg",
                         List.of(
                                 new Ingrediente("Harina", 200, "g"),
                                 new Ingrediente("Huevos", 2, "unidades"),
@@ -709,7 +710,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Zumo verde detox",
                         "Bebida depurativa y refrescante para empezar el día con energía.",
-                        10, "Fácil", "Bebida", List.of("vegano", "saludable", "bajo en calorías"),
+                        10, "Fácil", "Bebida", List.of("vegano", "saludable", "bajo en calorías"), "/recetas/zumo-verde-detox.jpg",
                         List.of(
                                 new Ingrediente("Espinacas", 100, "g"),
                                 new Ingrediente("Manzana", 1, "unidad"),
@@ -726,7 +727,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Limonada casera",
                         "Refresco clásico, ideal para los días de calor.",
-                        10, "Fácil", "Bebida", List.of("vegano", "rápido", "económico"),
+                        10, "Fácil", "Bebida", List.of("vegano", "rápido", "económico"), "/recetas/limonada-casera.jpg",
                         List.of(
                                 new Ingrediente("Limón", 4, "unidades"),
                                 new Ingrediente("Azúcar", 100, "g"),
@@ -742,7 +743,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Café con leche y canela",
                         "Un clásico reconfortante para cualquier momento del día.",
-                        5, "Fácil", "Bebida", List.of("vegetariano", "rápido"),
+                        5, "Fácil", "Bebida", List.of("vegetariano", "rápido"), "/recetas/cafe-con-leche-y-canela.jpg",
                         List.of(
                                 new Ingrediente("Café", 1, "taza"),
                                 new Ingrediente("Leche", 150, "ml"),
@@ -758,7 +759,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Sopa de miso",
                         "Sopa japonesa ligera y reconfortante, lista en minutos.",
-                        15, "Fácil", "Entrante", List.of("vegano", "internacional", "bajo en calorías"),
+                        15, "Fácil", "Entrante", List.of("vegano", "internacional", "bajo en calorías"), "/recetas/sopa-de-miso.jpg",
                         List.of(
                                 new Ingrediente("Pasta de miso", 2, "cucharadas"),
                                 new Ingrediente("Tofu", 100, "g"),
@@ -775,7 +776,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Berenjenas rellenas",
                         "Berenjenas horneadas rellenas de tomate y queso gratinado.",
-                        45, "Media", "Cena", List.of("vegetariano", "mediterráneo", "saludable"),
+                        45, "Media", "Cena", List.of("vegetariano", "mediterráneo", "saludable"), "/recetas/berenjenas-rellenas.jpg",
                         List.of(
                                 new Ingrediente("Berenjena", 2, "unidades"),
                                 new Ingrediente("Tomate", 2, "unidades"),
@@ -793,7 +794,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Albóndigas en salsa",
                         "Albóndigas caseras en una salsa de tomate casera.",
-                        45, "Media", "Almuerzo", List.of("proteico", "tradicional"),
+                        45, "Media", "Almuerzo", List.of("proteico", "tradicional"), "/recetas/albondigas-en-salsa.jpg",
                         List.of(
                                 new Ingrediente("Carne picada", 400, "g"),
                                 new Ingrediente("Tomate", 4, "unidades"),
@@ -811,7 +812,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Ensalada César",
                         "Ensalada clásica con pollo, queso y picatostes crujientes.",
-                        20, "Fácil", "Entrante", List.of("proteico", "rápido"),
+                        20, "Fácil", "Entrante", List.of("proteico", "rápido"), "/recetas/ensalada-cesar.jpg",
                         List.of(
                                 new Ingrediente("Lechuga", 1, "unidad"),
                                 new Ingrediente("Pollo", 200, "g"),
@@ -828,7 +829,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Bowl de quinoa y verduras",
                         "Bowl completo y equilibrado, ideal para el mediodía.",
-                        25, "Fácil", "Almuerzo", List.of("vegano", "sin gluten", "saludable", "alto en proteínas"),
+                        25, "Fácil", "Almuerzo", List.of("vegano", "sin gluten", "saludable", "alto en proteínas"), "/recetas/bowl-de-quinoa-y-verduras.jpg",
                         List.of(
                                 new Ingrediente("Quinoa", 200, "g"),
                                 new Ingrediente("Pimiento", 1, "unidad"),
@@ -845,7 +846,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Salsa de tomate casera",
                         "Base imprescindible para pasta, pizzas y guisos.",
-                        30, "Fácil", "Otro", List.of("vegano", "económico", "tradicional"),
+                        30, "Fácil", "Otro", List.of("vegano", "económico", "tradicional"), "/recetas/salsa-de-tomate-casera.jpg",
                         List.of(
                                 new Ingrediente("Tomate", 1, "kg"),
                                 new Ingrediente("Cebolla", 1, "unidad"),
@@ -862,7 +863,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Pesto casero",
                         "Salsa italiana de albahaca, ideal para pasta o tostadas.",
-                        10, "Fácil", "Otro", List.of("vegetariano", "mediterráneo", "rápido"),
+                        10, "Fácil", "Otro", List.of("vegetariano", "mediterráneo", "rápido"), "/recetas/pesto-casero.jpg",
                         List.of(
                                 new Ingrediente("Albahaca", 50, "g"),
                                 new Ingrediente("Queso", 50, "g"),

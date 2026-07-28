@@ -12,6 +12,7 @@ import { feedService } from '@/services/feedService';
 import { IngredienteReceta, Receta } from '@/services/recetaService';
 import { useFeedStore } from '@/store/feedStore';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
+import { resolveImagenUrl } from '@/utils/media';
 
 const DIFICULTAD_COLOR: Record<string, string> = {
   'fácil': colors.primary,
@@ -120,6 +121,7 @@ export function DetalleRecetaFeedScreen() {
 
   const pasosOrdenados = [...receta.pasos].sort((a, b) => a.orden - b.orden);
   const dificultadColor = DIFICULTAD_COLOR[receta.dificultad?.toLowerCase()] ?? colors.grayMid;
+  const imagenUrl = resolveImagenUrl(receta.imagenUrl);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -149,8 +151,8 @@ export function DetalleRecetaFeedScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {receta.imagenUrl ? (
-          <Image source={{ uri: receta.imagenUrl }} style={styles.heroImagen} resizeMode="cover" />
+        {imagenUrl ? (
+          <Image source={{ uri: imagenUrl }} style={styles.heroImagen} resizeMode="cover" />
         ) : (
           <View style={styles.heroPlaceholder}>
             <Ionicons name="restaurant-outline" size={52} color="rgba(255,255,255,0.7)" />
