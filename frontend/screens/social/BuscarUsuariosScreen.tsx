@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import type React from 'react';
 import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -57,10 +58,13 @@ export function BuscarUsuariosScreen() {
       </View>
 
       {!busquedaActiva ? (
-        <View style={styles.vacio}>
-          <Ionicons name="search-outline" size={56} color={colors.grayMid} />
-          <Text style={styles.vacioTexto}>Busca usuarios por nombre o @usuario</Text>
-        </View>
+        <EstadoVacio
+          icono="search"
+          color={colors.primary}
+          fondo="#E8F5D0"
+          titulo="Encuentra a otros cocineros"
+          subtitulo="Busca usuarios por su nombre o su @usuario"
+        />
       ) : (
         <FlatList
           data={resultadosBusqueda}
@@ -75,15 +79,42 @@ export function BuscarUsuariosScreen() {
           )}
           ListEmptyComponent={
             !isLoading ? (
-              <View style={styles.vacio}>
-                <Ionicons name="person-remove-outline" size={56} color={colors.grayMid} />
-                <Text style={styles.vacioTexto}>No se encontraron usuarios</Text>
-              </View>
+              <EstadoVacio
+                icono="person-remove-outline"
+                color={colors.secondary}
+                fondo="#FDEBD0"
+                titulo="Sin resultados"
+                subtitulo="No se encontraron usuarios con ese nombre"
+              />
             ) : null
           }
         />
       )}
     </SafeAreaView>
+  );
+}
+
+function EstadoVacio({
+  icono,
+  color,
+  fondo,
+  titulo,
+  subtitulo,
+}: {
+  icono: React.ComponentProps<typeof Ionicons>['name'];
+  color: string;
+  fondo: string;
+  titulo: string;
+  subtitulo: string;
+}) {
+  return (
+    <View style={styles.vacio}>
+      <View style={[styles.vacioIconWrapper, { backgroundColor: fondo }]}>
+        <Ionicons name={icono} size={48} color={color} />
+      </View>
+      <Text style={styles.vacioTitulo}>{titulo}</Text>
+      <Text style={styles.vacioTexto}>{subtitulo}</Text>
+    </View>
   );
 }
 
@@ -108,9 +139,18 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 80,
-    gap: spacing.md,
+    gap: spacing.sm,
     paddingHorizontal: spacing.xl,
+    paddingBottom: 80,
   },
+  vacioIconWrapper: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  vacioTitulo: { ...typography.heading3, color: colors.text.primary, textAlign: 'center' },
   vacioTexto: { ...typography.body, color: colors.text.secondary, textAlign: 'center' },
 });

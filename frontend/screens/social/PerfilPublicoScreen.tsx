@@ -1,16 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import type React from 'react';
 import { useEffect } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ErrorScreen } from '@/components/common/ErrorScreen';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
+import { EstadisticaItem } from '@/components/perfil/EstadisticaItem';
 import { showConfirm } from '@/hooks/useConfirm';
 import { useToast } from '@/hooks/useToast';
 import type { PerfilPublico } from '@/services/socialService';
 import { useSocialStore } from '@/store/socialStore';
-import { borderRadius, colors, spacing, typography } from '@/theme';
+import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
 
 type EstadoBotonPerfil = 'seguir' | 'solicitar' | 'siguiendo' | 'pendiente';
 
@@ -162,85 +165,138 @@ export function PerfilPublicoScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <View style={styles.fotoWrapper}>
-          {perfilPublico.fotoPerfil ? (
-            <Image source={{ uri: perfilPublico.fotoPerfil }} style={styles.foto} />
-          ) : (
-            <View style={styles.fotoPlaceholder}>
-              <Text style={styles.iniciales}>{iniciales}</Text>
+        <View style={styles.perfilCard}>
+          <LinearGradient
+            colors={[colors.primary, colors.primaryDark]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.banner}
+          />
+
+          <View style={styles.perfilContenido}>
+            <View style={styles.fotoWrapper}>
+              {perfilPublico.fotoPerfil ? (
+                <Image source={{ uri: perfilPublico.fotoPerfil }} style={styles.foto} />
+              ) : (
+                <View style={styles.fotoPlaceholder}>
+                  <Text style={styles.iniciales}>{iniciales}</Text>
+                </View>
+              )}
             </View>
-          )}
-        </View>
 
-        <Text style={styles.nombre}>{perfilPublico.nombre}</Text>
-        <Text style={styles.nombreUsuario}>@{perfilPublico.nombreUsuario}</Text>
-        {perfilPublico.biografia ? <Text style={styles.biografia}>{perfilPublico.biografia}</Text> : null}
+            <Text style={styles.nombre}>{perfilPublico.nombre}</Text>
+            <Text style={styles.nombreUsuario}>@{perfilPublico.nombreUsuario}</Text>
+            {perfilPublico.biografia ? (
+              <Text style={styles.biografia}>{perfilPublico.biografia}</Text>
+            ) : null}
 
-        <View style={styles.statsRow}>
-          <Pressable
-            style={styles.statItem}
-            onPress={() =>
-              router.push({ pathname: '/social/seguidores', params: { usuarioId: perfilPublico.id } })
-            }
-          >
-            <Text style={styles.statValor}>{perfilPublico.numSeguidores}</Text>
-            <Text style={styles.statLabel}>Seguidores</Text>
-          </Pressable>
-          <Pressable
-            style={styles.statItem}
-            onPress={() =>
-              router.push({ pathname: '/social/seguidos', params: { usuarioId: perfilPublico.id } })
-            }
-          >
-            <Text style={styles.statValor}>{perfilPublico.numSeguidos}</Text>
-            <Text style={styles.statLabel}>Seguidos</Text>
-          </Pressable>
-          <View style={styles.statItem}>
-            <Text style={styles.statValor}>{perfilPublico.numRecetas}</Text>
-            <Text style={styles.statLabel}>Recetas</Text>
+            <View style={styles.statsRow}>
+              <Pressable
+                style={styles.statPressable}
+                onPress={() =>
+                  router.push({ pathname: '/social/seguidores', params: { usuarioId: perfilPublico.id } })
+                }
+              >
+                <EstadisticaItem
+                  icono="people-outline"
+                  valor={perfilPublico.numSeguidores}
+                  etiqueta="Seguidores"
+                  color={colors.primary}
+                />
+              </Pressable>
+              <Pressable
+                style={styles.statPressable}
+                onPress={() =>
+                  router.push({ pathname: '/social/seguidos', params: { usuarioId: perfilPublico.id } })
+                }
+              >
+                <EstadisticaItem
+                  icono="person-add-outline"
+                  valor={perfilPublico.numSeguidos}
+                  etiqueta="Seguidos"
+                  color={colors.secondary}
+                />
+              </Pressable>
+              <View style={styles.statPressable}>
+                <EstadisticaItem
+                  icono="book-outline"
+                  valor={perfilPublico.numRecetas}
+                  etiqueta="Recetas"
+                  color={colors.primaryDark}
+                />
+              </View>
+            </View>
+
+            {!perfilPublico.estaBloqueado && (
+              <Pressable
+                style={[
+                  styles.botonAccion,
+                  botonOutline ? styles.botonAccionOutline : styles.botonAccionSolido,
+                ]}
+                onPress={handleSeguir}
+                testID="btn-seguir"
+              >
+                <Text
+                  style={[
+                    styles.botonAccionTexto,
+                    botonOutline ? styles.botonAccionTextoOutline : styles.botonAccionTextoSolido,
+                  ]}
+                >
+                  {LABEL_POR_ESTADO[estadoBoton]}
+                </Text>
+              </Pressable>
+            )}
           </View>
         </View>
-
-        {!perfilPublico.estaBloqueado && (
-          <Pressable
-            style={[styles.botonAccion, botonOutline ? styles.botonAccionOutline : styles.botonAccionSolido]}
-            onPress={handleSeguir}
-            testID="btn-seguir"
-          >
-            <Text
-              style={[
-                styles.botonAccionTexto,
-                botonOutline ? styles.botonAccionTextoOutline : styles.botonAccionTextoSolido,
-              ]}
-            >
-              {LABEL_POR_ESTADO[estadoBoton]}
-            </Text>
-          </Pressable>
-        )}
 
         <View style={styles.recetasSeccion}>
           <Text style={styles.seccionTitulo}>Recetas</Text>
           {perfilPublico.estaBloqueado ? (
-            <View style={styles.infoBox}>
-              <Ionicons name="ban-outline" size={40} color={colors.grayMid} />
-              <Text style={styles.infoBoxTexto}>Has bloqueado a este usuario</Text>
-            </View>
+            <InfoBox
+              icono="ban"
+              color={colors.error}
+              fondo="rgba(229, 57, 53, 0.12)"
+              texto="Has bloqueado a este usuario"
+            />
           ) : !puedeVerRecetas ? (
-            <View style={styles.infoBox}>
-              <Ionicons name="lock-closed-outline" size={40} color={colors.grayMid} />
-              <Text style={styles.infoBoxTexto}>Este perfil es privado</Text>
-            </View>
+            <InfoBox
+              icono="lock-closed"
+              color={colors.secondary}
+              fondo="#FDEBD0"
+              texto="Este perfil es privado"
+            />
           ) : (
-            <View style={styles.infoBox}>
-              <Ionicons name="book-outline" size={40} color={colors.grayMid} />
-              <Text style={styles.infoBoxTexto}>
-                El listado de recetas publicadas estará disponible próximamente
-              </Text>
-            </View>
+            <InfoBox
+              icono="book"
+              color={colors.primary}
+              fondo="#E8F5D0"
+              texto="El listado de recetas publicadas estará disponible próximamente"
+            />
           )}
         </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function InfoBox({
+  icono,
+  color,
+  fondo,
+  texto,
+}: {
+  icono: React.ComponentProps<typeof Ionicons>['name'];
+  color: string;
+  fondo: string;
+  texto: string;
+}) {
+  return (
+    <View style={styles.infoBox}>
+      <View style={[styles.infoBoxIconWrapper, { backgroundColor: fondo }]}>
+        <Ionicons name={icono} size={32} color={color} />
+      </View>
+      <Text style={styles.infoBoxTexto}>{texto}</Text>
+    </View>
   );
 }
 
@@ -259,9 +315,34 @@ const styles = StyleSheet.create({
   },
   headerTitulo: { ...typography.heading3, color: colors.text.primary, flex: 1, textAlign: 'center' },
 
-  scroll: { alignItems: 'center', paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl },
+  scroll: { paddingBottom: spacing.xxxl },
 
-  fotoWrapper: { marginTop: spacing.xl, marginBottom: spacing.md },
+  perfilCard: {
+    backgroundColor: colors.white,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    ...shadows.md,
+  },
+  banner: {
+    height: 88,
+    width: '100%',
+  },
+  perfilContenido: {
+    alignItems: 'center',
+    paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    marginTop: -48,
+  },
+
+  fotoWrapper: {
+    borderWidth: 4,
+    borderColor: colors.white,
+    borderRadius: borderRadius.full,
+    marginBottom: spacing.md,
+    ...shadows.sm,
+  },
   foto: { width: 96, height: 96, borderRadius: borderRadius.full },
   fotoPlaceholder: {
     width: 96,
@@ -286,12 +367,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     width: '100%',
     justifyContent: 'space-around',
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     marginBottom: spacing.lg,
+    gap: spacing.sm,
   },
-  statItem: { alignItems: 'center', gap: 2 },
-  statValor: { ...typography.heading3, color: colors.text.primary },
-  statLabel: { ...typography.caption, color: colors.text.secondary },
+  statPressable: { flex: 1 },
 
   botonAccion: {
     width: '100%',
@@ -300,7 +380,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 44,
-    marginBottom: spacing.xl,
   },
   botonAccionSolido: { backgroundColor: colors.primary },
   botonAccionOutline: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.primary },
@@ -308,7 +387,7 @@ const styles = StyleSheet.create({
   botonAccionTextoSolido: { color: colors.white },
   botonAccionTextoOutline: { color: colors.primary },
 
-  recetasSeccion: { width: '100%', gap: spacing.md },
+  recetasSeccion: { paddingHorizontal: spacing.lg, marginTop: spacing.xl, gap: spacing.md },
   seccionTitulo: {
     fontSize: 12,
     fontFamily: 'Poppins_600SemiBold',
@@ -319,10 +398,17 @@ const styles = StyleSheet.create({
   infoBox: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
+    gap: spacing.md,
     paddingVertical: spacing.xxl,
     backgroundColor: colors.white,
     borderRadius: borderRadius.lg,
+  },
+  infoBoxIconWrapper: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   infoBoxTexto: {
     ...typography.body,

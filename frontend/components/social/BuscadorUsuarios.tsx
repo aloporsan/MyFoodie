@@ -37,7 +37,7 @@ export function BuscadorUsuarios({
 
   return (
     <View style={styles.container}>
-      <Ionicons name="search-outline" size={18} color={colors.grayDark} style={styles.icon} />
+      <Ionicons name="search-outline" size={20} color={colors.grayDark} style={styles.icon} />
       <TextInput
         style={styles.input}
         value={texto}
@@ -47,11 +47,12 @@ export function BuscadorUsuarios({
         autoCapitalize="none"
         autoCorrect={false}
         returnKeyType="search"
+        textAlignVertical="center"
         testID="input-buscar-usuarios"
       />
       {texto.length > 0 && (
         <Pressable onPress={handleClear} hitSlop={8} testID="btn-limpiar">
-          <Ionicons name="close-circle" size={18} color={colors.grayMid} />
+          <Ionicons name="close-circle" size={20} color={colors.grayMid} />
         </Pressable>
       )}
     </View>
@@ -64,8 +65,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.grayLight,
     borderRadius: borderRadius.xl,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    minHeight: 48,
     gap: spacing.sm,
   },
   icon: {
@@ -75,6 +77,7 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text.primary,
     flex: 1,
+    height: '100%',
     padding: 0,
   },
 });

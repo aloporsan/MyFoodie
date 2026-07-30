@@ -96,8 +96,13 @@ export function FeedScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.headerTitulo}>Feed</Text>
-        <Pressable onPress={() => router.push('/social/buscar')} hitSlop={8} testID="btn-buscar-usuarios">
-          <Ionicons name="search-outline" size={24} color={colors.text.primary} />
+        <Pressable
+          style={({ pressed }) => [styles.btnBuscar, pressed && styles.btnBuscarPressed]}
+          onPress={() => router.push('/social/buscar')}
+          hitSlop={8}
+          testID="btn-buscar-usuarios"
+        >
+          <Ionicons name="search" size={20} color={colors.primary} />
         </Pressable>
       </View>
 
@@ -157,6 +162,17 @@ const styles = StyleSheet.create({
   headerTitulo: {
     ...typography.heading1,
     color: colors.text.primary,
+  },
+  btnBuscar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#E8F5D0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnBuscarPressed: {
+    backgroundColor: colors.gray,
   },
   stack: {
     flex: 1,
