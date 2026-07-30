@@ -38,7 +38,8 @@
       "Bash(echo \"exit code: $?\")",
       "Bash(./mvnw.cmd -q test -Dtest=FeedServiceTest)",
       "Bash(./mvnw.cmd -q test)",
-      "Bash(echo \"EXIT CODE: $?\")"
+      "Bash(echo \"EXIT CODE: $?\")",
+      "Bash(./mvnw.cmd -q -o compile)"
     ]
   }
 }
