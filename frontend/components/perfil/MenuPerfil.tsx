@@ -99,6 +99,11 @@ export function MenuPerfil() {
       onPress: () => router.push('/perfil/preferencias'),
     },
     {
+      icono: 'search-outline',
+      label: 'Buscar usuarios',
+      onPress: () => router.push('/social/buscar'),
+    },
+    {
       icono: 'person-add-outline',
       label: 'Solicitudes de seguimiento',
       onPress: () => router.push('/social/solicitudes'),

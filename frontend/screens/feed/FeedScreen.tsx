@@ -1,7 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { FeedEmptyState, GestosCard, RecetaCard } from '@/components/feed';
@@ -95,6 +96,9 @@ export function FeedScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.headerTitulo}>Feed</Text>
+        <Pressable onPress={() => router.push('/social/buscar')} hitSlop={8} testID="btn-buscar-usuarios">
+          <Ionicons name="search-outline" size={24} color={colors.text.primary} />
+        </Pressable>
       </View>
 
       <View style={styles.stack}>
@@ -144,6 +148,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.default,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
