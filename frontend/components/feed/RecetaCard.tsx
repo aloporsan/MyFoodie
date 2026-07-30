@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { RecetaFeed } from '@/services/feedService';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
@@ -11,6 +11,7 @@ import { resolveImagenUrl } from '@/utils/media';
 
 interface RecetaCardProps {
   receta: RecetaFeed;
+  onAutorPress?: () => void;
 }
 
 const DIFICULTAD_COLOR: Record<string, string> = {
@@ -19,7 +20,7 @@ const DIFICULTAD_COLOR: Record<string, string> = {
   'difícil': colors.error,
 };
 
-export function RecetaCard({ receta }: RecetaCardProps) {
+export function RecetaCard({ receta, onAutorPress }: RecetaCardProps) {
   const totalIngredientes = receta.ingredientesDisponibles + receta.ingredientesFaltantes;
   const coincidencia = obtenerCoincidencia(receta.coincidenciaDespensa, receta.ingredientesFaltantes);
   const dificultadColor = DIFICULTAD_COLOR[receta.dificultad?.toLowerCase()] ?? colors.grayMid;
@@ -47,7 +48,13 @@ export function RecetaCard({ receta }: RecetaCardProps) {
       />
 
       <View style={styles.contenido}>
-        <View style={styles.autorRow}>
+        <Pressable
+          style={styles.autorRow}
+          onPress={onAutorPress}
+          disabled={!onAutorPress}
+          hitSlop={8}
+          testID="btn-autor"
+        >
           {receta.autorFoto ? (
             <Image source={{ uri: receta.autorFoto }} style={styles.autorFoto} contentFit="cover" />
           ) : (
@@ -58,7 +65,7 @@ export function RecetaCard({ receta }: RecetaCardProps) {
           <Text style={styles.autorNombre} numberOfLines={1}>
             {receta.autorNombre ?? receta.autorUsuario ?? 'Usuario'}
           </Text>
-        </View>
+        </Pressable>
 
         <Text style={styles.titulo} numberOfLines={2}>
           {receta.titulo}

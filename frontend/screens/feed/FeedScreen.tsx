@@ -130,6 +130,7 @@ export function FeedScreen() {
             onDescartar={handleDescartar}
             onLike={handleDobleToqueLike}
             onPress={() => router.push(`/feed/${recetaActual.id}`)}
+            onAutorPress={() => router.push(`/social/perfil/${recetaActual.autorId}`)}
           />
         </View>
       </View>

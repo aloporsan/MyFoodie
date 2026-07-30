@@ -21,9 +21,17 @@ interface GestosCardProps {
   onDescartar: () => void;
   onLike: () => void;
   onPress?: () => void;
+  onAutorPress?: () => void;
 }
 
-export function GestosCard({ receta, onGuardar, onDescartar, onLike, onPress }: GestosCardProps) {
+export function GestosCard({
+  receta,
+  onGuardar,
+  onDescartar,
+  onLike,
+  onPress,
+  onAutorPress,
+}: GestosCardProps) {
   const translateX = useSharedValue(0);
   const likeScale = useSharedValue(0);
   const [mostrarLike, setMostrarLike] = useState(false);
@@ -96,7 +104,7 @@ export function GestosCard({ receta, onGuardar, onDescartar, onLike, onPress }: 
   return (
     <GestureDetector gesture={gesto}>
       <Animated.View style={[styles.container, cardStyle]}>
-        <RecetaCard receta={receta} />
+        <RecetaCard receta={receta} onAutorPress={onAutorPress} />
 
         <Animated.View
           testID="overlay-guardar"

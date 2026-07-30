@@ -6,18 +6,21 @@ import { showConfirm } from '@/hooks/useConfirm';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
 import { useAuthStore } from '@/store/authStore';
 import { usePerfilStore } from '@/store/perfilStore';
+import { useSocialStore } from '@/store/socialStore';
 
 interface MenuItem {
   icono: React.ComponentProps<typeof Ionicons>['name'];
   label: string;
   onPress: () => void;
   destructivo?: boolean;
+  badge?: number;
 }
 
 export function MenuPerfil() {
   const router = useRouter();
   const logout = useAuthStore((s) => s.logout);
   const { cerrarSesion, eliminarCuenta, reset } = usePerfilStore();
+  const solicitudesPendientes = useSocialStore((s) => s.solicitudesPendientes);
 
   const handleCerrarSesion = () => {
     showConfirm(
@@ -96,6 +99,17 @@ export function MenuPerfil() {
       onPress: () => router.push('/perfil/preferencias'),
     },
     {
+      icono: 'person-add-outline',
+      label: 'Solicitudes de seguimiento',
+      onPress: () => router.push('/social/solicitudes'),
+      badge: solicitudesPendientes.length,
+    },
+    {
+      icono: 'ban-outline',
+      label: 'Usuarios bloqueados',
+      onPress: () => router.push('/social/bloqueados'),
+    },
+    {
       icono: 'lock-closed-outline',
       label: 'Privacidad',
       onPress: () => router.push('/perfil/privacidad'),
@@ -139,6 +153,11 @@ export function MenuPerfil() {
             <Text style={[styles.itemLabel, item.destructivo && styles.itemLabelDestructivo]}>
               {item.label}
             </Text>
+            {!!item.badge && (
+              <View style={styles.badge} testID="badge-solicitudes">
+                <Text style={styles.badgeTexto}>{item.badge}</Text>
+              </View>
+            )}
           </View>
           {!item.destructivo && (
             <Ionicons name="chevron-forward" size={18} color={colors.grayMid} />
@@ -189,5 +208,20 @@ const styles = StyleSheet.create({
   },
   itemLabelDestructivo: {
     color: colors.error,
+  },
+  badge: {
+    backgroundColor: colors.secondary,
+    borderRadius: borderRadius.full,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xs,
+  },
+  badgeTexto: {
+    ...typography.caption,
+    color: colors.white,
+    fontWeight: '700',
+    fontSize: 11,
   },
 });
