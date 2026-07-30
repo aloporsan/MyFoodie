@@ -64,6 +64,22 @@ spring.data.mongodb.uri=mongodb://localhost:27017/myfood
 
 Si MongoDB no esta levantado, el backend no arrancara correctamente.
 
+### Poblar el feed con recetas de ejemplo (perfil `seed`)
+
+Para que el feed social no aparezca vacio en cuanto arranca la app (por ejemplo
+al probarla por primera vez o hacer una demo), existe un `CommandLineRunner`
+que crea una cuenta oficial `myfoodie_oficial` con 20 recetas publicadas ya
+listas para explorar. Solo se ejecuta con el perfil `seed` y es idempotente
+(si la cuenta ya existe, no vuelve a insertar nada):
+
+```powershell
+cd backend
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=seed"
+```
+
+Las siguientes veces puedes arrancar el backend con el comando normal (sin el
+perfil `seed`); los datos ya insertados se mantienen en MongoDB.
+
 ## Frontend
 
 La app usa Expo y consulta el backend desde `frontend/src/api/api.js`.

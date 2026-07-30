@@ -181,6 +181,20 @@ class DespensaServiceTest {
         assertThat(lista.get(0).estado()).isEqualTo("normal");
     }
 
+    @Test
+    @DisplayName("calcularEstado devuelve 'bajoStock' aunque la fecha de caducidad sea lejana (>30 días)")
+    void listarProductos_calculaEstado_bajoStock_con_fechaCaducidad_lejana() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p = producto("p-1", "desp-1", "Arroz", 1, LocalDate.now().plusDays(31));
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista.get(0).estado()).isEqualTo("bajoStock");
+    }
+
     // -------------------------------------------------------------------------
     // editarProducto
     // -------------------------------------------------------------------------
