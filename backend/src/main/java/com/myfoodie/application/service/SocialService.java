@@ -2,6 +2,7 @@ package com.myfoodie.application.service;
 
 import com.myfoodie.application.dto.social.PerfilPublicoResponseDTO;
 import com.myfoodie.application.dto.social.SeguimientoResponseDTO;
+import com.myfoodie.application.dto.social.UsuarioBusquedaResponseDTO;
 import com.myfoodie.domain.model.Bloqueo;
 import com.myfoodie.domain.model.Privacidad;
 import com.myfoodie.domain.model.Seguimiento;
@@ -146,11 +147,28 @@ public class SocialService {
         );
     }
 
-    public List<Usuario> buscarUsuarios(String texto, String usuarioId) {
+    public void verificarAccesoListado(String usuarioId, String visitanteId) {
+        if (usuarioId.equals(visitanteId)) {
+            return;
+        }
+        Usuario usuario = obtenerUsuario(usuarioId);
+        if (usuario.getPrivacidad() == Privacidad.PUBLICA) {
+            return;
+        }
+        boolean esSeguidorAceptado = seguimientoRepository.findBySeguidorIdAndSeguidoId(visitanteId, usuarioId)
+                .filter(s -> ESTADO_ACEPTADO.equals(s.getEstado()))
+                .isPresent();
+        if (!esSeguidorAceptado) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "No tienes permiso para ver esta información");
+        }
+    }
+
+    public List<UsuarioBusquedaResponseDTO> buscarUsuarios(String texto, String usuarioId) {
         return usuarioRepository
                 .findByNombreContainingIgnoreCaseOrNombreUsuarioContainingIgnoreCase(texto, texto).stream()
                 .filter(u -> !u.getId().equals(usuarioId))
                 .filter(u -> !hayBloqueoEntre(usuarioId, u.getId()))
+                .map(u -> toUsuarioBusquedaResponse(u, usuarioId))
                 .toList();
     }
 
@@ -186,6 +204,12 @@ public class SocialService {
         bloqueoRepository.delete(bloqueo);
     }
 
+    public List<UsuarioBusquedaResponseDTO> obtenerBloqueados(String bloqueadorId) {
+        return bloqueoRepository.findByBloqueadorId(bloqueadorId).stream()
+                .map(b -> toUsuarioBusquedaResponse(obtenerUsuario(b.getBloqueadoId()), bloqueadorId))
+                .toList();
+    }
+
     // ---------- Helpers ----------
 
     private boolean hayBloqueoEntre(String usuarioAId, String usuarioBId) {
@@ -196,6 +220,26 @@ public class SocialService {
     private Usuario obtenerUsuario(String usuarioId) {
         return usuarioRepository.findById(usuarioId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+    }
+
+    private UsuarioBusquedaResponseDTO toUsuarioBusquedaResponse(Usuario usuario, String visitanteId) {
+        boolean esSeguido = seguimientoRepository.findBySeguidorIdAndSeguidoId(visitanteId, usuario.getId())
+                .filter(s -> ESTADO_ACEPTADO.equals(s.getEstado()))
+                .isPresent();
+        boolean haSolicitado = seguimientoRepository.findBySeguidorIdAndSeguidoId(visitanteId, usuario.getId())
+                .filter(s -> ESTADO_PENDIENTE.equals(s.getEstado()))
+                .isPresent();
+        int numRecetas = (int) recetaRepository.countByAutorIdAndEstado(usuario.getId(), ESTADO_PUBLICADA);
+
+        return new UsuarioBusquedaResponseDTO(
+                usuario.getId(),
+                usuario.getNombre(),
+                usuario.getNombreUsuario(),
+                usuario.getFotoPerfil(),
+                numRecetas,
+                esSeguido,
+                haSolicitado
+        );
     }
 
     private SeguimientoResponseDTO toSeguimientoResponse(Seguimiento seguimiento, Usuario otroUsuario) {
