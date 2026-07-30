@@ -6,7 +6,7 @@ export interface UsuarioCardData {
   nombre: string;
   nombreUsuario: string;
   fotoPerfil: string | null;
-  numRecetas: number;
+  numRecetas?: number;
   esSeguido: boolean;
   haSolicitado: boolean;
   estaBloqueado?: boolean;
@@ -77,9 +77,11 @@ export function UsuarioCard({ usuario, onPress, onSeguir }: Props) {
         <Text style={styles.nombreUsuario} numberOfLines={1}>
           @{usuario.nombreUsuario}
         </Text>
-        <Text style={styles.numRecetas}>
-          {usuario.numRecetas} {usuario.numRecetas === 1 ? 'receta' : 'recetas'}
-        </Text>
+        {usuario.numRecetas !== undefined && (
+          <Text style={styles.numRecetas}>
+            {usuario.numRecetas} {usuario.numRecetas === 1 ? 'receta' : 'recetas'}
+          </Text>
+        )}
       </View>
 
       {onSeguir && (

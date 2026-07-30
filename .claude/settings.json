@@ -40,7 +40,10 @@
       "Bash(./mvnw.cmd -q test)",
       "Bash(echo \"EXIT CODE: $?\")",
       "Bash(./mvnw.cmd -q -o compile)",
-      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('postman/MyFoodie_Social.postman_collection.json','utf8'\\)\\); console.log\\('JSON valido'\\)\")"
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('postman/MyFoodie_Social.postman_collection.json','utf8'\\)\\); console.log\\('JSON valido'\\)\")",
+      "Bash(timeout 40 npx expo start --offline --port 8099)",
+      "Bash(grep -o \"social[^\\\\`]*\" .expo/types/router.d.ts)",
+      "Bash(tasklist //FI \"IMAGENAME eq node.exe\")"
     ]
   }
 }
