@@ -1,0 +1,516 @@
+{
+  "info": {
+    "name": "MyFoodie — Módulo Social API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",         "value": "http://localhost:8080" },
+    { "key": "tokenA",          "value": "" },
+    { "key": "tokenB",          "value": "" },
+    { "key": "tokenC",          "value": "" },
+    { "key": "tokenPrivado",    "value": "" },
+    { "key": "tokenBloqueador", "value": "" },
+    { "key": "idA",             "value": "" },
+    { "key": "idB",             "value": "" },
+    { "key": "idC",             "value": "" },
+    { "key": "idPrivado",       "value": "" },
+    { "key": "idBloqueador",    "value": "" }
+  ],
+  "item": [
+    {
+      "name": "🔧 Setup",
+      "item": [
+        {
+          "name": "Registrar usuario A",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201 o 409 (ya existe)', () => pm.expect([201, 409]).to.include(pm.response.code));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Social Alpha\",\n  \"nombreUsuario\": \"socialalpha\",\n  \"email\": \"social_alpha@test.com\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Registrar usuario B",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201 o 409 (ya existe)', () => pm.expect([201, 409]).to.include(pm.response.code));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Social Bravo\",\n  \"nombreUsuario\": \"socialbravo\",\n  \"email\": \"social_bravo@test.com\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Registrar usuario C",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201 o 409 (ya existe)', () => pm.expect([201, 409]).to.include(pm.response.code));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Social Charlie\",\n  \"nombreUsuario\": \"socialcharlie\",\n  \"email\": \"social_charlie@test.com\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Registrar usuario Privado",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201 o 409 (ya existe)', () => pm.expect([201, 409]).to.include(pm.response.code));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Social Privado\",\n  \"nombreUsuario\": \"socialprivado\",\n  \"email\": \"social_privado@test.com\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Registrar usuario Bloqueador",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201 o 409 (ya existe)', () => pm.expect([201, 409]).to.include(pm.response.code));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Social Blocker\",\n  \"nombreUsuario\": \"socialblocker\",\n  \"email\": \"social_blocker@test.com\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Login A",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "if (json.token) pm.collectionVariables.set('tokenA', json.token);",
+            "if (json.userId) pm.collectionVariables.set('idA', json.userId);",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Tiene token', () => pm.expect(json.token).to.not.be.empty);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"social_alpha@test.com\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Login B",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "if (json.token) pm.collectionVariables.set('tokenB', json.token);",
+            "if (json.userId) pm.collectionVariables.set('idB', json.userId);",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Tiene token', () => pm.expect(json.token).to.not.be.empty);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"social_bravo@test.com\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Login C",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "if (json.token) pm.collectionVariables.set('tokenC', json.token);",
+            "if (json.userId) pm.collectionVariables.set('idC', json.userId);",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Tiene token', () => pm.expect(json.token).to.not.be.empty);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"social_charlie@test.com\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Login Privado",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "if (json.token) pm.collectionVariables.set('tokenPrivado', json.token);",
+            "if (json.userId) pm.collectionVariables.set('idPrivado', json.userId);",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Tiene token', () => pm.expect(json.token).to.not.be.empty);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"social_privado@test.com\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Login Bloqueador",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "if (json.token) pm.collectionVariables.set('tokenBloqueador', json.token);",
+            "if (json.userId) pm.collectionVariables.set('idBloqueador', json.userId);",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Tiene token', () => pm.expect(json.token).to.not.be.empty);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"social_blocker@test.com\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Privado: fijar perfil como privado",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenPrivado}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"perfilPublico\": false\n}" },
+            "url": { "raw": "{{baseUrl}}/api/perfil/privacidad", "host": ["{{baseUrl}}"], "path": ["api", "perfil", "privacidad"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "✅ Seguimientos — Happy Path",
+      "item": [
+        {
+          "name": "1. A sigue a B (perfil público) → 200 estado aceptado",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Estado aceptado', () => pm.expect(json.estado).to.eql('aceptado'));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/seguir/{{idB}}", "host": ["{{baseUrl}}"], "path": ["api", "social", "seguir", "{{idB}}"] }
+          }
+        },
+        {
+          "name": "2. A solicita seguir a Privado → 200 estado pendiente",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Estado pendiente', () => pm.expect(json.estado).to.eql('pendiente'));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/seguir/{{idPrivado}}", "host": ["{{baseUrl}}"], "path": ["api", "social", "seguir", "{{idPrivado}}"] }
+          }
+        },
+        {
+          "name": "3. B solicita seguir a Privado → 200 estado pendiente",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Estado pendiente', () => pm.expect(json.estado).to.eql('pendiente'));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenB}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/seguir/{{idPrivado}}", "host": ["{{baseUrl}}"], "path": ["api", "social", "seguir", "{{idPrivado}}"] }
+          }
+        },
+        {
+          "name": "4. GET solicitudes (Privado) → array con A y B pendientes",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Array con 2 solicitudes pendientes', () => {",
+            "  pm.expect(json).to.be.an('array');",
+            "  pm.expect(json.length).to.be.at.least(2);",
+            "  pm.expect(json.every(s => s.estado === 'pendiente')).to.be.true;",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenPrivado}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/solicitudes", "host": ["{{baseUrl}}"], "path": ["api", "social", "solicitudes"] }
+          }
+        },
+        {
+          "name": "5. Privado acepta solicitud de A → estado aceptado",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Estado aceptado', () => pm.expect(json.estado).to.eql('aceptado'));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenPrivado}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/solicitudes/{{idA}}/aceptar", "host": ["{{baseUrl}}"], "path": ["api", "social", "solicitudes", "{{idA}}", "aceptar"] }
+          }
+        },
+        {
+          "name": "6. Privado rechaza solicitud de B → solicitud eliminada",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenPrivado}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/solicitudes/{{idB}}/rechazar", "host": ["{{baseUrl}}"], "path": ["api", "social", "solicitudes", "{{idB}}", "rechazar"] }
+          }
+        },
+        {
+          "name": "7. A sigue a C (setup para dejar de seguir)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/seguir/{{idC}}", "host": ["{{baseUrl}}"], "path": ["api", "social", "seguir", "{{idC}}"] }
+          }
+        },
+        {
+          "name": "8. A deja de seguir a C → 204",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 204', () => pm.response.to.have.status(204));"
+          ] } }],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/seguir/{{idC}}", "host": ["{{baseUrl}}"], "path": ["api", "social", "seguir", "{{idC}}"] }
+          }
+        },
+        {
+          "name": "9. GET seguidores (Privado) → array con datos correctos",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Incluye a A con datos correctos', () => {",
+            "  pm.expect(json).to.be.an('array');",
+            "  const seguidorA = json.find(s => s.usuarioId === pm.collectionVariables.get('idA'));",
+            "  pm.expect(seguidorA).to.not.be.undefined;",
+            "  pm.expect(seguidorA.nombreUsuario).to.eql('socialalpha');",
+            "  pm.expect(seguidorA.estado).to.eql('aceptado');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenPrivado}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/seguidores", "host": ["{{baseUrl}}"], "path": ["api", "social", "seguidores"] }
+          }
+        },
+        {
+          "name": "10. GET seguidos (A) → array con datos correctos",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Incluye a B y Privado, no incluye a C', () => {",
+            "  pm.expect(json).to.be.an('array');",
+            "  const ids = json.map(s => s.usuarioId);",
+            "  pm.expect(ids).to.include(pm.collectionVariables.get('idB'));",
+            "  pm.expect(ids).to.include(pm.collectionVariables.get('idPrivado'));",
+            "  pm.expect(ids).to.not.include(pm.collectionVariables.get('idC'));",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/seguidos", "host": ["{{baseUrl}}"], "path": ["api", "social", "seguidos"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "✅ Perfiles — Happy Path",
+      "item": [
+        {
+          "name": "1. GET perfil de B (A visitante) → campos correctos",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Campos de perfil público correctos', () => {",
+            "  pm.expect(json).to.have.property('numSeguidores');",
+            "  pm.expect(json).to.have.property('numSeguidos');",
+            "  pm.expect(json).to.have.property('privacidad');",
+            "  pm.expect(json.esSeguido).to.be.true;",
+            "  pm.expect(json.privacidad).to.eql('PUBLICA');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/perfil/{{idB}}", "host": ["{{baseUrl}}"], "path": ["api", "social", "perfil", "{{idB}}"] }
+          }
+        },
+        {
+          "name": "2. GET buscar?q=socialbravo → resultados con campos correctos",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Encuentra a B con campos correctos', () => {",
+            "  pm.expect(json).to.be.an('array');",
+            "  const b = json.find(u => u.nombreUsuario === 'socialbravo');",
+            "  pm.expect(b).to.not.be.undefined;",
+            "  pm.expect(b).to.have.property('numRecetas');",
+            "  pm.expect(b).to.have.property('esSeguido');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/social/buscar?q=socialbravo",
+              "host": ["{{baseUrl}}"], "path": ["api", "social", "buscar"],
+              "query": [{ "key": "q", "value": "socialbravo" }]
+            }
+          }
+        },
+        {
+          "name": "3. Setup: Bloqueador bloquea a A",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenBloqueador}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/bloquear/{{idA}}", "host": ["{{baseUrl}}"], "path": ["api", "social", "bloquear", "{{idA}}"] }
+          }
+        },
+        {
+          "name": "4. GET buscar?q=socialblocker (A, bloqueado) → no aparece el bloqueador",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('El bloqueador no aparece en los resultados', () => {",
+            "  pm.expect(json.some(u => u.nombreUsuario === 'socialblocker')).to.be.false;",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/social/buscar?q=socialblocker",
+              "host": ["{{baseUrl}}"], "path": ["api", "social", "buscar"],
+              "query": [{ "key": "q", "value": "socialblocker" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "✅ Bloqueos — Happy Path",
+      "item": [
+        {
+          "name": "1. C bloquea a B → 200",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenC}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/bloquear/{{idB}}", "host": ["{{baseUrl}}"], "path": ["api", "social", "bloquear", "{{idB}}"] }
+          }
+        },
+        {
+          "name": "2. GET bloqueados (C) → lista con B",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Incluye a B', () => {",
+            "  pm.expect(json.some(u => u.id === pm.collectionVariables.get('idB'))).to.be.true;",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenC}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/bloqueados", "host": ["{{baseUrl}}"], "path": ["api", "social", "bloqueados"] }
+          }
+        },
+        {
+          "name": "3. GET perfil de Bloqueador (A, siendo bloqueado) → 403",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403', () => pm.response.to.have.status(403));"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/perfil/{{idBloqueador}}", "host": ["{{baseUrl}}"], "path": ["api", "social", "perfil", "{{idBloqueador}}"] }
+          }
+        },
+        {
+          "name": "4. C desbloquea a B → 204",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 204', () => pm.response.to.have.status(204));"
+          ] } }],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenC}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/bloquear/{{idB}}", "host": ["{{baseUrl}}"], "path": ["api", "social", "bloquear", "{{idB}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "❌ Error Cases",
+      "item": [
+        {
+          "name": "POST seguir a sí mismo → 400",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 400', () => pm.response.to.have.status(400));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/seguir/{{idA}}", "host": ["{{baseUrl}}"], "path": ["api", "social", "seguir", "{{idA}}"] }
+          }
+        },
+        {
+          "name": "POST seguir a un usuario ya seguido → 409",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 409', () => pm.response.to.have.status(409));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/seguir/{{idB}}", "host": ["{{baseUrl}}"], "path": ["api", "social", "seguir", "{{idB}}"] }
+          }
+        },
+        {
+          "name": "POST bloquear a sí mismo → 400",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 400', () => pm.response.to.have.status(400));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/bloquear/{{idA}}", "host": ["{{baseUrl}}"], "path": ["api", "social", "bloquear", "{{idA}}"] }
+          }
+        },
+        {
+          "name": "GET perfil de usuario no existente → 404",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 404', () => pm.response.to.have.status(404));"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/perfil/id-que-no-existe", "host": ["{{baseUrl}}"], "path": ["api", "social", "perfil", "id-que-no-existe"] }
+          }
+        },
+        {
+          "name": "GET seguidores sin token → 401",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 401', () => pm.response.to.have.status(401));"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/social/seguidores", "host": ["{{baseUrl}}"], "path": ["api", "social", "seguidores"] }
+          }
+        }
+      ]
+    }
+  ]
+}

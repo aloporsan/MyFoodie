@@ -39,7 +39,8 @@
       "Bash(./mvnw.cmd -q test -Dtest=FeedServiceTest)",
       "Bash(./mvnw.cmd -q test)",
       "Bash(echo \"EXIT CODE: $?\")",
-      "Bash(./mvnw.cmd -q -o compile)"
+      "Bash(./mvnw.cmd -q -o compile)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('postman/MyFoodie_Social.postman_collection.json','utf8'\\)\\); console.log\\('JSON valido'\\)\")"
     ]
   }
 }
