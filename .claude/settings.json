@@ -48,9 +48,7 @@
       "Bash(./mvnw.cmd -q -o test -Dtest=SocialControllerIntegrationTest)",
       "Bash(./mvnw.cmd -q -o test)",
       "Bash(awk '{fails+=$5+0; errs+=$8+0} END {print \"files scanned\"}')",
-      "Bash(git reset *)",
-      "Bash(python3 -c ' *)",
-      "Bash(./mvnw -q -o compile)"
+      "Bash(git reset *)"
     ]
   }
 }

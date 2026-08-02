@@ -10,7 +10,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ModalCompartir } from '@/components/compartir/ModalCompartir';
 import { ErrorScreen } from '@/components/common/ErrorScreen';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { showConfirm } from '@/hooks/useConfirm';
@@ -46,7 +45,6 @@ export function DetalleRecetaScreen() {
 
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
-  const [modalCompartirVisible, setModalCompartirVisible] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -128,9 +126,6 @@ export function DetalleRecetaScreen() {
         </Text>
         {esPropia ? (
           <View style={styles.headerActions}>
-            <Pressable testID="btn-compartir-receta" onPress={() => setModalCompartirVisible(true)} hitSlop={8}>
-              <Ionicons name="share-social-outline" size={22} color={colors.primary} />
-            </Pressable>
             <Pressable
               testID="btn-editar-receta"
               onPress={() => router.push(`/receta/editar?id=${receta.id}`)}
@@ -143,34 +138,23 @@ export function DetalleRecetaScreen() {
             </Pressable>
           </View>
         ) : (
-          <View style={styles.headerActions}>
-            <Pressable testID="btn-compartir-receta" onPress={() => setModalCompartirVisible(true)} hitSlop={8}>
-              <Ionicons name="share-social-outline" size={22} color={colors.primary} />
-            </Pressable>
-            <Pressable
-              testID="btn-guardar-receta"
-              style={[styles.guardarBtn, estaGuardada && styles.guardarBtnDisabled]}
-              onPress={estaGuardada || guardando ? undefined : handleGuardar}
-              disabled={estaGuardada || guardando}
-            >
-              <Ionicons
-                name={estaGuardada ? 'bookmark' : 'bookmark-outline'}
-                size={16}
-                color={estaGuardada ? colors.grayMid : colors.primary}
-              />
-              <Text style={[styles.guardarBtnTexto, estaGuardada && styles.guardarBtnTextoDisabled]}>
-                {estaGuardada ? 'Guardada' : 'Guardar receta'}
-              </Text>
-            </Pressable>
-          </View>
+          <Pressable
+            testID="btn-guardar-receta"
+            style={[styles.guardarBtn, estaGuardada && styles.guardarBtnDisabled]}
+            onPress={estaGuardada || guardando ? undefined : handleGuardar}
+            disabled={estaGuardada || guardando}
+          >
+            <Ionicons
+              name={estaGuardada ? 'bookmark' : 'bookmark-outline'}
+              size={16}
+              color={estaGuardada ? colors.grayMid : colors.primary}
+            />
+            <Text style={[styles.guardarBtnTexto, estaGuardada && styles.guardarBtnTextoDisabled]}>
+              {estaGuardada ? 'Guardada' : 'Guardar receta'}
+            </Text>
+          </Pressable>
         )}
       </View>
-
-      <ModalCompartir
-        visible={modalCompartirVisible}
-        recetaId={receta.id}
-        onClose={() => setModalCompartirVisible(false)}
-      />
 
       <ScrollView
         contentContainerStyle={styles.scroll}

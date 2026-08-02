@@ -4,7 +4,6 @@ import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ModalCompartir } from '@/components/compartir/ModalCompartir';
 import { ErrorScreen } from '@/components/common/ErrorScreen';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { useToast } from '@/hooks/useToast';
@@ -38,7 +37,6 @@ export function DetalleRecetaFeedScreen() {
   const [nombresDespensa, setNombresDespensa] = useState<Set<string>>(new Set());
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [modalCompartirVisible, setModalCompartirVisible] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -135,9 +133,6 @@ export function DetalleRecetaFeedScreen() {
           {receta.titulo}
         </Text>
         <View style={styles.headerActions}>
-          <Pressable testID="btn-compartir-header" onPress={() => setModalCompartirVisible(true)} hitSlop={8}>
-            <Ionicons name="share-social-outline" size={22} color={colors.text.primary} />
-          </Pressable>
           <Pressable testID="btn-like-header" onPress={handleLike} hitSlop={8}>
             <Ionicons
               name={recetaFeed?.yaLike ? 'heart' : 'heart-outline'}
@@ -154,12 +149,6 @@ export function DetalleRecetaFeedScreen() {
           </Pressable>
         </View>
       </View>
-
-      <ModalCompartir
-        visible={modalCompartirVisible}
-        recetaId={receta.id}
-        onClose={() => setModalCompartirVisible(false)}
-      />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {imagenUrl ? (
