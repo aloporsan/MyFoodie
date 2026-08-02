@@ -77,6 +77,9 @@ function RootLayoutNav() {
         <Stack.Screen name="social/seguidos"            options={{ headerShown: false }} />
         <Stack.Screen name="social/bloqueados"          options={{ headerShown: false }} />
         <Stack.Screen name="social/perfil/[id]"         options={{ headerShown: false }} />
+        <Stack.Screen name="social"                     options={{ headerShown: false }} />
+        <Stack.Screen name="compartir/recibidas"        options={{ headerShown: false }} />
+        <Stack.Screen name="compartir/recibidas/[id]"   options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
       <StatusBar style="auto" />

@@ -5,9 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { showConfirm } from '@/hooks/useConfirm';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
 import { useAuthStore } from '@/store/authStore';
-import { useCompartirStore } from '@/store/compartirStore';
 import { usePerfilStore } from '@/store/perfilStore';
-import { useSocialStore } from '@/store/socialStore';
 
 interface MenuItem {
   icono: React.ComponentProps<typeof Ionicons>['name'];
@@ -21,8 +19,6 @@ export function MenuPerfil() {
   const router = useRouter();
   const logout = useAuthStore((s) => s.logout);
   const { cerrarSesion, eliminarCuenta, reset } = usePerfilStore();
-  const solicitudesPendientes = useSocialStore((s) => s.solicitudesPendientes);
-  const contadorNoLeidas = useCompartirStore((s) => s.contadorNoLeidas);
 
   const handleCerrarSesion = () => {
     showConfirm(
@@ -99,28 +95,6 @@ export function MenuPerfil() {
       icono: 'nutrition-outline',
       label: 'Preferencias alimentarias',
       onPress: () => router.push('/perfil/preferencias'),
-    },
-    {
-      icono: 'gift-outline',
-      label: 'Recetas recibidas',
-      onPress: () => router.push('/compartir/recibidas'),
-      badge: contadorNoLeidas,
-    },
-    {
-      icono: 'search-outline',
-      label: 'Buscar usuarios',
-      onPress: () => router.push('/social/buscar'),
-    },
-    {
-      icono: 'person-add-outline',
-      label: 'Solicitudes de seguimiento',
-      onPress: () => router.push('/social/solicitudes'),
-      badge: solicitudesPendientes.length,
-    },
-    {
-      icono: 'ban-outline',
-      label: 'Usuarios bloqueados',
-      onPress: () => router.push('/social/bloqueados'),
     },
     {
       icono: 'lock-closed-outline',
