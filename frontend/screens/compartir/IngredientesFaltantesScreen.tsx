@@ -1,17 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type React from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ModalCompartir } from '@/components/compartir/ModalCompartir';
 import { ErrorScreen } from '@/components/common/ErrorScreen';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { useToast } from '@/hooks/useToast';
-import { despensaService } from '@/services/despensaService';
-import { feedService } from '@/services/feedService';
-import { IngredienteReceta, Receta } from '@/services/recetaService';
-import { useFeedStore } from '@/store/feedStore';
+import type { IngredienteReceta } from '@/services/recetaService';
+import { useCompartirStore } from '@/store/compartirStore';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
 import { resolveImagenUrl } from '@/utils/media';
 
@@ -21,106 +18,59 @@ const DIFICULTAD_COLOR: Record<string, string> = {
   'difícil': colors.error,
 };
 
-export function DetalleRecetaFeedScreen() {
+export function IngredientesFaltantesScreen() {
   const router = useRouter();
-  const { showSuccess, showError } = useToast();
+  const { showInfo } = useToast();
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const id = Array.isArray(rawId) ? rawId[0] : rawId;
 
-  const recetas = useFeedStore((s) => s.recetas);
-  const darLike = useFeedStore((s) => s.darLike);
-  const quitarLike = useFeedStore((s) => s.quitarLike);
-  const guardarReceta = useFeedStore((s) => s.guardarReceta);
+  const recetasRecibidas = useCompartirStore((s) => s.recetasRecibidas);
+  const ingredientesFaltantes = useCompartirStore((s) => s.ingredientesFaltantes);
+  const isLoading = useCompartirStore((s) => s.isLoading);
+  const cargarIngredientesFaltantes = useCompartirStore((s) => s.cargarIngredientesFaltantes);
 
-  const recetaFeed = recetas.find((r) => r.id === id);
-
-  const [receta, setReceta] = useState<Receta | null>(null);
-  const [nombresDespensa, setNombresDespensa] = useState<Set<string>>(new Set());
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [modalCompartirVisible, setModalCompartirVisible] = useState(false);
+  const recetaCompartida = recetasRecibidas.find((r) => r.id === id);
 
   useEffect(() => {
-    if (!id) return;
-    let cancelado = false;
-
-    setCargando(true);
-    Promise.all([feedService.obtenerDetalle(id), despensaService.listarProductos()])
-      .then(([detalle, productos]) => {
-        if (cancelado) return;
-        setReceta(detalle);
-        setNombresDespensa(new Set(productos.map((p) => p.nombre.trim().toLowerCase())));
-        setError(null);
-      })
-      .catch(() => {
-        if (!cancelado) setError('No se pudo cargar la receta');
-      })
-      .finally(() => {
-        if (!cancelado) setCargando(false);
-      });
-
-    return () => {
-      cancelado = true;
-    };
+    if (id) cargarIngredientesFaltantes(id);
   }, [id]);
 
   const { disponibles, faltantes } = useMemo(() => {
-    if (!receta) return { disponibles: [] as IngredienteReceta[], faltantes: [] as IngredienteReceta[] };
+    if (!recetaCompartida) return { disponibles: [] as IngredienteReceta[], faltantes: [] as IngredienteReceta[] };
+    const nombresFaltantes = new Set(ingredientesFaltantes.map((i) => i.nombre.trim().toLowerCase()));
     const disponibles: IngredienteReceta[] = [];
     const faltantes: IngredienteReceta[] = [];
-    for (const ingrediente of receta.ingredientes) {
-      if (nombresDespensa.has(ingrediente.nombre.trim().toLowerCase())) {
-        disponibles.push(ingrediente);
-      } else {
+    for (const ingrediente of recetaCompartida.receta.ingredientes) {
+      if (nombresFaltantes.has(ingrediente.nombre.trim().toLowerCase())) {
         faltantes.push(ingrediente);
+      } else {
+        disponibles.push(ingrediente);
       }
     }
     return { disponibles, faltantes };
-  }, [receta, nombresDespensa]);
+  }, [recetaCompartida, ingredientesFaltantes]);
 
-  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/feed'));
-
-  const handleLike = async () => {
-    if (!id) return;
-    try {
-      if (recetaFeed?.yaLike) {
-        await quitarLike(id);
-      } else {
-        await darLike(id);
-      }
-    } catch {
-      showError('No se pudo actualizar el like');
-    }
-  };
-
-  const handleGuardar = async () => {
-    if (!id || recetaFeed?.yaGuardada) return;
-    try {
-      await guardarReceta(id);
-      showSuccess('Receta guardada');
-    } catch {
-      showError('No se pudo guardar la receta');
-    }
-  };
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/compartir/recibidas'));
 
   const handleAñadirAlCarrito = () => {
-    showSuccess('El carrito inteligente estará disponible próximamente');
+    showInfo('Disponible próximamente');
   };
 
-  if (cargando) {
+  if (isLoading && !recetaCompartida) {
     return <LoadingScreen />;
   }
 
-  if (error || !receta) {
+  if (!recetaCompartida) {
     return (
       <ErrorScreen
         titulo="No se pudo cargar la receta"
-        descripcion={error ?? 'Receta no encontrada'}
+        descripcion="Receta compartida no encontrada"
         onVolver={goBack}
       />
     );
   }
 
+  const { receta, emisor, mensaje } = recetaCompartida;
   const pasosOrdenados = [...receta.pasos].sort((a, b) => a.orden - b.orden);
   const dificultadColor = DIFICULTAD_COLOR[receta.dificultad?.toLowerCase()] ?? colors.grayMid;
   const imagenUrl = resolveImagenUrl(receta.imagenUrl);
@@ -134,32 +84,8 @@ export function DetalleRecetaFeedScreen() {
         <Text style={styles.headerTitulo} numberOfLines={1}>
           {receta.titulo}
         </Text>
-        <View style={styles.headerActions}>
-          <Pressable testID="btn-compartir-header" onPress={() => setModalCompartirVisible(true)} hitSlop={8}>
-            <Ionicons name="share-social-outline" size={22} color={colors.text.primary} />
-          </Pressable>
-          <Pressable testID="btn-like-header" onPress={handleLike} hitSlop={8}>
-            <Ionicons
-              name={recetaFeed?.yaLike ? 'heart' : 'heart-outline'}
-              size={22}
-              color={recetaFeed?.yaLike ? colors.error : colors.text.primary}
-            />
-          </Pressable>
-          <Pressable testID="btn-guardar-header" onPress={handleGuardar} hitSlop={8}>
-            <Ionicons
-              name={recetaFeed?.yaGuardada ? 'bookmark' : 'bookmark-outline'}
-              size={22}
-              color={recetaFeed?.yaGuardada ? colors.primary : colors.text.primary}
-            />
-          </Pressable>
-        </View>
+        <View style={{ width: 24 }} />
       </View>
-
-      <ModalCompartir
-        visible={modalCompartirVisible}
-        recetaId={receta.id}
-        onClose={() => setModalCompartirVisible(false)}
-      />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {imagenUrl ? (
@@ -172,6 +98,11 @@ export function DetalleRecetaFeedScreen() {
 
         <View style={styles.content}>
           <View style={styles.card}>
+            <Text style={styles.compartidaPor}>
+              Compartida por @{emisor.nombreUsuario}
+            </Text>
+            {mensaje && <Text style={styles.mensaje}>&quot;{mensaje}&quot;</Text>}
+
             <Text style={styles.titulo}>{receta.titulo}</Text>
             <Text style={styles.descripcion}>{receta.descripcion}</Text>
 
@@ -184,21 +115,7 @@ export function DetalleRecetaFeedScreen() {
                 <Ionicons name="barbell-outline" size={14} color={dificultadColor} />
                 <Text style={[styles.metaText, { color: dificultadColor }]}>{receta.dificultad}</Text>
               </View>
-              <View style={styles.metaChip}>
-                <Ionicons name="heart-outline" size={14} color={colors.grayDark} />
-                <Text style={styles.metaText}>{recetaFeed?.likes ?? receta.totalLikes ?? 0}</Text>
-              </View>
             </View>
-
-            {receta.etiquetas.length > 0 && (
-              <View style={styles.etiquetasRow}>
-                {receta.etiquetas.map((tag) => (
-                  <View key={tag} style={styles.etiquetaChip}>
-                    <Text style={styles.etiquetaText}>{tag}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
           </View>
 
           <View style={styles.card}>
@@ -235,7 +152,7 @@ export function DetalleRecetaFeedScreen() {
                     <IngredienteRow key={ing.id} ingrediente={ing} icono="close-circle" color={colors.error} />
                   ))}
                 </View>
-                <Pressable style={styles.carritoBtn} onPress={handleAñadirAlCarrito}>
+                <Pressable style={styles.carritoBtn} onPress={handleAñadirAlCarrito} testID="btn-añadir-carrito">
                   <Ionicons name="cart-outline" size={18} color={colors.white} />
                   <Text style={styles.carritoBtnTexto}>Añadir faltantes al carrito</Text>
                 </Pressable>
@@ -243,32 +160,26 @@ export function DetalleRecetaFeedScreen() {
             )}
           </View>
 
-          <View style={styles.card}>
-            <SectionHeader
-              icon="list-outline"
-              iconColor={colors.primary}
-              titulo="Preparación"
-              count={pasosOrdenados.length}
-            />
-            <View style={styles.pasosList}>
-              {pasosOrdenados.map((paso) => (
-                <View key={paso.id} style={pasoStyles.card}>
-                  <View style={pasoStyles.numWrapper}>
-                    <Text style={pasoStyles.num}>{paso.orden}</Text>
+          {pasosOrdenados.length > 0 && (
+            <View style={styles.card}>
+              <SectionHeader
+                icon="list-outline"
+                iconColor={colors.primary}
+                titulo="Preparación"
+                count={pasosOrdenados.length}
+              />
+              <View style={styles.pasosList}>
+                {pasosOrdenados.map((paso) => (
+                  <View key={paso.id} style={pasoStyles.card}>
+                    <View style={pasoStyles.numWrapper}>
+                      <Text style={pasoStyles.num}>{paso.orden}</Text>
+                    </View>
+                    <Text style={pasoStyles.descripcion}>{paso.descripcion}</Text>
                   </View>
-                  <Text style={pasoStyles.descripcion}>{paso.descripcion}</Text>
-                </View>
-              ))}
+                ))}
+              </View>
             </View>
-          </View>
-
-          <View style={styles.card}>
-            <SectionHeader icon="chatbubble-outline" iconColor={colors.grayDark} titulo="Comentarios" count={0} />
-            <View style={styles.comentariosPlaceholder}>
-              <Ionicons name="chatbubbles-outline" size={32} color={colors.grayMid} />
-              <Text style={styles.vacioText}>Los comentarios estarán disponibles próximamente</Text>
-            </View>
-          </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -336,7 +247,6 @@ const styles = StyleSheet.create({
   },
   backBtn: { padding: spacing.xs },
   headerTitulo: { ...typography.heading3, color: colors.text.primary, flex: 1 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
 
   scroll: { paddingBottom: spacing.xxxl },
 
@@ -359,6 +269,9 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
 
+  compartidaPor: { ...typography.caption, color: colors.text.secondary },
+  mensaje: { ...typography.body, color: colors.text.secondary, fontStyle: 'italic' },
+
   titulo: { ...typography.heading1, color: colors.text.primary },
   descripcion: { ...typography.body, color: colors.text.secondary, lineHeight: 22 },
 
@@ -375,17 +288,6 @@ const styles = StyleSheet.create({
     borderColor: colors.gray,
   },
   metaText: { ...typography.caption, color: colors.text.secondary, fontWeight: '500' },
-
-  etiquetasRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  etiquetaChip: {
-    backgroundColor: '#E8F5D0',
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  etiquetaText: { ...typography.caption, color: colors.primaryDark, fontWeight: '600' },
 
   vacioText: { ...typography.body, color: colors.text.secondary, textAlign: 'center', paddingVertical: spacing.sm },
 
@@ -404,12 +306,6 @@ const styles = StyleSheet.create({
   carritoBtnTexto: { ...typography.button, color: colors.white },
 
   pasosList: { gap: spacing.md },
-
-  comentariosPlaceholder: {
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-  },
 });
 
 const secStyles = StyleSheet.create({

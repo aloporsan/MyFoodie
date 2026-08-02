@@ -16,6 +16,7 @@ import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { EstadisticaItem } from '@/components/perfil/EstadisticaItem';
 import { MenuPerfil } from '@/components/perfil/MenuPerfil';
 import { PerfilHeader } from '@/components/perfil/PerfilHeader';
+import { useCompartirStore } from '@/store/compartirStore';
 import { usePerfilStore } from '@/store/perfilStore';
 import { useSocialStore } from '@/store/socialStore';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
@@ -26,9 +27,14 @@ export function PerfilScreen() {
     usePerfilStore();
   const seguidores = useSocialStore((s) => s.seguidores);
   const seguidos = useSocialStore((s) => s.seguidos);
+  const solicitudesPendientes = useSocialStore((s) => s.solicitudesPendientes);
   const cargarSeguidores = useSocialStore((s) => s.cargarSeguidores);
   const cargarSeguidos = useSocialStore((s) => s.cargarSeguidos);
   const cargarSolicitudes = useSocialStore((s) => s.cargarSolicitudes);
+  const contadorNoLeidas = useCompartirStore((s) => s.contadorNoLeidas);
+  const cargarContador = useCompartirStore((s) => s.cargarContador);
+
+  const totalNotificacionesSocial = solicitudesPendientes.length + contadorNoLeidas;
 
   useEffect(() => {
     cargarPerfil();
@@ -36,6 +42,7 @@ export function PerfilScreen() {
     cargarSeguidores();
     cargarSeguidos();
     cargarSolicitudes();
+    cargarContador();
   }, []);
 
   const onRefresh = () => {
@@ -80,7 +87,22 @@ export function PerfilScreen() {
           />
         }
       >
-        <PerfilHeader perfil={perfil} />
+        <View style={styles.headerWrapper}>
+          <PerfilHeader perfil={perfil} />
+          <Pressable
+            style={styles.socialBtn}
+            onPress={() => router.push('/social')}
+            hitSlop={8}
+            testID="btn-social"
+          >
+            <Ionicons name="people-outline" size={20} color={colors.white} />
+            {totalNotificacionesSocial > 0 && (
+              <View style={styles.socialBadge} testID="badge-social">
+                <Text style={styles.socialBadgeTexto}>{totalNotificacionesSocial}</Text>
+              </View>
+            )}
+          </Pressable>
+        </View>
 
         <View style={styles.statsSocialRow}>
           <Pressable style={styles.statSocialItem} onPress={() => router.push('/social/seguidores')}>
@@ -155,6 +177,41 @@ const styles = StyleSheet.create({
   },
   scroll: {
     paddingBottom: spacing.xxxl,
+  },
+  headerWrapper: {
+    position: 'relative',
+  },
+  socialBtn: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.lg,
+    width: 36,
+    height: 36,
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  socialBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: colors.secondary,
+    borderRadius: borderRadius.full,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: colors.white,
+  },
+  socialBadgeTexto: {
+    ...typography.caption,
+    color: colors.white,
+    fontWeight: '700',
+    fontSize: 10,
   },
   seccion: {
     paddingHorizontal: spacing.lg,
