@@ -1,7 +1,9 @@
 package com.myfoodie.application.service;
 
 import com.myfoodie.application.dto.compartir.CompartirRecetaRequestDTO;
+import com.myfoodie.application.dto.compartir.IngredienteFaltanteResponseDTO;
 import com.myfoodie.application.dto.compartir.RecetaCompartidaResponseDTO;
+import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.receta.RecetaResponseDTO;
 import com.myfoodie.domain.model.RecetaCompartida;
 import com.myfoodie.domain.model.Usuario;
@@ -14,6 +16,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +31,7 @@ public class CompartirService {
     private final BloqueoRepository bloqueoRepository;
     private final UsuarioRepository usuarioRepository;
     private final RecetaService recetaService;
+    private final DespensaService despensaService;
 
     public List<RecetaCompartidaResponseDTO> compartirReceta(String emisorId, String recetaId,
                                                                CompartirRecetaRequestDTO dto) {
@@ -90,6 +95,22 @@ public class CompartirService {
         recetaService.guardarReceta(usuarioId, compartida.getRecetaId());
         compartida.setLeida(true);
         recetaCompartidaRepository.save(compartida);
+    }
+
+    public List<IngredienteFaltanteResponseDTO> obtenerIngredientesFaltantes(String usuarioId, String recetaCompartidaId) {
+        RecetaCompartida compartida = getRecetaCompartidaDelReceptor(usuarioId, recetaCompartidaId);
+        RecetaResponseDTO receta = recetaService.obtenerReceta(compartida.getRecetaId(), usuarioId);
+
+        Set<String> ingredientesDespensa = despensaService.listarProductos(usuarioId).stream()
+                .map(ProductoResponseDTO::nombre)
+                .filter(nombre -> nombre != null && !nombre.isBlank())
+                .map(nombre -> nombre.trim().toLowerCase())
+                .collect(Collectors.toSet());
+
+        return receta.ingredientes().stream()
+                .filter(i -> i.nombre() == null || !ingredientesDespensa.contains(i.nombre().trim().toLowerCase()))
+                .map(i -> new IngredienteFaltanteResponseDTO(i.nombre(), i.cantidad(), i.unidad()))
+                .toList();
     }
 
     // ---------- Helpers ----------
