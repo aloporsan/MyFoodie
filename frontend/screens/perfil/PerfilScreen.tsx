@@ -16,6 +16,7 @@ import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { EstadisticaItem } from '@/components/perfil/EstadisticaItem';
 import { MenuPerfil } from '@/components/perfil/MenuPerfil';
 import { PerfilHeader } from '@/components/perfil/PerfilHeader';
+import { useCompartirStore } from '@/store/compartirStore';
 import { usePerfilStore } from '@/store/perfilStore';
 import { useSocialStore } from '@/store/socialStore';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
@@ -29,6 +30,7 @@ export function PerfilScreen() {
   const cargarSeguidores = useSocialStore((s) => s.cargarSeguidores);
   const cargarSeguidos = useSocialStore((s) => s.cargarSeguidos);
   const cargarSolicitudes = useSocialStore((s) => s.cargarSolicitudes);
+  const cargarContador = useCompartirStore((s) => s.cargarContador);
 
   useEffect(() => {
     cargarPerfil();
@@ -36,6 +38,7 @@ export function PerfilScreen() {
     cargarSeguidores();
     cargarSeguidos();
     cargarSolicitudes();
+    cargarContador();
   }, []);
 
   const onRefresh = () => {

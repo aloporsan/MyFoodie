@@ -46,7 +46,7 @@ export function RecetasRecibidasScreen() {
         renderItem={({ item }) => (
           <RecetaCompartidaCard
             recetaCompartida={item}
-            onVerReceta={() => router.push(`/compartir/recibidas/${item.id}` as never)}
+            onVerReceta={() => router.push(`/compartir/recibidas/${item.id}`)}
           />
         )}
         ListEmptyComponent={

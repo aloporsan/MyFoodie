@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { showConfirm } from '@/hooks/useConfirm';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
 import { useAuthStore } from '@/store/authStore';
+import { useCompartirStore } from '@/store/compartirStore';
 import { usePerfilStore } from '@/store/perfilStore';
 import { useSocialStore } from '@/store/socialStore';
 
@@ -21,6 +22,7 @@ export function MenuPerfil() {
   const logout = useAuthStore((s) => s.logout);
   const { cerrarSesion, eliminarCuenta, reset } = usePerfilStore();
   const solicitudesPendientes = useSocialStore((s) => s.solicitudesPendientes);
+  const contadorNoLeidas = useCompartirStore((s) => s.contadorNoLeidas);
 
   const handleCerrarSesion = () => {
     showConfirm(
@@ -97,6 +99,12 @@ export function MenuPerfil() {
       icono: 'nutrition-outline',
       label: 'Preferencias alimentarias',
       onPress: () => router.push('/perfil/preferencias'),
+    },
+    {
+      icono: 'gift-outline',
+      label: 'Recetas recibidas',
+      onPress: () => router.push('/compartir/recibidas'),
+      badge: contadorNoLeidas,
     },
     {
       icono: 'search-outline',

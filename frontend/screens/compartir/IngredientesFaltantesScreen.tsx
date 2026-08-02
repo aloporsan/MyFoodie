@@ -50,7 +50,7 @@ export function IngredientesFaltantesScreen() {
     return { disponibles, faltantes };
   }, [recetaCompartida, ingredientesFaltantes]);
 
-  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/compartir/recibidas' as never));
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/compartir/recibidas'));
 
   const handleAñadirAlCarrito = () => {
     showInfo('Disponible próximamente');
