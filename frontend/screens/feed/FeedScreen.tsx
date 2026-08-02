@@ -1,7 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { FeedEmptyState, GestosCard, RecetaCard } from '@/components/feed';
@@ -95,6 +96,14 @@ export function FeedScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.headerTitulo}>Feed</Text>
+        <Pressable
+          style={({ pressed }) => [styles.btnBuscar, pressed && styles.btnBuscarPressed]}
+          onPress={() => router.push('/social/buscar')}
+          hitSlop={8}
+          testID="btn-buscar-usuarios"
+        >
+          <Ionicons name="search" size={20} color={colors.primary} />
+        </Pressable>
       </View>
 
       <View style={styles.stack}>
@@ -130,6 +139,7 @@ export function FeedScreen() {
             onDescartar={handleDescartar}
             onLike={handleDobleToqueLike}
             onPress={() => router.push(`/feed/${recetaActual.id}`)}
+            onAutorPress={() => router.push(`/social/perfil/${recetaActual.autorId}`)}
           />
         </View>
       </View>
@@ -143,12 +153,26 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.default,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
   headerTitulo: {
     ...typography.heading1,
     color: colors.text.primary,
+  },
+  btnBuscar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#E8F5D0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnBuscarPressed: {
+    backgroundColor: colors.gray,
   },
   stack: {
     flex: 1,

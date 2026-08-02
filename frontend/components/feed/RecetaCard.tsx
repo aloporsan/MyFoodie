@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
+import { GestureDetector, type GestureType } from 'react-native-gesture-handler';
 import { RecetaFeed } from '@/services/feedService';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
@@ -11,6 +12,7 @@ import { resolveImagenUrl } from '@/utils/media';
 
 interface RecetaCardProps {
   receta: RecetaFeed;
+  autorGesture?: GestureType;
 }
 
 const DIFICULTAD_COLOR: Record<string, string> = {
@@ -19,7 +21,7 @@ const DIFICULTAD_COLOR: Record<string, string> = {
   'difícil': colors.error,
 };
 
-export function RecetaCard({ receta }: RecetaCardProps) {
+export function RecetaCard({ receta, autorGesture }: RecetaCardProps) {
   const totalIngredientes = receta.ingredientesDisponibles + receta.ingredientesFaltantes;
   const coincidencia = obtenerCoincidencia(receta.coincidenciaDespensa, receta.ingredientesFaltantes);
   const dificultadColor = DIFICULTAD_COLOR[receta.dificultad?.toLowerCase()] ?? colors.grayMid;
@@ -28,7 +30,12 @@ export function RecetaCard({ receta }: RecetaCardProps) {
   return (
     <View style={styles.container}>
       {imagenUrl ? (
-        <Image source={{ uri: imagenUrl }} style={styles.imagen} contentFit="cover" />
+        <Image
+          source={{ uri: imagenUrl }}
+          style={styles.imagen}
+          contentFit="cover"
+          recyclingKey={receta.id}
+        />
       ) : (
         <View style={[styles.imagen, styles.imagenPlaceholder]}>
           <Ionicons name="restaurant-outline" size={48} color="rgba(255,255,255,0.7)" />
@@ -47,18 +54,7 @@ export function RecetaCard({ receta }: RecetaCardProps) {
       />
 
       <View style={styles.contenido}>
-        <View style={styles.autorRow}>
-          {receta.autorFoto ? (
-            <Image source={{ uri: receta.autorFoto }} style={styles.autorFoto} contentFit="cover" />
-          ) : (
-            <View style={[styles.autorFoto, styles.autorFotoPlaceholder]}>
-              <Ionicons name="person" size={14} color={colors.white} />
-            </View>
-          )}
-          <Text style={styles.autorNombre} numberOfLines={1}>
-            {receta.autorNombre ?? receta.autorUsuario ?? 'Usuario'}
-          </Text>
-        </View>
+        <AutorRow receta={receta} gesture={autorGesture} />
 
         <Text style={styles.titulo} numberOfLines={2}>
           {receta.titulo}
@@ -95,6 +91,32 @@ export function RecetaCard({ receta }: RecetaCardProps) {
       </View>
     </View>
   );
+}
+
+function AutorRow({ receta, gesture }: { receta: RecetaFeed; gesture?: GestureType }) {
+  const contenido = (
+    <View style={styles.autorRow} testID="btn-autor">
+      {receta.autorFoto ? (
+        <Image
+          source={{ uri: receta.autorFoto }}
+          style={styles.autorFoto}
+          contentFit="cover"
+          recyclingKey={receta.id}
+        />
+      ) : (
+        <View style={[styles.autorFoto, styles.autorFotoPlaceholder]}>
+          <Ionicons name="person" size={14} color={colors.white} />
+        </View>
+      )}
+      <Text style={styles.autorNombre} numberOfLines={1}>
+        {receta.autorNombre ?? receta.autorUsuario ?? 'Usuario'}
+      </Text>
+    </View>
+  );
+
+  if (!gesture) return contenido;
+
+  return <GestureDetector gesture={gesture}>{contenido}</GestureDetector>;
 }
 
 function obtenerCoincidencia(porcentaje: number, faltantes: number) {

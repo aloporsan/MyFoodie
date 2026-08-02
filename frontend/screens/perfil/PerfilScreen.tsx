@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import {
   Pressable,
@@ -16,20 +17,33 @@ import { EstadisticaItem } from '@/components/perfil/EstadisticaItem';
 import { MenuPerfil } from '@/components/perfil/MenuPerfil';
 import { PerfilHeader } from '@/components/perfil/PerfilHeader';
 import { usePerfilStore } from '@/store/perfilStore';
+import { useSocialStore } from '@/store/socialStore';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
 
 export function PerfilScreen() {
+  const router = useRouter();
   const { perfil, estadisticas, isLoading, error, cargarPerfil, cargarEstadisticas } =
     usePerfilStore();
+  const seguidores = useSocialStore((s) => s.seguidores);
+  const seguidos = useSocialStore((s) => s.seguidos);
+  const cargarSeguidores = useSocialStore((s) => s.cargarSeguidores);
+  const cargarSeguidos = useSocialStore((s) => s.cargarSeguidos);
+  const cargarSolicitudes = useSocialStore((s) => s.cargarSolicitudes);
 
   useEffect(() => {
     cargarPerfil();
     cargarEstadisticas();
+    cargarSeguidores();
+    cargarSeguidos();
+    cargarSolicitudes();
   }, []);
 
   const onRefresh = () => {
     cargarPerfil();
     cargarEstadisticas();
+    cargarSeguidores();
+    cargarSeguidos();
+    cargarSolicitudes();
   };
 
   if (isLoading && perfil === null) {
@@ -67,6 +81,24 @@ export function PerfilScreen() {
         }
       >
         <PerfilHeader perfil={perfil} />
+
+        <View style={styles.statsSocialRow}>
+          <Pressable style={styles.statSocialItem} onPress={() => router.push('/social/seguidores')}>
+            <Text style={styles.statSocialValor}>{seguidores.length}</Text>
+            <Text style={styles.statSocialLabel}>Seguidores</Text>
+          </Pressable>
+          <Pressable style={styles.statSocialItem} onPress={() => router.push('/social/seguidos')}>
+            <Text style={styles.statSocialValor}>{seguidos.length}</Text>
+            <Text style={styles.statSocialLabel}>Seguidos</Text>
+          </Pressable>
+          <Pressable
+            style={styles.statSocialItem}
+            onPress={() => router.push('/perfil/recetas-publicadas')}
+          >
+            <Text style={styles.statSocialValor}>{estadisticas?.totalRecetasPublicadas ?? 0}</Text>
+            <Text style={styles.statSocialLabel}>Recetas</Text>
+          </Pressable>
+        </View>
 
         <View style={styles.seccion}>
           <Text style={styles.seccionTitulo}>Resumen</Text>
@@ -139,6 +171,29 @@ const styles = StyleSheet.create({
   statsGrid: {
     flexDirection: 'row',
     gap: spacing.md,
+  },
+  statsSocialRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: colors.white,
+    marginHorizontal: spacing.lg,
+    marginTop: -spacing.md,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md,
+    ...shadows.sm,
+  },
+  statSocialItem: {
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: spacing.md,
+  },
+  statSocialValor: {
+    ...typography.heading3,
+    color: colors.text.primary,
+  },
+  statSocialLabel: {
+    ...typography.caption,
+    color: colors.text.secondary,
   },
   errorTitulo: {
     ...typography.heading3,

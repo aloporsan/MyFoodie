@@ -9,6 +9,7 @@ import com.myfoodie.application.dto.perfil.PrivacidadUpdateDTO;
 import com.myfoodie.domain.model.ConfiguracionPrivacidad;
 import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.Preferencias;
+import com.myfoodie.domain.model.Privacidad;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.DespensaRepository;
@@ -92,7 +93,10 @@ public class PerfilService {
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
 
         ConfiguracionPrivacidad cfg = usuario.getConfiguracionPrivacidad();
-        if (dto.perfilPublico() != null) cfg.setPerfilPublico(dto.perfilPublico());
+        if (dto.perfilPublico() != null) {
+            cfg.setPerfilPublico(dto.perfilPublico());
+            usuario.setPrivacidad(dto.perfilPublico() ? Privacidad.PUBLICA : Privacidad.PRIVADA);
+        }
         if (dto.mostrarRecetas() != null) cfg.setMostrarRecetas(dto.mostrarRecetas());
         if (dto.mostrarEstadisticas() != null) cfg.setMostrarEstadisticas(dto.mostrarEstadisticas());
         if (dto.permitirMensajes() != null) cfg.setPermitirMensajes(dto.permitirMensajes());

@@ -21,9 +21,17 @@ interface GestosCardProps {
   onDescartar: () => void;
   onLike: () => void;
   onPress?: () => void;
+  onAutorPress?: () => void;
 }
 
-export function GestosCard({ receta, onGuardar, onDescartar, onLike, onPress }: GestosCardProps) {
+export function GestosCard({
+  receta,
+  onGuardar,
+  onDescartar,
+  onLike,
+  onPress,
+  onAutorPress,
+}: GestosCardProps) {
   const translateX = useSharedValue(0);
   const likeScale = useSharedValue(0);
   const [mostrarLike, setMostrarLike] = useState(false);
@@ -67,8 +75,18 @@ export function GestosCard({ receta, onGuardar, onDescartar, onLike, onPress }: 
       runOnJS(dispararLike)();
     });
 
+  // Gesto propio del autor (foto+nombre), envuelto en su propio GestureDetector dentro de
+  // RecetaCard. toqueSimpleGesture espera a que este falle antes de activarse, así un tap
+  // sobre el autor navega solo al perfil y no también al detalle de la receta.
+  const autorTapGesture = Gesture.Tap()
+    .hitSlop(8)
+    .onEnd(() => {
+      if (onAutorPress) runOnJS(onAutorPress)();
+    });
+
   const toqueSimpleGesture = Gesture.Tap()
     .numberOfTaps(1)
+    .requireExternalGestureToFail(autorTapGesture)
     .onEnd(() => {
       if (onPress) runOnJS(onPress)();
     });
@@ -96,7 +114,7 @@ export function GestosCard({ receta, onGuardar, onDescartar, onLike, onPress }: 
   return (
     <GestureDetector gesture={gesto}>
       <Animated.View style={[styles.container, cardStyle]}>
-        <RecetaCard receta={receta} />
+        <RecetaCard receta={receta} autorGesture={onAutorPress ? autorTapGesture : undefined} />
 
         <Animated.View
           testID="overlay-guardar"
