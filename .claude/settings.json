@@ -43,7 +43,12 @@
       "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('postman/MyFoodie_Social.postman_collection.json','utf8'\\)\\); console.log\\('JSON valido'\\)\")",
       "Bash(timeout 40 npx expo start --offline --port 8099)",
       "Bash(grep -o \"social[^\\\\`]*\" .expo/types/router.d.ts)",
-      "Bash(tasklist //FI \"IMAGENAME eq node.exe\")"
+      "Bash(tasklist //FI \"IMAGENAME eq node.exe\")",
+      "Bash(./mvnw.cmd -q -o test -Dtest=SocialServiceTest)",
+      "Bash(./mvnw.cmd -q -o test -Dtest=SocialControllerIntegrationTest)",
+      "Bash(./mvnw.cmd -q -o test)",
+      "Bash(awk '{fails+=$5+0; errs+=$8+0} END {print \"files scanned\"}')",
+      "Bash(git reset *)"
     ]
   }
 }
