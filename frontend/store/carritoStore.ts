@@ -4,6 +4,7 @@ import {
   CarritoResumen,
   ItemCarrito,
   ItemCarritoInput,
+  ItemCompradoAjuste,
   ListaCompra,
   carritoService,
 } from '@/services/carritoService';
@@ -33,7 +34,7 @@ interface CarritoActions {
   cargarListas: () => Promise<void>;
   cargarLista: (id: string) => Promise<void>;
   marcarComprado: (listaId: string, itemId: string) => Promise<void>;
-  añadirCompradosADespensa: (listaId: string) => Promise<void>;
+  añadirCompradosADespensa: (listaId: string, ajustes?: ItemCompradoAjuste[]) => Promise<void>;
   clearError: () => void;
   reset: () => void;
 }
@@ -234,10 +235,10 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
     }
   },
 
-  añadirCompradosADespensa: async (listaId) => {
+  añadirCompradosADespensa: async (listaId, ajustes) => {
     set({ error: null });
     try {
-      const lista = await carritoService.añadirCompradosADespensa(listaId);
+      const lista = await carritoService.añadirCompradosADespensa(listaId, ajustes);
       set((s) => ({
         listas: s.listas.map((l) => (l.id === listaId ? lista : l)),
         listaActiva: s.listaActiva && s.listaActiva.id === listaId ? lista : s.listaActiva,

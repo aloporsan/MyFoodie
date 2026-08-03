@@ -4,6 +4,7 @@ import com.myfoodie.application.dto.carrito.CarritoDTO;
 import com.myfoodie.application.dto.carrito.ItemCarritoCantidadDTO;
 import com.myfoodie.application.dto.carrito.ItemCarritoRequestDTO;
 import com.myfoodie.application.dto.carrito.ItemCarritoResponseDTO;
+import com.myfoodie.application.dto.carrito.ItemCompradoAjusteDTO;
 import com.myfoodie.application.dto.carrito.ListaCompraRequestDTO;
 import com.myfoodie.application.dto.carrito.ListaCompraResponseDTO;
 import com.myfoodie.application.service.CarritoInteligenteService;
@@ -111,9 +112,10 @@ public class CarritoController {
     @PostMapping("/listas/{id}/añadir-despensa")
     public ResponseEntity<ListaCompraResponseDTO> añadirCompradosADespensa(
             @PathVariable String id,
+            @RequestBody(required = false) List<ItemCompradoAjusteDTO> ajustes,
             Principal principal) {
         String usuarioId = getUsuarioId(principal);
-        carritoInteligenteService.añadirProductosCompradosADespensa(usuarioId, id);
+        carritoInteligenteService.añadirProductosCompradosADespensa(usuarioId, id, ajustes);
         return ResponseEntity.ok(carritoInteligenteService.obtenerListaCompra(usuarioId, id));
     }
 

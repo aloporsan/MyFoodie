@@ -44,6 +44,12 @@ export interface ItemCarritoInput {
   categoria?: string;
 }
 
+export interface ItemCompradoAjuste {
+  itemId: string;
+  cantidad?: number;
+  fechaCaducidad?: string;
+}
+
 export interface ListaCompra {
   id: string;
   nombre: string;
@@ -122,8 +128,14 @@ export const carritoService = {
     return data;
   },
 
-  añadirCompradosADespensa: async (listaId: string): Promise<ListaCompra> => {
-    const { data } = await apiClient.post<ListaCompra>(`/carrito/listas/${listaId}/añadir-despensa`);
+  añadirCompradosADespensa: async (
+    listaId: string,
+    ajustes?: ItemCompradoAjuste[]
+  ): Promise<ListaCompra> => {
+    const { data } = await apiClient.post<ListaCompra>(
+      `/carrito/listas/${listaId}/añadir-despensa`,
+      ajustes ?? []
+    );
     return data;
   },
 };

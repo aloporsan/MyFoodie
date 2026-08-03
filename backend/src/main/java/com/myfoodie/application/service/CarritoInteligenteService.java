@@ -3,6 +3,7 @@ package com.myfoodie.application.service;
 import com.myfoodie.application.dto.carrito.CarritoDTO;
 import com.myfoodie.application.dto.carrito.CarritoResumenDTO;
 import com.myfoodie.application.dto.carrito.ItemCarritoRequestDTO;
+import com.myfoodie.application.dto.carrito.ItemCompradoAjusteDTO;
 import com.myfoodie.application.dto.carrito.ItemCarritoResponseDTO;
 import com.myfoodie.application.dto.carrito.ListaCompraResponseDTO;
 import com.myfoodie.domain.model.Despensa;
@@ -239,7 +240,8 @@ public class CarritoInteligenteService {
         return toItemDTO(itemCarritoRepository.save(item), nombresEnDespensa(usuarioId));
     }
 
-    public void añadirProductosCompradosADespensa(String usuarioId, String listaId) {
+    public void añadirProductosCompradosADespensa(String usuarioId, String listaId,
+                                                   List<ItemCompradoAjusteDTO> ajustes) {
         ListaCompra lista = getListaDeUsuario(usuarioId, listaId);
         Despensa despensa = despensaRepository.findByUsuarioId(usuarioId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Despensa no encontrada"));
@@ -251,13 +253,21 @@ public class CarritoInteligenteService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "La lista no tiene productos comprados");
         }
 
+        Map<String, ItemCompradoAjusteDTO> ajustesPorItemId = ajustes == null ? Map.of()
+                : ajustes.stream().collect(Collectors.toMap(ItemCompradoAjusteDTO::itemId, a -> a));
+
         for (ItemCarrito item : comprados) {
+            ItemCompradoAjusteDTO ajuste = ajustesPorItemId.get(item.getId());
+            Float cantidad = ajuste != null && ajuste.cantidad() != null ? ajuste.cantidad() : item.getCantidad();
+            LocalDate fechaCaducidad = ajuste != null ? ajuste.fechaCaducidad() : null;
+
             productoRepository.save(Producto.builder()
                     .despensaId(despensa.getId())
                     .nombre(item.getNombre())
-                    .cantidad(item.getCantidad() != null ? item.getCantidad() : 0)
+                    .cantidad(cantidad != null ? cantidad : 0)
                     .unidad(item.getUnidad())
                     .categoria(item.getCategoria())
+                    .fechaCaducidad(fechaCaducidad)
                     .fechaCompra(LocalDate.now())
                     .build());
         }
