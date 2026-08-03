@@ -109,23 +109,28 @@ public class CarritoInteligenteService {
     // -------------------------------------------------------------------------
 
     public CarritoDTO obtenerCarrito(String usuarioId) {
-        List<ItemCarrito> pendientes = itemCarritoRepository.findByUsuarioIdAndEstado(usuarioId, "pendiente")
+        List<ItemCarrito> todos = itemCarritoRepository.findByUsuarioId(usuarioId)
                 .stream()
+                .filter(i -> !"comprado".equals(i.getEstado()))
                 .sorted(Comparator.comparingInt(i -> ordenPrioridad(i.getPrioridad())))
                 .toList();
 
+        List<ItemCarrito> pendientes = todos.stream()
+                .filter(i -> "pendiente".equals(i.getEstado()))
+                .toList();
+
         Set<String> nombresEnDespensa = nombresEnDespensa(usuarioId);
-        List<ItemCarritoResponseDTO> items = pendientes.stream()
+        List<ItemCarritoResponseDTO> items = todos.stream()
                 .map(i -> toItemDTO(i, nombresEnDespensa))
                 .toList();
 
-        int itemsAceptados = itemCarritoRepository.findByUsuarioIdAndEstado(usuarioId, "aceptado").size();
+        long itemsAceptados = todos.stream().filter(i -> "aceptado".equals(i.getEstado())).count();
         CarritoResumenDTO resumen = new CarritoResumenDTO(
-                items.size(),
+                pendientes.size(),
                 (int) pendientes.stream().filter(i -> "alta".equals(i.getPrioridad())).count(),
                 (int) pendientes.stream().filter(i -> "media".equals(i.getPrioridad())).count(),
                 (int) pendientes.stream().filter(i -> "baja".equals(i.getPrioridad())).count(),
-                itemsAceptados
+                (int) itemsAceptados
         );
         return new CarritoDTO(items, resumen);
     }
