@@ -157,6 +157,14 @@ public class CarritoInteligenteService {
         return toItemDTO(itemCarritoRepository.save(item), nombresEnDespensa(usuarioId));
     }
 
+    public ItemCarritoResponseDTO recuperarItem(String usuarioId, String itemId) {
+        ItemCarrito item = getItemDeUsuario(usuarioId, itemId);
+        item.setEstado("pendiente");
+        item.setNoVolver(false);
+        item.setUpdatedAt(LocalDateTime.now());
+        return toItemDTO(itemCarritoRepository.save(item), nombresEnDespensa(usuarioId));
+    }
+
     public ItemCarritoResponseDTO modificarCantidad(String usuarioId, String itemId, Float nuevaCantidad) {
         ItemCarrito item = getItemDeUsuario(usuarioId, itemId);
         item.setCantidad(nuevaCantidad);

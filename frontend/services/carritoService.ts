@@ -79,6 +79,11 @@ export const carritoService = {
     return data;
   },
 
+  recuperarItem: async (id: string): Promise<ItemCarrito> => {
+    const { data } = await apiClient.put<ItemCarrito>(`/carrito/items/${id}/recuperar`);
+    return data;
+  },
+
   modificarCantidad: async (id: string, cantidad: number): Promise<ItemCarrito> => {
     const { data } = await apiClient.put<ItemCarrito>(`/carrito/items/${id}/cantidad`, {
       cantidad,

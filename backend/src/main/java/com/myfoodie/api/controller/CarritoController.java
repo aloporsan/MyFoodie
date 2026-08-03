@@ -53,6 +53,11 @@ public class CarritoController {
         return ResponseEntity.ok(carritoInteligenteService.marcarNoVolver(getUsuarioId(principal), id));
     }
 
+    @PutMapping("/items/{id}/recuperar")
+    public ResponseEntity<ItemCarritoResponseDTO> recuperar(@PathVariable String id, Principal principal) {
+        return ResponseEntity.ok(carritoInteligenteService.recuperarItem(getUsuarioId(principal), id));
+    }
+
     @PutMapping("/items/{id}/cantidad")
     public ResponseEntity<ItemCarritoResponseDTO> modificarCantidad(
             @PathVariable String id,

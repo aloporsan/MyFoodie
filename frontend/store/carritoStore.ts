@@ -25,6 +25,7 @@ interface CarritoActions {
   aceptarItem: (id: string) => Promise<void>;
   rechazarItem: (id: string) => Promise<void>;
   marcarNoVolver: (id: string) => Promise<void>;
+  recuperarItem: (id: string) => Promise<void>;
   modificarCantidad: (id: string, cantidad: number) => Promise<void>;
   añadirItemManual: (datos: ItemCarritoInput) => Promise<void>;
   eliminarItem: (id: string) => Promise<void>;
@@ -120,6 +121,20 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
     set({ error: null });
     try {
       const actualizado = await carritoService.marcarNoVolver(id);
+      set((s) => {
+        const items = s.items.map((i) => (i.id === id ? actualizado : i));
+        return { items, resumen: calcularResumen(items) };
+      });
+    } catch (e) {
+      set({ error: handleApiError(e) });
+      throw e;
+    }
+  },
+
+  recuperarItem: async (id) => {
+    set({ error: null });
+    try {
+      const actualizado = await carritoService.recuperarItem(id);
       set((s) => {
         const items = s.items.map((i) => (i.id === id ? actualizado : i));
         return { items, resumen: calcularResumen(items) };
