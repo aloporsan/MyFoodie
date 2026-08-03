@@ -26,6 +26,7 @@ import com.myfoodie.domain.repository.RecetaRepository;
 import com.myfoodie.exception.ApiException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.annotation.Async;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -175,6 +176,7 @@ public class CarritoInteligenteService {
         itemCarritoRepository.delete(getItemDeUsuario(usuarioId, itemId));
     }
 
+    @Async
     public void actualizarCarritoTrasModificacionDespensa(String usuarioId) {
         List<ItemCarrito> pendientesAutomaticos = itemCarritoRepository
                 .findByUsuarioIdAndEstado(usuarioId, "pendiente")
