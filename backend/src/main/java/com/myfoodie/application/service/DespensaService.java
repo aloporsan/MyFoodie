@@ -243,6 +243,7 @@ public class DespensaService {
                 .productoId(p.getId())
                 .despensaId(p.getDespensaId())
                 .usuarioId(usuarioId)
+                .nombre(p.getNombre())
                 .tipo(tipo)
                 .descripcion(descripcion)
                 .cantidadAnterior(cantidadAnterior)
