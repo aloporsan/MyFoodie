@@ -1,0 +1,517 @@
+{
+  "info": {
+    "name": "MyFoodie — Carrito Inteligente API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",         "value": "http://localhost:8080" },
+    { "key": "emailUsuario",    "value": "" },
+    { "key": "nombreUsuarioA",  "value": "" },
+    { "key": "emailOtro",       "value": "" },
+    { "key": "nombreUsuarioB",  "value": "" },
+    { "key": "tokenUsuario",    "value": "" },
+    { "key": "idUsuario",       "value": "" },
+    { "key": "tokenOtro",       "value": "" },
+    { "key": "idOtro",          "value": "" },
+    { "key": "recetaId",        "value": "" },
+    { "key": "itemAceptarId",   "value": "" },
+    { "key": "itemRechazarId",  "value": "" },
+    { "key": "itemNoVolverId",  "value": "" },
+    { "key": "itemManualId",    "value": "" },
+    { "key": "listaId",         "value": "" }
+  ],
+  "item": [
+    {
+      "name": "🔧 Setup",
+      "item": [
+        {
+          "name": "Registrar Usuario Carrito",
+          "event": [
+            { "listen": "prerequest", "script": { "exec": [
+              "const sufijo = Date.now();",
+              "pm.collectionVariables.set('emailUsuario', `carrito_usuario_${sufijo}@test.com`);",
+              "pm.collectionVariables.set('nombreUsuarioA', `carritousuario${sufijo}`);",
+              "pm.collectionVariables.set('emailOtro', `carrito_otro_${sufijo}@test.com`);",
+              "pm.collectionVariables.set('nombreUsuarioB', `carritootro${sufijo}`);"
+            ] } },
+            { "listen": "test", "script": { "exec": [
+              "pm.test('Status 201', () => pm.response.to.have.status(201));"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Carrito Usuario\",\n  \"nombreUsuario\": \"{{nombreUsuarioA}}\",\n  \"email\": \"{{emailUsuario}}\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Registrar Otro Usuario",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Carrito Otro\",\n  \"nombreUsuario\": \"{{nombreUsuarioB}}\",\n  \"email\": \"{{emailOtro}}\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Login Usuario Carrito",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "if (json.token) pm.collectionVariables.set('tokenUsuario', json.token);",
+            "if (json.userId) pm.collectionVariables.set('idUsuario', json.userId);",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Tiene token', () => pm.expect(json.token).to.not.be.empty);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{emailUsuario}}\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Login Otro Usuario",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "if (json.token) pm.collectionVariables.set('tokenOtro', json.token);",
+            "if (json.userId) pm.collectionVariables.set('idOtro', json.userId);",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Tiene token', () => pm.expect(json.token).to.not.be.empty);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{emailOtro}}\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Añadir producto agotado Leche",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Leche\",\n  \"cantidad\": 0,\n  \"unidad\": \"litros\",\n  \"categoria\": \"lacteos\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "Añadir producto agotado Huevos",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Huevos\",\n  \"cantidad\": 0,\n  \"unidad\": \"unidades\",\n  \"categoria\": \"proteinas\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "Añadir producto agotado Pan",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Pan\",\n  \"cantidad\": 0,\n  \"unidad\": \"unidades\",\n  \"categoria\": \"panaderia\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "Crear receta con ingrediente faltante",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "pm.collectionVariables.set('recetaId', json.id);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"titulo\": \"Tortilla española\",\n  \"descripcion\": \"Tortilla con espinacas\",\n  \"tiempoEstimado\": 20,\n  \"dificultad\": \"facil\",\n  \"categoria\": \"principal\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas", "host": ["{{baseUrl}}"], "path": ["api", "recetas"] }
+          }
+        },
+        {
+          "name": "Añadir ingrediente faltante a la receta",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Espinacas\",\n  \"cantidad\": 2,\n  \"unidad\": \"manojos\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaId}}/ingredientes", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaId}}", "ingredientes"] }
+          }
+        },
+        {
+          "name": "Guardar receta",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }],
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaId}}/guardar", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaId}}", "guardar"] }
+          }
+        },
+        {
+          "name": "Generar recomendaciones iniciales",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }],
+            "url": { "raw": "{{baseUrl}}/api/carrito/generar", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "generar"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "✅ Carrito — Happy Path",
+      "item": [
+        {
+          "name": "1. GET carrito → estructura con items por prioridad y motivos",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Tiene items y resumen con prioridades', () => {",
+            "  pm.expect(json.items).to.be.an('array');",
+            "  pm.expect(json.items.length).to.be.at.least(1);",
+            "  pm.expect(json.resumen.itemsAlta).to.be.at.least(1);",
+            "  pm.expect(json.items[0]).to.have.property('motivo');",
+            "  pm.expect(json.items[0].motivo).to.not.be.empty;",
+            "});",
+            "const leche = json.items.find(i => i.nombre === 'Leche');",
+            "const huevos = json.items.find(i => i.nombre === 'Huevos');",
+            "const pan = json.items.find(i => i.nombre === 'Pan');",
+            "if (leche) pm.collectionVariables.set('itemAceptarId', leche.id);",
+            "if (huevos) pm.collectionVariables.set('itemRechazarId', huevos.id);",
+            "if (pan) pm.collectionVariables.set('itemNoVolverId', pan.id);"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }],
+            "url": { "raw": "{{baseUrl}}/api/carrito", "host": ["{{baseUrl}}"], "path": ["api", "carrito"] }
+          }
+        },
+        {
+          "name": "2. POST generar → regenera recomendaciones sin duplicar",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('No duplica Leche', () => {",
+            "  pm.expect(json.items.filter(i => i.nombre === 'Leche').length).to.eql(1);",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }],
+            "url": { "raw": "{{baseUrl}}/api/carrito/generar", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "generar"] }
+          }
+        },
+        {
+          "name": "3. PUT aceptar → estado aceptado",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Estado aceptado', () => pm.expect(json.estado).to.eql('aceptado'));"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }],
+            "url": { "raw": "{{baseUrl}}/api/carrito/items/{{itemAceptarId}}/aceptar", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "items", "{{itemAceptarId}}", "aceptar"] }
+          }
+        },
+        {
+          "name": "4. PUT rechazar → estado rechazado",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Estado rechazado', () => pm.expect(json.estado).to.eql('rechazado'));"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }],
+            "url": { "raw": "{{baseUrl}}/api/carrito/items/{{itemRechazarId}}/rechazar", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "items", "{{itemRechazarId}}", "rechazar"] }
+          }
+        },
+        {
+          "name": "5. PUT no-volver → noVolver true",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('noVolver true y rechazado', () => {",
+            "  pm.expect(json.noVolver).to.be.true;",
+            "  pm.expect(json.estado).to.eql('rechazado');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }],
+            "url": { "raw": "{{baseUrl}}/api/carrito/items/{{itemNoVolverId}}/no-volver", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "items", "{{itemNoVolverId}}", "no-volver"] }
+          }
+        },
+        {
+          "name": "6. PUT cantidad → cantidad actualizada",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Cantidad actualizada a 3', () => pm.expect(json.cantidad).to.eql(3));"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"cantidad\": 3\n}" },
+            "url": { "raw": "{{baseUrl}}/api/carrito/items/{{itemAceptarId}}/cantidad", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "items", "{{itemAceptarId}}", "cantidad"] }
+          }
+        },
+        {
+          "name": "7. POST item manual → 201",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "pm.collectionVariables.set('itemManualId', json.id);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Sal\",\n  \"cantidad\": 1,\n  \"unidad\": \"kg\",\n  \"categoria\": \"condimentos\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/carrito/items", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "items"] }
+          }
+        },
+        {
+          "name": "8. DELETE item → 204",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 204', () => pm.response.to.have.status(204));"
+          ] } }],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }],
+            "url": { "raw": "{{baseUrl}}/api/carrito/items/{{itemManualId}}", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "items", "{{itemManualId}}"] }
+          }
+        },
+        {
+          "name": "9. POST lista → creada con items aceptados",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "pm.test('Contiene el item aceptado', () => {",
+            "  pm.expect(json.items.some(i => i.id === pm.collectionVariables.get('itemAceptarId'))).to.be.true;",
+            "});",
+            "pm.collectionVariables.set('listaId', json.id);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }],
+            "url": { "raw": "{{baseUrl}}/api/carrito/lista", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "lista"] }
+          }
+        },
+        {
+          "name": "10. GET listas → array de listas",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Contiene la lista creada', () => {",
+            "  pm.expect(json.some(l => l.id === pm.collectionVariables.get('listaId'))).to.be.true;",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }],
+            "url": { "raw": "{{baseUrl}}/api/carrito/listas", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "listas"] }
+          }
+        },
+        {
+          "name": "11. PUT comprado → estado comprado",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Estado comprado', () => pm.expect(json.estado).to.eql('comprado'));"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }],
+            "url": { "raw": "{{baseUrl}}/api/carrito/listas/{{listaId}}/items/{{itemAceptarId}}/comprado", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "listas", "{{listaId}}", "items", "{{itemAceptarId}}", "comprado"] }
+          }
+        },
+        {
+          "name": "12. POST añadir-despensa → productos añadidos",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Lista completada', () => pm.expect(json.estado).to.eql('completada'));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }],
+            "url": { "raw": "{{baseUrl}}/api/carrito/listas/{{listaId}}/añadir-despensa", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "listas", "{{listaId}}", "añadir-despensa"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🧠 Carrito — Algoritmo",
+      "item": [
+        {
+          "name": "Añadir producto agotado Mantequilla",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Mantequilla\",\n  \"cantidad\": 0,\n  \"unidad\": \"unidades\",\n  \"categoria\": \"lacteos\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "1. POST generar tras nuevo producto agotado",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }],
+            "url": { "raw": "{{baseUrl}}/api/carrito/generar", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "generar"] }
+          }
+        },
+        {
+          "name": "2. GET carrito con producto agotado → prioridad alta y motivo correcto",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const mantequilla = json.items.find(i => i.nombre === 'Mantequilla');",
+            "pm.test('Mantequilla prioridad alta con motivo de agotado', () => {",
+            "  pm.expect(mantequilla).to.not.be.undefined;",
+            "  pm.expect(mantequilla.prioridad).to.eql('alta');",
+            "  pm.expect(mantequilla.motivo).to.include('se ha agotado');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }],
+            "url": { "raw": "{{baseUrl}}/api/carrito", "host": ["{{baseUrl}}"], "path": ["api", "carrito"] }
+          }
+        },
+        {
+          "name": "3. GET carrito con receta guardada → item con recetaId",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const espinacas = json.items.find(i => i.nombre === 'Espinacas');",
+            "pm.test('Espinacas tiene recetaId de la receta guardada', () => {",
+            "  pm.expect(espinacas).to.not.be.undefined;",
+            "  pm.expect(espinacas.recetaId).to.eql(pm.collectionVariables.get('recetaId'));",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }],
+            "url": { "raw": "{{baseUrl}}/api/carrito", "host": ["{{baseUrl}}"], "path": ["api", "carrito"] }
+          }
+        },
+        {
+          "name": "4. GET carrito con producto noVolver → no aparece",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Pan no aparece tras marcarlo noVolver', () => {",
+            "  pm.expect(json.items.some(i => i.nombre === 'Pan')).to.be.false;",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }],
+            "url": { "raw": "{{baseUrl}}/api/carrito", "host": ["{{baseUrl}}"], "path": ["api", "carrito"] }
+          }
+        },
+        {
+          "name": "5. POST generar de nuevo → producto ya en carrito no se duplica",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Mantequilla sigue apareciendo una sola vez', () => {",
+            "  pm.expect(json.items.filter(i => i.nombre === 'Mantequilla').length).to.eql(1);",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenUsuario}}" }],
+            "url": { "raw": "{{baseUrl}}/api/carrito/generar", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "generar"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "❌ Carrito — Error Cases",
+      "item": [
+        {
+          "name": "POST lista sin items aceptados → 400",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 400', () => pm.response.to.have.status(400));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenOtro}}" }],
+            "url": { "raw": "{{baseUrl}}/api/carrito/lista", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "lista"] }
+          }
+        },
+        {
+          "name": "PUT aceptar item de otro usuario → 403",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403', () => pm.response.to.have.status(403));"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenOtro}}" }],
+            "url": { "raw": "{{baseUrl}}/api/carrito/items/{{itemNoVolverId}}/aceptar", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "items", "{{itemNoVolverId}}", "aceptar"] }
+          }
+        },
+        {
+          "name": "GET carrito sin token → 401",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 401', () => pm.response.to.have.status(401));"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/carrito", "host": ["{{baseUrl}}"], "path": ["api", "carrito"] }
+          }
+        }
+      ]
+    }
+  ]
+}
