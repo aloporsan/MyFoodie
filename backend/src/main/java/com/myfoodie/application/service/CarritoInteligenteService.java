@@ -1,8 +1,14 @@
 package com.myfoodie.application.service;
 
+import com.myfoodie.application.dto.carrito.CarritoDTO;
+import com.myfoodie.application.dto.carrito.CarritoResumenDTO;
+import com.myfoodie.application.dto.carrito.ItemCarritoRequestDTO;
+import com.myfoodie.application.dto.carrito.ItemCarritoResponseDTO;
+import com.myfoodie.application.dto.carrito.ListaCompraResponseDTO;
 import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.IngredienteReceta;
 import com.myfoodie.domain.model.ItemCarrito;
+import com.myfoodie.domain.model.ListaCompra;
 import com.myfoodie.domain.model.MovimientoProducto;
 import com.myfoodie.domain.model.Preferencias;
 import com.myfoodie.domain.model.Producto;
@@ -11,17 +17,22 @@ import com.myfoodie.domain.model.RecetaGuardada;
 import com.myfoodie.domain.repository.DespensaRepository;
 import com.myfoodie.domain.repository.IngredienteRecetaRepository;
 import com.myfoodie.domain.repository.ItemCarritoRepository;
+import com.myfoodie.domain.repository.ListaCompraRepository;
 import com.myfoodie.domain.repository.MovimientoProductoRepository;
 import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.ProductoRepository;
 import com.myfoodie.domain.repository.RecetaGuardadaRepository;
 import com.myfoodie.domain.repository.RecetaRepository;
+import com.myfoodie.exception.ApiException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -40,8 +51,11 @@ public class CarritoInteligenteService {
     private static final int DIAS_CONSUMIDO_HABITUAL = 30;
     private static final double RATIO_INSUFICIENTE = 0.5;
     private static final double COMPLETITUD_RECETA_CASI_LISTA = 0.7;
+    private static final DateTimeFormatter FORMATO_FECHA_LISTA =
+            DateTimeFormatter.ofPattern("d 'de' MMMM", new Locale("es", "ES"));
 
     private final ItemCarritoRepository itemCarritoRepository;
+    private final ListaCompraRepository listaCompraRepository;
     private final DespensaRepository despensaRepository;
     private final ProductoRepository productoRepository;
     private final PreferenciasRepository preferenciasRepository;
@@ -83,9 +97,161 @@ public class CarritoInteligenteService {
             if (noVolver.contains(clave) || yaEnCarrito.contains(clave)) {
                 continue;
             }
+            candidato.setUsuarioId(usuarioId);
             nuevos.add(itemCarritoRepository.save(candidato));
         }
         return nuevos;
+    }
+
+    // -------------------------------------------------------------------------
+    // Gestión del carrito
+    // -------------------------------------------------------------------------
+
+    public CarritoDTO obtenerCarrito(String usuarioId) {
+        List<ItemCarrito> pendientes = itemCarritoRepository.findByUsuarioIdAndEstado(usuarioId, "pendiente")
+                .stream()
+                .sorted(Comparator.comparingInt(i -> ordenPrioridad(i.getPrioridad())))
+                .toList();
+
+        Set<String> nombresEnDespensa = nombresEnDespensa(usuarioId);
+        List<ItemCarritoResponseDTO> items = pendientes.stream()
+                .map(i -> toItemDTO(i, nombresEnDespensa))
+                .toList();
+
+        int itemsAceptados = itemCarritoRepository.findByUsuarioIdAndEstado(usuarioId, "aceptado").size();
+        CarritoResumenDTO resumen = new CarritoResumenDTO(
+                items.size(),
+                (int) pendientes.stream().filter(i -> "alta".equals(i.getPrioridad())).count(),
+                (int) pendientes.stream().filter(i -> "media".equals(i.getPrioridad())).count(),
+                (int) pendientes.stream().filter(i -> "baja".equals(i.getPrioridad())).count(),
+                itemsAceptados
+        );
+        return new CarritoDTO(items, resumen);
+    }
+
+    public ItemCarritoResponseDTO aceptarItem(String usuarioId, String itemId) {
+        ItemCarrito item = getItemDeUsuario(usuarioId, itemId);
+        item.setEstado("aceptado");
+        item.setUpdatedAt(LocalDateTime.now());
+        return toItemDTO(itemCarritoRepository.save(item), nombresEnDespensa(usuarioId));
+    }
+
+    public ItemCarritoResponseDTO rechazarItem(String usuarioId, String itemId) {
+        ItemCarrito item = getItemDeUsuario(usuarioId, itemId);
+        item.setEstado("rechazado");
+        item.setUpdatedAt(LocalDateTime.now());
+        return toItemDTO(itemCarritoRepository.save(item), nombresEnDespensa(usuarioId));
+    }
+
+    public ItemCarritoResponseDTO marcarNoVolver(String usuarioId, String itemId) {
+        ItemCarrito item = getItemDeUsuario(usuarioId, itemId);
+        item.setNoVolver(true);
+        item.setEstado("rechazado");
+        item.setUpdatedAt(LocalDateTime.now());
+        return toItemDTO(itemCarritoRepository.save(item), nombresEnDespensa(usuarioId));
+    }
+
+    public ItemCarritoResponseDTO modificarCantidad(String usuarioId, String itemId, Float nuevaCantidad) {
+        ItemCarrito item = getItemDeUsuario(usuarioId, itemId);
+        item.setCantidad(nuevaCantidad);
+        item.setUpdatedAt(LocalDateTime.now());
+        return toItemDTO(itemCarritoRepository.save(item), nombresEnDespensa(usuarioId));
+    }
+
+    public ItemCarritoResponseDTO añadirItemManual(String usuarioId, ItemCarritoRequestDTO dto) {
+        ItemCarrito item = ItemCarrito.builder()
+                .usuarioId(usuarioId)
+                .nombre(dto.nombre())
+                .cantidad(dto.cantidad())
+                .unidad(dto.unidad())
+                .categoria(dto.categoria())
+                .prioridad("media")
+                .estado("pendiente")
+                .build();
+        return toItemDTO(itemCarritoRepository.save(item), nombresEnDespensa(usuarioId));
+    }
+
+    public void eliminarItem(String usuarioId, String itemId) {
+        itemCarritoRepository.delete(getItemDeUsuario(usuarioId, itemId));
+    }
+
+    public void actualizarCarritoTrasModificacionDespensa(String usuarioId) {
+        List<ItemCarrito> pendientesAutomaticos = itemCarritoRepository
+                .findByUsuarioIdAndEstado(usuarioId, "pendiente")
+                .stream()
+                .filter(i -> i.getMotivo() != null)
+                .toList();
+        itemCarritoRepository.deleteAll(pendientesAutomaticos);
+        generarRecomendaciones(usuarioId);
+    }
+
+    // -------------------------------------------------------------------------
+    // Lista de compra
+    // -------------------------------------------------------------------------
+
+    public ListaCompraResponseDTO generarListaCompra(String usuarioId, String nombre) {
+        List<ItemCarrito> aceptados = itemCarritoRepository.findByUsuarioIdAndEstado(usuarioId, "aceptado");
+        if (aceptados.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "No hay items aceptados para generar la lista");
+        }
+
+        String nombreLista = (nombre == null || nombre.isBlank())
+                ? "Lista del " + LocalDate.now().format(FORMATO_FECHA_LISTA)
+                : nombre;
+
+        ListaCompra lista = ListaCompra.builder()
+                .usuarioId(usuarioId)
+                .nombre(nombreLista)
+                .items(aceptados.stream().map(ItemCarrito::getId).toList())
+                .build();
+        return toListaDTO(listaCompraRepository.save(lista), usuarioId);
+    }
+
+    public List<ListaCompraResponseDTO> obtenerListasCompra(String usuarioId) {
+        return listaCompraRepository.findByUsuarioIdOrderByCreatedAtDesc(usuarioId).stream()
+                .map(l -> toListaDTO(l, usuarioId))
+                .toList();
+    }
+
+    public ListaCompraResponseDTO obtenerListaCompra(String usuarioId, String listaId) {
+        return toListaDTO(getListaDeUsuario(usuarioId, listaId), usuarioId);
+    }
+
+    public ItemCarritoResponseDTO marcarItemComoComprado(String usuarioId, String itemId) {
+        ItemCarrito item = getItemDeUsuario(usuarioId, itemId);
+        item.setEstado("comprado");
+        item.setUpdatedAt(LocalDateTime.now());
+        return toItemDTO(itemCarritoRepository.save(item), nombresEnDespensa(usuarioId));
+    }
+
+    public void añadirProductosCompradosADespensa(String usuarioId, String listaId) {
+        ListaCompra lista = getListaDeUsuario(usuarioId, listaId);
+        Despensa despensa = despensaRepository.findByUsuarioId(usuarioId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Despensa no encontrada"));
+
+        List<ItemCarrito> comprados = itemCarritoRepository.findAllById(lista.getItems()).stream()
+                .filter(i -> "comprado".equals(i.getEstado()))
+                .toList();
+        if (comprados.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "La lista no tiene productos comprados");
+        }
+
+        for (ItemCarrito item : comprados) {
+            productoRepository.save(Producto.builder()
+                    .despensaId(despensa.getId())
+                    .nombre(item.getNombre())
+                    .cantidad(item.getCantidad() != null ? item.getCantidad() : 0)
+                    .unidad(item.getUnidad())
+                    .categoria(item.getCategoria())
+                    .fechaCompra(LocalDate.now())
+                    .build());
+        }
+        despensa.setUpdatedAt(LocalDateTime.now());
+        despensaRepository.save(despensa);
+
+        lista.setEstado("completada");
+        lista.setUpdatedAt(LocalDateTime.now());
+        listaCompraRepository.save(lista);
     }
 
     // -------------------------------------------------------------------------
@@ -285,5 +451,74 @@ public class CarritoInteligenteService {
 
     private String normalizar(String texto) {
         return texto == null ? "" : texto.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private int ordenPrioridad(String prioridad) {
+        return switch (prioridad) {
+            case "alta" -> 0;
+            case "media" -> 1;
+            case "baja" -> 2;
+            default -> 3;
+        };
+    }
+
+    private ItemCarrito getItemDeUsuario(String usuarioId, String itemId) {
+        ItemCarrito item = itemCarritoRepository.findById(itemId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Item no encontrado"));
+        if (!item.getUsuarioId().equals(usuarioId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "No tienes permiso sobre este item");
+        }
+        return item;
+    }
+
+    private ListaCompra getListaDeUsuario(String usuarioId, String listaId) {
+        ListaCompra lista = listaCompraRepository.findById(listaId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Lista no encontrada"));
+        if (!lista.getUsuarioId().equals(usuarioId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "No tienes permiso sobre esta lista");
+        }
+        return lista;
+    }
+
+    private Set<String> nombresEnDespensa(String usuarioId) {
+        return despensaRepository.findByUsuarioId(usuarioId)
+                .map(d -> productoRepository.findByDespensaId(d.getId()).stream()
+                        .map(p -> normalizar(p.getNombre()))
+                        .collect(Collectors.toSet()))
+                .orElse(Set.of());
+    }
+
+    private ItemCarritoResponseDTO toItemDTO(ItemCarrito i, Set<String> nombresEnDespensa) {
+        return new ItemCarritoResponseDTO(
+                i.getId(),
+                i.getUsuarioId(),
+                i.getNombre(),
+                i.getCantidad(),
+                i.getUnidad(),
+                i.getCategoria(),
+                i.getPrioridad(),
+                i.getMotivo(),
+                i.getEstado(),
+                i.getNoVolver(),
+                i.getRecetaId(),
+                nombresEnDespensa.contains(normalizar(i.getNombre())),
+                i.getCreatedAt(),
+                i.getUpdatedAt()
+        );
+    }
+
+    private ListaCompraResponseDTO toListaDTO(ListaCompra lista, String usuarioId) {
+        Set<String> nombresEnDespensa = nombresEnDespensa(usuarioId);
+        List<ItemCarritoResponseDTO> items = itemCarritoRepository.findAllById(lista.getItems()).stream()
+                .map(i -> toItemDTO(i, nombresEnDespensa))
+                .toList();
+        return new ListaCompraResponseDTO(
+                lista.getId(),
+                lista.getNombre(),
+                items,
+                lista.getEstado(),
+                lista.getCreatedAt(),
+                lista.getUpdatedAt()
+        );
     }
 }
