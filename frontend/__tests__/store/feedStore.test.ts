@@ -85,6 +85,58 @@ it('descartarReceta_elimina_la_receta_de_la_lista', async () => {
 });
 
 // -------------------------------------------------------------------------
+// guardarReceta / descartarReceta — actualización optimista
+// -------------------------------------------------------------------------
+
+it('guardarReceta_elimina_carta_inmediatamente_sin_esperar_api', () => {
+  useFeedStore.setState({
+    ...estadoInicial,
+    recetas: [mockReceta({ id: 'receta-1' }), mockReceta({ id: 'receta-2' })],
+  });
+  mockService.guardarReceta.mockReturnValue(new Promise(() => {})); // nunca se resuelve en el test
+
+  useFeedStore.getState().guardarReceta('receta-1');
+
+  expect(useFeedStore.getState().recetas.map((r) => r.id)).toEqual(['receta-2']);
+});
+
+it('guardarReceta_revierte_estado_si_api_falla', async () => {
+  const recetasIniciales = [mockReceta({ id: 'receta-1' }), mockReceta({ id: 'receta-2' })];
+  useFeedStore.setState({ ...estadoInicial, recetas: recetasIniciales });
+  mockService.guardarReceta.mockRejectedValue(new Error('Error de red'));
+
+  await useFeedStore.getState().guardarReceta('receta-1');
+
+  expect(useFeedStore.getState().recetas.map((r) => r.id)).toEqual(['receta-1', 'receta-2']);
+  expect(useFeedStore.getState().error).toBe('Error de red');
+  expect(useFeedStore.getState().ultimaAccion).toBeNull();
+});
+
+it('descartarReceta_elimina_carta_inmediatamente_sin_esperar_api', () => {
+  useFeedStore.setState({
+    ...estadoInicial,
+    recetas: [mockReceta({ id: 'receta-1' }), mockReceta({ id: 'receta-2' })],
+  });
+  mockService.descartarReceta.mockReturnValue(new Promise(() => {})); // nunca se resuelve en el test
+
+  useFeedStore.getState().descartarReceta('receta-1');
+
+  expect(useFeedStore.getState().recetas.map((r) => r.id)).toEqual(['receta-2']);
+});
+
+it('descartarReceta_revierte_estado_si_api_falla', async () => {
+  const recetasIniciales = [mockReceta({ id: 'receta-1' }), mockReceta({ id: 'receta-2' })];
+  useFeedStore.setState({ ...estadoInicial, recetas: recetasIniciales });
+  mockService.descartarReceta.mockRejectedValue(new Error('Error de red'));
+
+  await useFeedStore.getState().descartarReceta('receta-1');
+
+  expect(useFeedStore.getState().recetas.map((r) => r.id)).toEqual(['receta-1', 'receta-2']);
+  expect(useFeedStore.getState().error).toBe('Error de red');
+  expect(useFeedStore.getState().ultimaAccion).toBeNull();
+});
+
+// -------------------------------------------------------------------------
 // darLike / quitarLike — actualización optimista
 // -------------------------------------------------------------------------
 

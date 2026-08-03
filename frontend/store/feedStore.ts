@@ -81,35 +81,47 @@ export const useFeedStore = create<FeedState & FeedActions>()((set, get) => ({
   },
 
   guardarReceta: async (id) => {
-    set({ error: null });
-    try {
-      await feedService.guardarReceta(id);
-      set((s) => ({
-        recetas: s.recetas.map((r) => (r.id === id ? { ...r, yaGuardada: true } : r)),
-        ultimaAccion: { tipo: 'guardada', recetaId: id },
-      }));
-    } catch (e) {
-      set({ error: handleApiError(e) });
-      throw e;
-    }
+    const snapshotRecetas = get().recetas;
+    const snapshotUltimaAccion = get().ultimaAccion;
+
+    const indice = snapshotRecetas.findIndex((r) => r.id === id);
+    const receta = indice >= 0 ? snapshotRecetas[indice] : undefined;
+
+    set({
+      error: null,
+      recetas: snapshotRecetas.filter((r) => r.id !== id),
+      ultimaAccion: { tipo: 'guardada', recetaId: id, receta, indice },
+    });
+
+    feedService.guardarReceta(id).catch((e) => {
+      set({
+        error: handleApiError(e),
+        recetas: snapshotRecetas,
+        ultimaAccion: snapshotUltimaAccion,
+      });
+    });
   },
 
   descartarReceta: async (id) => {
-    set({ error: null });
-    try {
-      await feedService.descartarReceta(id);
-      set((s) => {
-        const indice = s.recetas.findIndex((r) => r.id === id);
-        const receta = indice >= 0 ? s.recetas[indice] : undefined;
-        return {
-          recetas: s.recetas.filter((r) => r.id !== id),
-          ultimaAccion: { tipo: 'descartada', recetaId: id, receta, indice },
-        };
+    const snapshotRecetas = get().recetas;
+    const snapshotUltimaAccion = get().ultimaAccion;
+
+    const indice = snapshotRecetas.findIndex((r) => r.id === id);
+    const receta = indice >= 0 ? snapshotRecetas[indice] : undefined;
+
+    set({
+      error: null,
+      recetas: snapshotRecetas.filter((r) => r.id !== id),
+      ultimaAccion: { tipo: 'descartada', recetaId: id, receta, indice },
+    });
+
+    feedService.descartarReceta(id).catch((e) => {
+      set({
+        error: handleApiError(e),
+        recetas: snapshotRecetas,
+        ultimaAccion: snapshotUltimaAccion,
       });
-    } catch (e) {
-      set({ error: handleApiError(e) });
-      throw e;
-    }
+    });
   },
 
   darLike: async (id) => {
@@ -154,12 +166,6 @@ export const useFeedStore = create<FeedState & FeedActions>()((set, get) => ({
       set((s) => {
         switch (accion.tipo) {
           case 'guardada':
-            return {
-              recetas: s.recetas.map((r) =>
-                r.id === accion.recetaId ? { ...r, yaGuardada: false } : r
-              ),
-              ultimaAccion: null,
-            };
           case 'descartada': {
             if (!accion.receta) return { ultimaAccion: null };
             const recetas = [...s.recetas];

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -14,9 +14,13 @@ import { RecetaFeed } from '@/services/feedService';
 import { borderRadius } from '@/theme/borderRadius';
 
 const UMBRAL_SWIPE = 100;
+const DURACION_TRANSICION = 200;
+const ESCALA_POR_POSICION = 0.04;
+const TRASLADO_Y_POR_POSICION = 10;
 
 interface GestosCardProps {
   receta: RecetaFeed;
+  posicion: number;
   onGuardar: () => void;
   onDescartar: () => void;
   onLike: () => void;
@@ -26,15 +30,27 @@ interface GestosCardProps {
 
 export function GestosCard({
   receta,
+  posicion,
   onGuardar,
   onDescartar,
   onLike,
   onPress,
   onAutorPress,
 }: GestosCardProps) {
+  const esFrente = posicion === 0;
+
   const translateX = useSharedValue(0);
+  const escala = useSharedValue(1 - posicion * ESCALA_POR_POSICION);
+  const translateY = useSharedValue(posicion * TRASLADO_Y_POR_POSICION);
   const likeScale = useSharedValue(0);
   const [mostrarLike, setMostrarLike] = useState(false);
+
+  // La misma tarjeta (mismo receta.id) se reutiliza al pasar de fondo a frente, así que
+  // solo animamos el cambio de posición en vez de depender de un montaje/desmontaje.
+  useEffect(() => {
+    escala.value = withTiming(1 - posicion * ESCALA_POR_POSICION, { duration: DURACION_TRANSICION });
+    translateY.value = withTiming(posicion * TRASLADO_Y_POR_POSICION, { duration: DURACION_TRANSICION });
+  }, [posicion]);
 
   const dispararLike = () => {
     setMostrarLike(true);
@@ -49,6 +65,7 @@ export function GestosCard({
   };
 
   const panGesture = Gesture.Pan()
+    .enabled(esFrente)
     .activeOffsetX([-10, 10])
     .onUpdate((event) => {
       translateX.value = event.translationX;
@@ -70,6 +87,7 @@ export function GestosCard({
     });
 
   const dobleToqueGesture = Gesture.Tap()
+    .enabled(esFrente)
     .numberOfTaps(2)
     .onEnd(() => {
       runOnJS(dispararLike)();
@@ -79,12 +97,14 @@ export function GestosCard({
   // RecetaCard. toqueSimpleGesture espera a que este falle antes de activarse, así un tap
   // sobre el autor navega solo al perfil y no también al detalle de la receta.
   const autorTapGesture = Gesture.Tap()
+    .enabled(esFrente)
     .hitSlop(8)
     .onEnd(() => {
       if (onAutorPress) runOnJS(onAutorPress)();
     });
 
   const toqueSimpleGesture = Gesture.Tap()
+    .enabled(esFrente)
     .numberOfTaps(1)
     .requireExternalGestureToFail(autorTapGesture)
     .onEnd(() => {
@@ -95,7 +115,11 @@ export function GestosCard({
   const gesto = Gesture.Race(panGesture, tapGesture);
 
   const cardStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
+    transform: [
+      { scale: escala.value },
+      { translateY: translateY.value },
+      { translateX: translateX.value },
+    ],
   }));
 
   const overlayGuardarStyle = useAnimatedStyle(() => ({
@@ -113,8 +137,14 @@ export function GestosCard({
 
   return (
     <GestureDetector gesture={gesto}>
-      <Animated.View style={[styles.container, cardStyle]}>
-        <RecetaCard receta={receta} autorGesture={onAutorPress ? autorTapGesture : undefined} />
+      <Animated.View
+        style={[styles.container, cardStyle]}
+        pointerEvents={esFrente ? 'auto' : 'none'}
+      >
+        <RecetaCard
+          receta={receta}
+          autorGesture={esFrente ? autorTapGesture : undefined}
+        />
 
         <Animated.View
           testID="overlay-guardar"
