@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback } from 'react';
 import {
   Image,
@@ -21,26 +21,30 @@ import {
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { ErrorScreen } from '@/components/common/ErrorScreen';
+import { useCarritoStore } from '@/store/carritoStore';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
 export function DashboardScreen() {
+  const router = useRouter();
   const {
     resumen,
     estadisticas,
-    carritoResumen,
     recetasRecomendadas,
     isLoading,
     error,
     cargarDashboard,
     refrescar,
   } = useDashboardStore();
+  const carritoResumen = useCarritoStore((s) => s.resumen);
+  const cargarCarrito = useCarritoStore((s) => s.cargarCarrito);
 
   useFocusEffect(
     useCallback(() => {
       cargarDashboard();
+      cargarCarrito();
     }, [])
   );
 
@@ -81,7 +85,7 @@ export function DashboardScreen() {
         >
           {resumen && <ResumenDespensaCard resumen={resumen} />}
           {recetasRecomendadas && <RecetasRecomendadasCard />}
-          {carritoResumen && <CarritoResumenCard />}
+          <CarritoResumenCard resumen={carritoResumen} onPress={() => router.push('/carrito')} />
           {estadisticas && <EstadisticasCard estadisticas={estadisticas} />}
         </ScrollView>
       )}

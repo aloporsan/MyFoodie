@@ -92,6 +92,11 @@ export function MenuPerfil() {
       onPress: () => router.push('/perfil/recetas-guardadas'),
     },
     {
+      icono: 'cart-outline',
+      label: 'Mis listas de compra',
+      onPress: () => router.push('/carrito/listas'),
+    },
+    {
       icono: 'nutrition-outline',
       label: 'Preferencias alimentarias',
       onPress: () => router.push('/perfil/preferencias'),
