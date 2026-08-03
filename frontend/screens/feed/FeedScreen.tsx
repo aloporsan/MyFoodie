@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
@@ -20,17 +20,25 @@ export function FeedScreen() {
   const isLoading = useFeedStore((s) => s.isLoading);
   const isLoadingMas = useFeedStore((s) => s.isLoadingMas);
   const hayMas = useFeedStore((s) => s.hayMas);
+  const error = useFeedStore((s) => s.error);
   const cargarFeed = useFeedStore((s) => s.cargarFeed);
   const cargarMas = useFeedStore((s) => s.cargarMas);
   const guardarReceta = useFeedStore((s) => s.guardarReceta);
   const descartarReceta = useFeedStore((s) => s.descartarReceta);
   const darLike = useFeedStore((s) => s.darLike);
 
-  const [indiceActual, setIndiceActual] = useState(0);
+  const indiceActual = 0;
 
   useEffect(() => {
     cargarFeed();
   }, []);
+
+  useEffect(() => {
+    if (error) {
+      showError(error);
+      useFeedStore.setState({ error: null });
+    }
+  }, [error]);
 
   useEffect(() => {
     const siguientes = recetas.slice(indiceActual + 1, indiceActual + 1 + CARTAS_A_PRECARGAR);
@@ -47,25 +55,15 @@ export function FeedScreen() {
 
   const recetaActual = recetas[indiceActual];
 
-  const handleGuardar = async () => {
+  const handleGuardar = () => {
     if (!recetaActual) return;
-    try {
-      await guardarReceta(recetaActual.id);
-      showSuccess('Receta guardada');
-      setIndiceActual((i) => i + 1);
-    } catch {
-      showError('No se pudo guardar la receta');
-    }
+    void guardarReceta(recetaActual.id);
+    showSuccess('Receta guardada');
   };
 
-  const handleDescartar = async () => {
+  const handleDescartar = () => {
     if (!recetaActual) return;
-    try {
-      await descartarReceta(recetaActual.id);
-      showSuccess('Receta descartada');
-    } catch {
-      showError('No se pudo descartar la receta');
-    }
+    void descartarReceta(recetaActual.id);
   };
 
   const handleDobleToqueLike = async () => {
