@@ -18,6 +18,7 @@ export interface ItemCarrito {
   estado: EstadoItemCarrito;
   noVolver: boolean;
   recetaId?: string | null;
+  recetaTitulo?: string | null;
   productoEnDespensa: boolean;
   createdAt: string;
   updatedAt: string;

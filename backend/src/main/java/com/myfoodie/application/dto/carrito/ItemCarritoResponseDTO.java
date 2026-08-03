@@ -14,6 +14,7 @@ public record ItemCarritoResponseDTO(
         String estado,
         Boolean noVolver,
         String recetaId,
+        String recetaTitulo,
         Boolean productoEnDespensa,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

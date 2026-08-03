@@ -496,6 +496,9 @@ public class CarritoInteligenteService {
     }
 
     private ItemCarritoResponseDTO toItemDTO(ItemCarrito i, Set<String> nombresEnDespensa) {
+        String recetaTitulo = i.getRecetaId() != null
+                ? recetaRepository.findById(i.getRecetaId()).map(Receta::getTitulo).orElse(null)
+                : null;
         return new ItemCarritoResponseDTO(
                 i.getId(),
                 i.getUsuarioId(),
@@ -508,6 +511,7 @@ public class CarritoInteligenteService {
                 i.getEstado(),
                 i.getNoVolver(),
                 i.getRecetaId(),
+                recetaTitulo,
                 nombresEnDespensa.contains(normalizar(i.getNombre())),
                 i.getCreatedAt(),
                 i.getUpdatedAt()
