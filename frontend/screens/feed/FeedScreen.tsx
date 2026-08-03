@@ -5,12 +5,13 @@ import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
-import { FeedEmptyState, GestosCard, RecetaCard } from '@/components/feed';
+import { FeedEmptyState, GestosCard } from '@/components/feed';
 import { useToast } from '@/hooks/useToast';
 import { useFeedStore } from '@/store/feedStore';
 import { colors, spacing, typography } from '@/theme';
 
 const CARTAS_A_PRECARGAR = 3;
+const CARTAS_APILADAS = 3;
 
 export function FeedScreen() {
   const router = useRouter();
@@ -70,7 +71,6 @@ export function FeedScreen() {
     if (!recetaActual || recetaActual.yaLike) return;
     try {
       await darLike(recetaActual.id);
-      showSuccess('Te gusta esta receta');
     } catch {
       // Idempotente: si ya tenía like, ignoramos el conflicto sin molestar al usuario
     }
@@ -88,7 +88,7 @@ export function FeedScreen() {
     );
   }
 
-  const cartasDetras = recetas.slice(indiceActual + 1, indiceActual + 3);
+  const cartasVisibles = recetas.slice(indiceActual, indiceActual + CARTAS_APILADAS);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -105,41 +105,24 @@ export function FeedScreen() {
       </View>
 
       <View style={styles.stack}>
-        {cartasDetras
-          .slice()
+        {cartasVisibles
+          .map((receta, posicion) => ({ receta, posicion }))
           .reverse()
-          .map((receta, indexInvertido) => {
-            const posicion = cartasDetras.length - indexInvertido;
-            return (
-              <View
-                key={receta.id}
-                pointerEvents="none"
-                style={[
-                  styles.cartaFondo,
-                  {
-                    transform: [
-                      { scale: 1 - posicion * 0.04 },
-                      { translateY: posicion * 10 },
-                    ],
-                  },
-                ]}
-              >
-                <RecetaCard receta={receta} />
-              </View>
-            );
-          })}
-
-        <View style={styles.cartaActual}>
-          <GestosCard
-            key={recetaActual.id}
-            receta={recetaActual}
-            onGuardar={handleGuardar}
-            onDescartar={handleDescartar}
-            onLike={handleDobleToqueLike}
-            onPress={() => router.push(`/feed/${recetaActual.id}`)}
-            onAutorPress={() => router.push(`/social/perfil/${recetaActual.autorId}`)}
-          />
-        </View>
+          .map(({ receta, posicion }) => (
+            <View key={receta.id} style={styles.carta}>
+              <GestosCard
+                receta={receta}
+                posicion={posicion}
+                onGuardar={handleGuardar}
+                onDescartar={handleDescartar}
+                onLike={handleDobleToqueLike}
+                onPress={posicion === 0 ? () => router.push(`/feed/${receta.id}`) : undefined}
+                onAutorPress={
+                  posicion === 0 ? () => router.push(`/social/perfil/${receta.autorId}`) : undefined
+                }
+              />
+            </View>
+          ))}
       </View>
     </SafeAreaView>
   );
@@ -177,12 +160,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl,
   },
-  cartaActual: {
-    ...StyleSheet.absoluteFillObject,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-  cartaFondo: {
+  carta: {
     ...StyleSheet.absoluteFillObject,
     marginHorizontal: spacing.lg,
     marginBottom: spacing.xl,
