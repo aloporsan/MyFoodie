@@ -47,6 +47,7 @@ export interface ItemCarritoInput {
 export interface ItemCompradoAjuste {
   itemId: string;
   cantidad?: number;
+  unidad?: string;
   fechaCaducidad?: string;
 }
 

@@ -1,7 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, Modal, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
@@ -74,7 +83,9 @@ export function CarritoScreen() {
     router.push('/carrito/generar-lista');
   }, [router]);
 
-  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)'));
+  // dismissTo cierra de golpe cualquier pantalla apilada del flujo del carrito
+  // (evita tener que pulsar "atrás" más de una vez para volver al Dashboard).
+  const goBack = () => router.dismissTo('/(tabs)');
 
   const handleAñadirManual = async (datos: ItemCarritoInput) => {
     setAñadiendoManual(true);
@@ -104,15 +115,22 @@ export function CarritoScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </Pressable>
         <Text style={styles.titulo}>Carrito inteligente</Text>
-        <View style={styles.backBtn} />
+        <Pressable
+          onPress={generarCarrito}
+          disabled={isGenerando}
+          hitSlop={8}
+          style={styles.backBtn}
+        >
+          {isGenerando ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <Ionicons name="refresh" size={22} color={colors.primary} />
+          )}
+        </Pressable>
       </View>
 
       <View style={styles.resumenWrapper}>
-        <ResumenCarritoHeader
-          resumen={resumen}
-          isGenerando={isGenerando}
-          onRegenerar={generarCarrito}
-        />
+        <ResumenCarritoHeader resumen={resumen} />
       </View>
 
       <View style={styles.tabs}>

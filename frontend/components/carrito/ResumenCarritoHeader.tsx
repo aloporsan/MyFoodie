@@ -1,5 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { CarritoResumen } from '@/services/carritoService';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
@@ -8,27 +7,15 @@ import { typography } from '@/theme/typography';
 
 interface Props {
   resumen: CarritoResumen | null;
-  isGenerando?: boolean;
-  onRegenerar: () => void;
 }
 
-export function ResumenCarritoHeader({ resumen, isGenerando = false, onRegenerar }: Props) {
+export function ResumenCarritoHeader({ resumen }: Props) {
   const totalItems = resumen?.totalItems ?? 0;
   const itemsAlta = resumen?.itemsAlta ?? 0;
   const itemsAceptados = resumen?.itemsAceptados ?? 0;
 
   return (
     <View style={styles.container}>
-      <View style={styles.topRow}>
-        <Pressable style={styles.btnRegenerar} onPress={onRegenerar} disabled={isGenerando} hitSlop={8}>
-          {isGenerando ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            <Ionicons name="refresh" size={20} color={colors.primary} />
-          )}
-        </Pressable>
-      </View>
-
       <View style={styles.statsRow}>
         <View style={styles.stat}>
           <Text style={styles.statValor}>{totalItems}</Text>
@@ -53,11 +40,6 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     padding: spacing.md,
   },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginBottom: spacing.xs,
-  },
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -75,13 +57,5 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.text.secondary,
     textAlign: 'center',
-  },
-  btnRegenerar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.grayLight,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

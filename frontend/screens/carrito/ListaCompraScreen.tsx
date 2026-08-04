@@ -73,6 +73,26 @@ export function ListaCompraScreen() {
     setEditandoId(null);
   };
 
+  const irAAñadirDespensa = () => {
+    if (id) router.push(`/carrito/lista/${id}/anadir-despensa`);
+  };
+
+  const handleAñadirDespensa = () => {
+    if (todosComprados) {
+      irAAñadirDespensa();
+      return;
+    }
+    showConfirm(
+      'Compra incompleta',
+      'No has marcado todos los productos como comprados. ¿Quieres añadir a la despensa solo los que sí has comprado?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Continuar', onPress: irAAñadirDespensa },
+      ],
+      { icon: 'warning-outline', variant: 'warning' }
+    );
+  };
+
   if (isLoading && !listaActiva) {
     return <LoadingScreen />;
   }
@@ -170,12 +190,18 @@ export function ListaCompraScreen() {
       {!esCompletada && (
         <View style={styles.footer}>
           <Pressable
-            style={[styles.btnAñadirDespensa, !todosComprados && styles.btnDisabled]}
-            onPress={() => id && router.push(`/carrito/lista/${id}/anadir-despensa`)}
-            disabled={!todosComprados}
+            style={[
+              styles.btnAñadirDespensa,
+              !todosComprados && styles.btnAñadirDespensaIncompleta,
+              comprados.length === 0 && styles.btnDisabled,
+            ]}
+            onPress={handleAñadirDespensa}
+            disabled={comprados.length === 0}
           >
             <Ionicons name="basket-outline" size={18} color={colors.white} />
-            <Text style={styles.btnAñadirDespensaText}>Añadir a despensa</Text>
+            <Text style={styles.btnAñadirDespensaText}>
+              {todosComprados ? 'Añadir a despensa' : 'Añadir lo comprado a despensa'}
+            </Text>
           </Pressable>
         </View>
       )}
@@ -241,7 +267,12 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   itemMasBtn: {
-    padding: spacing.xs,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.grayLight,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginLeft: spacing.xs,
   },
   itemInfo: { flex: 1, gap: 2 },
@@ -290,6 +321,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: borderRadius.xl,
     paddingVertical: spacing.md,
+  },
+  btnAñadirDespensaIncompleta: {
+    backgroundColor: colors.error,
   },
   btnAñadirDespensaText: { ...typography.button, color: colors.white },
   btnDisabled: { opacity: 0.4 },

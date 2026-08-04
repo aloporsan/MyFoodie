@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ItemCarrito, PrioridadCarrito } from '@/services/carritoService';
 import { showConfirm } from '@/hooks/useConfirm';
 import { borderRadius } from '@/theme/borderRadius';
@@ -26,7 +26,7 @@ interface Props {
 export function ItemCarritoCard({
   item, onAceptar, onRechazar, onNoVolver, onModificarCantidad, onRecuperar,
 }: Props) {
-  const [editandoCantidad, setEditandoCantidad] = useState(false);
+  const [modalCantidadVisible, setModalCantidadVisible] = useState(false);
   const [cantidadTexto, setCantidadTexto] = useState(String(item.cantidad));
 
   const prioridad = PRIORIDAD_CONFIG[item.prioridad];
@@ -35,10 +35,21 @@ export function ItemCarritoCard({
 
   const handleMasOpciones = () => {
     showConfirm('Más opciones', undefined, [
-      { text: 'Modificar cantidad', onPress: () => setEditandoCantidad(true) },
+      {
+        text: 'Modificar cantidad',
+        onPress: () => {
+          setCantidadTexto(String(item.cantidad));
+          setModalCantidadVisible(true);
+        },
+      },
       { text: 'No volver a recomendar', style: 'destructive', onPress: onNoVolver },
       { text: 'Cancelar', style: 'cancel' },
     ]);
+  };
+
+  const ajustarCantidad = (delta: number) => {
+    const actual = parseFloat(cantidadTexto) || 0;
+    setCantidadTexto(String(Math.max(0, actual + delta)));
   };
 
   const guardarCantidad = () => {
@@ -46,7 +57,7 @@ export function ItemCarritoCard({
     if (!isNaN(valor) && valor > 0) {
       onModificarCantidad?.(valor);
     }
-    setEditandoCantidad(false);
+    setModalCantidadVisible(false);
   };
 
   return (
@@ -76,25 +87,7 @@ export function ItemCarritoCard({
         </View>
       </View>
 
-      {editandoCantidad ? (
-        <View style={styles.editCantidadRow}>
-          <TextInput
-            style={styles.cantidadInput}
-            value={cantidadTexto}
-            onChangeText={setCantidadTexto}
-            keyboardType="decimal-pad"
-            autoFocus
-            selectTextOnFocus
-          />
-          <Text style={styles.unidadText}>{item.unidad}</Text>
-          <Pressable style={styles.btnGuardarCantidad} onPress={guardarCantidad}>
-            <Text style={styles.btnGuardarCantidadText}>Guardar</Text>
-          </Pressable>
-          <Pressable onPress={() => setEditandoCantidad(false)} hitSlop={8}>
-            <Ionicons name="close" size={20} color={colors.text.secondary} />
-          </Pressable>
-        </View>
-      ) : esAceptado ? (
+      {esAceptado ? (
         <View style={styles.actions}>
           <Pressable style={styles.btnCambiarRechazado} onPress={onRechazar}>
             <Ionicons name="close-circle-outline" size={16} color={colors.text.secondary} />
@@ -123,6 +116,48 @@ export function ItemCarritoCard({
           </Pressable>
         </View>
       )}
+
+      <Modal
+        visible={modalCantidadVisible}
+        transparent
+        statusBarTranslucent
+        animationType="slide"
+        onRequestClose={() => setModalCantidadVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setModalCantidadVisible(false)} />
+          <View style={styles.modalSheet}>
+            <Text style={styles.modalTitulo}>Modificar cantidad</Text>
+            <Text style={styles.modalNombre} numberOfLines={1}>{item.nombre}</Text>
+
+            <View style={styles.modalCantidadRow}>
+              <Pressable style={styles.stepperBtn} onPress={() => ajustarCantidad(-1)} hitSlop={8}>
+                <Ionicons name="remove" size={22} color={colors.primary} />
+              </Pressable>
+              <TextInput
+                style={styles.modalCantidadInput}
+                value={cantidadTexto}
+                onChangeText={setCantidadTexto}
+                keyboardType="decimal-pad"
+                selectTextOnFocus
+              />
+              <Text style={styles.modalUnidadText}>{item.unidad}</Text>
+              <Pressable style={styles.stepperBtn} onPress={() => ajustarCantidad(1)} hitSlop={8}>
+                <Ionicons name="add" size={22} color={colors.primary} />
+              </Pressable>
+            </View>
+
+            <View style={styles.modalBotones}>
+              <Pressable style={styles.btnCancelar} onPress={() => setModalCantidadVisible(false)}>
+                <Text style={styles.btnCancelarText}>Cancelar</Text>
+              </Pressable>
+              <Pressable style={styles.btnGuardar} onPress={guardarCantidad}>
+                <Text style={styles.btnGuardarText}>Guardar</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -246,36 +281,79 @@ const styles = StyleSheet.create({
     color: colors.primaryDark,
     fontWeight: '600',
   },
-  editCantidadRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.45)',
   },
-  cantidadInput: {
-    ...typography.body,
+  modalSheet: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxxl,
+    gap: spacing.sm,
+  },
+  modalTitulo: {
+    ...typography.heading2,
     color: colors.text.primary,
-    backgroundColor: colors.grayLight,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    width: 70,
     textAlign: 'center',
   },
-  unidadText: {
-    ...typography.caption,
+  modalNombre: {
+    ...typography.body,
     color: colors.text.secondary,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
   },
-  btnGuardarCantidad: {
+  modalCantidadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  stepperBtn: {
+    backgroundColor: '#E8F5D0',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCantidadInput: {
+    ...typography.heading1,
+    fontSize: 28,
+    color: colors.text.primary,
+    textAlign: 'center',
+    minWidth: 60,
+    borderBottomWidth: 2,
+    borderBottomColor: colors.primary,
+    paddingVertical: spacing.xs,
+  },
+  modalUnidadText: {
+    ...typography.body,
+    color: colors.text.secondary,
+    minWidth: 40,
+  },
+  modalBotones: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  btnCancelar: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1.5,
+    borderColor: colors.gray,
+    alignItems: 'center',
+  },
+  btnCancelarText: { ...typography.button, color: colors.text.secondary },
+  btnGuardar: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.xl,
     backgroundColor: colors.primary,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    marginLeft: 'auto',
+    alignItems: 'center',
   },
-  btnGuardarCantidadText: {
-    ...typography.caption,
-    color: colors.white,
-    fontWeight: '700',
-  },
+  btnGuardarText: { ...typography.button, color: colors.white },
 });

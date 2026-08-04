@@ -22,6 +22,11 @@ import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
+const UNIDADES = [
+  'unidades', 'kg', 'g', 'litros', 'ml', 'packs', 'latas', 'bolsas',
+  'cucharada', 'cucharadita', 'taza',
+];
+
 function dateToApi(d: Date): string {
   return d.toISOString().split('T')[0];
 }
@@ -34,6 +39,7 @@ function apiToDisplay(s: string): string {
 
 interface EdicionItem {
   cantidad: string;
+  unidad: string;
   fechaCaducidad: string;
 }
 
@@ -53,25 +59,32 @@ export function AñadirCompradosScreen() {
 
   const comprados = (listaActiva?.items ?? []).filter((i) => i.estado === 'comprado');
 
+  // Se inicializa una única vez, cuando llegan los datos por primera vez.
+  // Así no se pisa lo que el usuario ya haya editado en re-renders posteriores.
   useEffect(() => {
+    if (comprados.length === 0) return;
     setEdiciones((prev) => {
-      const siguiente = { ...prev };
-      let cambiado = false;
+      if (Object.keys(prev).length > 0) return prev;
+      const inicial: Record<string, EdicionItem> = {};
       for (const item of comprados) {
-        if (!siguiente[item.id]) {
-          siguiente[item.id] = { cantidad: String(item.cantidad), fechaCaducidad: '' };
-          cambiado = true;
-        }
+        inicial[item.id] = { cantidad: String(item.cantidad), unidad: item.unidad, fechaCaducidad: '' };
       }
-      return cambiado ? siguiente : prev;
+      return inicial;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listaActiva]);
+  }, [comprados.length]);
 
   const handleCantidadChange = (itemId: string, texto: string) => {
     setEdiciones((prev) => ({
       ...prev,
       [itemId]: { ...prev[itemId], cantidad: texto },
+    }));
+  };
+
+  const handleUnidadChange = (itemId: string, unidad: string) => {
+    setEdiciones((prev) => ({
+      ...prev,
+      [itemId]: { ...prev[itemId], unidad },
     }));
   };
 
@@ -94,6 +107,7 @@ export function AñadirCompradosScreen() {
         return {
           itemId: item.id,
           cantidad: !isNaN(cantidad) && cantidad > 0 ? cantidad : item.cantidad,
+          unidad: edicion?.unidad || item.unidad,
           fechaCaducidad: edicion?.fechaCaducidad || undefined,
         };
       });
@@ -123,22 +137,23 @@ export function AñadirCompradosScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll}>
         {comprados.map((item) => {
-          const edicion = ediciones[item.id] ?? { cantidad: String(item.cantidad), fechaCaducidad: '' };
+          const edicion = ediciones[item.id] ?? {
+            cantidad: String(item.cantidad),
+            unidad: item.unidad,
+            fechaCaducidad: '',
+          };
           return (
             <View key={item.id} style={styles.card}>
               <Text style={styles.nombre}>{item.nombre}</Text>
               <View style={styles.fila}>
                 <View style={styles.cantidadGroup}>
                   <Text style={styles.campoLabel}>Cantidad</Text>
-                  <View style={styles.cantidadRow}>
-                    <TextInput
-                      style={styles.cantidadInput}
-                      value={edicion.cantidad}
-                      onChangeText={(t) => handleCantidadChange(item.id, t)}
-                      keyboardType="decimal-pad"
-                    />
-                    <Text style={styles.unidadText}>{item.unidad}</Text>
-                  </View>
+                  <TextInput
+                    style={styles.cantidadInput}
+                    value={edicion.cantidad}
+                    onChangeText={(t) => handleCantidadChange(item.id, t)}
+                    keyboardType="decimal-pad"
+                  />
                 </View>
                 <View style={styles.flexGrow}>
                   <Text style={styles.campoLabel}>Fecha de caducidad</Text>
@@ -148,6 +163,24 @@ export function AñadirCompradosScreen() {
                   />
                 </View>
               </View>
+
+              <Text style={styles.campoLabel}>Unidad</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.chipsRow}>
+                  {UNIDADES.map((op) => (
+                    <Pressable
+                      key={op}
+                      style={[styles.chip, edicion.unidad === op && styles.chipActivo]}
+                      onPress={() => handleUnidadChange(item.id, op)}
+                      hitSlop={4}
+                    >
+                      <Text style={[styles.chipText, edicion.unidad === op && styles.chipTextActivo]}>
+                        {op}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
             </View>
           );
         })}
@@ -236,21 +269,27 @@ const styles = StyleSheet.create({
   cantidadGroup: { width: 100 },
   flexGrow: { flex: 1 },
   campoLabel: { ...typography.caption, color: colors.text.secondary, marginBottom: 4 },
-  cantidadRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.grayLight,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.sm,
-  },
   cantidadInput: {
     ...typography.body,
     color: colors.text.primary,
+    backgroundColor: colors.grayLight,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
-    flex: 1,
+    textAlign: 'center',
   },
-  unidadText: { ...typography.caption, color: colors.text.secondary },
+  chipsRow: { flexDirection: 'row', gap: spacing.sm, paddingRight: spacing.lg },
+  chip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.xl,
+    backgroundColor: colors.grayLight,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  chipActivo: { backgroundColor: '#E8F5D0', borderColor: colors.primary },
+  chipText: { ...typography.caption, color: colors.text.secondary, fontWeight: '500' },
+  chipTextActivo: { color: colors.primaryDark, fontWeight: '700' },
   fechaBtn: {
     flexDirection: 'row',
     alignItems: 'center',

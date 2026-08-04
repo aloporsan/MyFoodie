@@ -5,5 +5,6 @@ import java.time.LocalDate;
 public record ItemCompradoAjusteDTO(
         String itemId,
         Float cantidad,
+        String unidad,
         LocalDate fechaCaducidad
 ) {}

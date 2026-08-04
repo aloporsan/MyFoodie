@@ -273,13 +273,14 @@ public class CarritoInteligenteService {
         for (ItemCarrito item : comprados) {
             ItemCompradoAjusteDTO ajuste = ajustesPorItemId.get(item.getId());
             Float cantidad = ajuste != null && ajuste.cantidad() != null ? ajuste.cantidad() : item.getCantidad();
+            String unidad = ajuste != null && ajuste.unidad() != null ? ajuste.unidad() : item.getUnidad();
             LocalDate fechaCaducidad = ajuste != null ? ajuste.fechaCaducidad() : null;
 
             productoRepository.save(Producto.builder()
                     .despensaId(despensa.getId())
                     .nombre(item.getNombre())
                     .cantidad(cantidad != null ? cantidad : 0)
-                    .unidad(item.getUnidad())
+                    .unidad(unidad)
                     .categoria(item.getCategoria())
                     .fechaCaducidad(fechaCaducidad)
                     .fechaCompra(LocalDate.now())
