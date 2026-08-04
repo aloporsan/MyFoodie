@@ -1,5 +1,10 @@
 import { apiClient } from './apiClient';
 
+export const UNIDADES_CARRITO = [
+  'unidades', 'kg', 'g', 'litros', 'ml', 'packs', 'latas', 'bolsas',
+  'cucharada', 'cucharadita', 'taza',
+];
+
 export type PrioridadCarrito = 'alta' | 'media' | 'baja';
 
 export type EstadoItemCarrito = 'pendiente' | 'aceptado' | 'rechazado' | 'comprado';
@@ -91,9 +96,10 @@ export const carritoService = {
     return data;
   },
 
-  modificarCantidad: async (id: string, cantidad: number): Promise<ItemCarrito> => {
+  modificarCantidad: async (id: string, cantidad: number, unidad?: string): Promise<ItemCarrito> => {
     const { data } = await apiClient.put<ItemCarrito>(`/carrito/items/${id}/cantidad`, {
       cantidad,
+      unidad,
     });
     return data;
   },

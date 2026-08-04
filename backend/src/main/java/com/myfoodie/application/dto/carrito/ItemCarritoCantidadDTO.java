@@ -6,5 +6,6 @@ import jakarta.validation.constraints.PositiveOrZero;
 public record ItemCarritoCantidadDTO(
         @NotNull(message = "La cantidad es obligatoria")
         @PositiveOrZero(message = "La cantidad no puede ser negativa")
-        Float cantidad
+        Float cantidad,
+        String unidad
 ) {}

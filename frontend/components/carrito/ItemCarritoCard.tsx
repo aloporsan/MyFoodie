@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ItemCarrito, PrioridadCarrito } from '@/services/carritoService';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ItemCarrito, PrioridadCarrito, UNIDADES_CARRITO } from '@/services/carritoService';
 import { showConfirm } from '@/hooks/useConfirm';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
@@ -19,7 +19,7 @@ interface Props {
   onAceptar?: () => void;
   onRechazar?: () => void;
   onNoVolver?: () => void;
-  onModificarCantidad?: (cantidad: number) => void;
+  onModificarCantidad?: (cantidad: number, unidad: string) => void;
   onRecuperar?: () => void;
 }
 
@@ -28,6 +28,7 @@ export function ItemCarritoCard({
 }: Props) {
   const [modalCantidadVisible, setModalCantidadVisible] = useState(false);
   const [cantidadTexto, setCantidadTexto] = useState(String(item.cantidad));
+  const [unidadSeleccionada, setUnidadSeleccionada] = useState(item.unidad);
 
   const prioridad = PRIORIDAD_CONFIG[item.prioridad];
   const esAceptado = item.estado === 'aceptado';
@@ -39,6 +40,7 @@ export function ItemCarritoCard({
         text: 'Modificar cantidad',
         onPress: () => {
           setCantidadTexto(String(item.cantidad));
+          setUnidadSeleccionada(item.unidad);
           setModalCantidadVisible(true);
         },
       },
@@ -55,7 +57,7 @@ export function ItemCarritoCard({
   const guardarCantidad = () => {
     const valor = parseFloat(cantidadTexto);
     if (!isNaN(valor) && valor > 0) {
-      onModificarCantidad?.(valor);
+      onModificarCantidad?.(valor, unidadSeleccionada);
     }
     setModalCantidadVisible(false);
   };
@@ -141,11 +143,28 @@ export function ItemCarritoCard({
                 keyboardType="decimal-pad"
                 selectTextOnFocus
               />
-              <Text style={styles.modalUnidadText}>{item.unidad}</Text>
               <Pressable style={styles.stepperBtn} onPress={() => ajustarCantidad(1)} hitSlop={8}>
                 <Ionicons name="add" size={22} color={colors.primary} />
               </Pressable>
             </View>
+
+            <Text style={styles.campoLabel}>Unidad</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
+              <View style={styles.chipsRow}>
+                {UNIDADES_CARRITO.map((op) => (
+                  <Pressable
+                    key={op}
+                    style={[styles.chip, unidadSeleccionada === op && styles.chipActivo]}
+                    onPress={() => setUnidadSeleccionada(op)}
+                    hitSlop={4}
+                  >
+                    <Text style={[styles.chipText, unidadSeleccionada === op && styles.chipTextActivo]}>
+                      {op}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </ScrollView>
 
             <View style={styles.modalBotones}>
               <Pressable style={styles.btnCancelar} onPress={() => setModalCantidadVisible(false)}>
@@ -330,10 +349,39 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.primary,
     paddingVertical: spacing.xs,
   },
-  modalUnidadText: {
-    ...typography.body,
+  campoLabel: {
+    ...typography.caption,
     color: colors.text.secondary,
-    minWidth: 40,
+    marginBottom: spacing.xs,
+  },
+  chipsScroll: {
+    marginBottom: spacing.md,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingRight: spacing.lg,
+  },
+  chip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.xl,
+    backgroundColor: colors.grayLight,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  chipActivo: {
+    backgroundColor: '#E8F5D0',
+    borderColor: colors.primary,
+  },
+  chipText: {
+    ...typography.caption,
+    color: colors.text.secondary,
+    fontWeight: '500',
+  },
+  chipTextActivo: {
+    color: colors.primaryDark,
+    fontWeight: '700',
   },
   modalBotones: {
     flexDirection: 'row',

@@ -15,17 +15,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { useToast } from '@/hooks/useToast';
-import { ItemCompradoAjuste } from '@/services/carritoService';
+import { ItemCompradoAjuste, UNIDADES_CARRITO } from '@/services/carritoService';
 import { useCarritoStore } from '@/store/carritoStore';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
-
-const UNIDADES = [
-  'unidades', 'kg', 'g', 'litros', 'ml', 'packs', 'latas', 'bolsas',
-  'cucharada', 'cucharadita', 'taza',
-];
 
 function dateToApi(d: Date): string {
   return d.toISOString().split('T')[0];
@@ -167,7 +162,7 @@ export function AñadirCompradosScreen() {
               <Text style={styles.campoLabel}>Unidad</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={styles.chipsRow}>
-                  {UNIDADES.map((op) => (
+                  {UNIDADES_CARRITO.map((op) => (
                     <Pressable
                       key={op}
                       style={[styles.chip, edicion.unidad === op && styles.chipActivo]}

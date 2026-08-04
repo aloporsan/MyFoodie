@@ -166,7 +166,7 @@ export function CarritoScreen() {
                     onAceptar={() => aceptarItem(item.id)}
                     onRechazar={() => rechazarItem(item.id)}
                     onNoVolver={() => marcarNoVolver(item.id)}
-                    onModificarCantidad={(cantidad) => modificarCantidad(item.id, cantidad)}
+                    onModificarCantidad={(cantidad, unidad) => modificarCantidad(item.id, cantidad, unidad)}
                   />
                 ))}
               </View>

@@ -65,7 +65,7 @@ public class CarritoController {
             @Valid @RequestBody ItemCarritoCantidadDTO dto,
             Principal principal) {
         return ResponseEntity.ok(
-                carritoInteligenteService.modificarCantidad(getUsuarioId(principal), id, dto.cantidad()));
+                carritoInteligenteService.modificarCantidad(getUsuarioId(principal), id, dto.cantidad(), dto.unidad()));
     }
 
     @PostMapping("/items")
