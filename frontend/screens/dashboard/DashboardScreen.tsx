@@ -15,6 +15,7 @@ import {
   CarritoResumenCard,
   DashboardEmptyState,
   EstadisticasCard,
+  ListaEnCursoCard,
   RecetasRecomendadasCard,
   ResumenDespensaCard,
 } from '@/components/dashboard';
@@ -40,11 +41,14 @@ export function DashboardScreen() {
   } = useDashboardStore();
   const carritoResumen = useCarritoStore((s) => s.resumen);
   const cargarCarrito = useCarritoStore((s) => s.cargarCarrito);
+  const listaEnCurso = useCarritoStore((s) => s.listaEnCurso);
+  const cargarListaEnCurso = useCarritoStore((s) => s.cargarListaEnCurso);
 
   useFocusEffect(
     useCallback(() => {
       cargarDashboard();
       cargarCarrito();
+      cargarListaEnCurso();
     }, [])
   );
 
@@ -83,6 +87,12 @@ export function DashboardScreen() {
             />
           }
         >
+          {listaEnCurso && (
+            <ListaEnCursoCard
+              lista={listaEnCurso}
+              onPress={() => router.push(`/carrito/lista/${listaEnCurso.id}`)}
+            />
+          )}
           {resumen && <ResumenDespensaCard resumen={resumen} />}
           {recetasRecomendadas && <RecetasRecomendadasCard />}
           <CarritoResumenCard resumen={carritoResumen} onPress={() => router.push('/carrito')} />

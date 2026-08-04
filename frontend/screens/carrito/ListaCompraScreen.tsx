@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
+import { showConfirm } from '@/hooks/useConfirm';
 import { ItemCarrito } from '@/services/carritoService';
 import { useCarritoStore } from '@/store/carritoStore';
 import { borderRadius } from '@/theme/borderRadius';
@@ -16,7 +17,11 @@ export function ListaCompraScreen() {
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const id = Array.isArray(rawId) ? rawId[0] : rawId;
 
-  const { listaActiva, isLoading, cargarLista, alternarComprado } = useCarritoStore();
+  const { listaActiva, isLoading, cargarLista, alternarComprado, modificarCantidad, eliminarItem } =
+    useCarritoStore();
+
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [cantidadTexto, setCantidadTexto] = useState('');
 
   useEffect(() => {
     if (id) cargarLista(id);
@@ -44,6 +49,28 @@ export function ListaCompraScreen() {
   const handleToggle = (item: ItemCarrito) => {
     if (esCompletada || !id) return;
     alternarComprado(id, item.id);
+  };
+
+  const handleMasOpciones = (item: ItemCarrito) => {
+    showConfirm('Más opciones', undefined, [
+      {
+        text: 'Editar cantidad',
+        onPress: () => {
+          setCantidadTexto(String(item.cantidad));
+          setEditandoId(item.id);
+        },
+      },
+      { text: 'Quitar de la lista', style: 'destructive', onPress: () => eliminarItem(item.id) },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  };
+
+  const handleGuardarCantidad = (itemId: string) => {
+    const valor = parseFloat(cantidadTexto);
+    if (!isNaN(valor) && valor > 0) {
+      modificarCantidad(itemId, valor);
+    }
+    setEditandoId(null);
   };
 
   if (isLoading && !listaActiva) {
@@ -84,27 +111,56 @@ export function ListaCompraScreen() {
             <Text style={styles.grupoTitulo}>{categoria}</Text>
             {itemsCat.map((item) => {
               const marcado = item.estado === 'comprado';
-              return (
-                <Pressable
-                  key={item.id}
-                  style={styles.itemRow}
-                  onPress={() => handleToggle(item)}
-                  disabled={esCompletada}
-                >
-                  <Ionicons
-                    name={marcado ? 'checkbox' : 'square-outline'}
-                    size={22}
-                    color={marcado ? colors.primary : colors.grayMid}
-                  />
-                  <View style={styles.itemInfo}>
-                    <Text style={[styles.itemNombre, marcado && styles.itemTachado]} numberOfLines={1}>
-                      {item.nombre}
-                    </Text>
-                    <Text style={[styles.itemCantidad, marcado && styles.itemTachado]}>
-                      {item.cantidad} {item.unidad}
-                    </Text>
+
+              if (editandoId === item.id) {
+                return (
+                  <View key={item.id} style={styles.itemEditRow}>
+                    <TextInput
+                      style={styles.cantidadInput}
+                      value={cantidadTexto}
+                      onChangeText={setCantidadTexto}
+                      keyboardType="decimal-pad"
+                      autoFocus
+                      selectTextOnFocus
+                    />
+                    <Text style={styles.unidadText}>{item.unidad}</Text>
+                    <Pressable style={styles.btnGuardarCantidad} onPress={() => handleGuardarCantidad(item.id)}>
+                      <Text style={styles.btnGuardarCantidadText}>Guardar</Text>
+                    </Pressable>
+                    <Pressable onPress={() => setEditandoId(null)} hitSlop={8}>
+                      <Ionicons name="close" size={20} color={colors.text.secondary} />
+                    </Pressable>
                   </View>
-                </Pressable>
+                );
+              }
+
+              return (
+                <View key={item.id} style={styles.itemRowContainer}>
+                  <Pressable
+                    style={styles.itemRow}
+                    onPress={() => handleToggle(item)}
+                    disabled={esCompletada}
+                  >
+                    <Ionicons
+                      name={marcado ? 'checkbox' : 'square-outline'}
+                      size={22}
+                      color={marcado ? colors.primary : colors.grayMid}
+                    />
+                    <View style={styles.itemInfo}>
+                      <Text style={[styles.itemNombre, marcado && styles.itemTachado]} numberOfLines={1}>
+                        {item.nombre}
+                      </Text>
+                      <Text style={[styles.itemCantidad, marcado && styles.itemTachado]}>
+                        {item.cantidad} {item.unidad}
+                      </Text>
+                    </View>
+                  </Pressable>
+                  {!esCompletada && (
+                    <Pressable style={styles.itemMasBtn} onPress={() => handleMasOpciones(item)} hitSlop={8}>
+                      <Ionicons name="ellipsis-vertical" size={18} color={colors.text.secondary} />
+                    </Pressable>
+                  )}
+                </View>
               );
             })}
           </View>
@@ -169,19 +225,57 @@ const styles = StyleSheet.create({
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxxl },
   grupo: { marginBottom: spacing.lg },
   grupoTitulo: { ...typography.label, color: colors.primaryDark, marginBottom: spacing.sm },
+  itemRowContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+  },
   itemRow: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
+  },
+  itemMasBtn: {
+    padding: spacing.xs,
+    marginLeft: spacing.xs,
   },
   itemInfo: { flex: 1, gap: 2 },
   itemNombre: { ...typography.body, color: colors.text.primary },
   itemCantidad: { ...typography.caption, color: colors.text.secondary },
   itemTachado: { textDecorationLine: 'line-through', color: colors.grayMid },
+  itemEditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  cantidadInput: {
+    ...typography.body,
+    color: colors.text.primary,
+    backgroundColor: colors.grayLight,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    width: 70,
+    textAlign: 'center',
+  },
+  unidadText: { ...typography.caption, color: colors.text.secondary },
+  btnGuardarCantidad: {
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    marginLeft: 'auto',
+  },
+  btnGuardarCantidadText: { ...typography.caption, color: colors.white, fontWeight: '700' },
   footer: {
     padding: spacing.lg,
     backgroundColor: colors.white,

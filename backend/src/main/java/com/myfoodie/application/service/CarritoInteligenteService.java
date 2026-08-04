@@ -211,6 +211,13 @@ public class CarritoInteligenteService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "No hay items aceptados para generar la lista");
         }
 
+        // Solo puede existir una lista activa a la vez: las anteriores quedan archivadas.
+        listaCompraRepository.findByUsuarioIdAndEstado(usuarioId, "activa").forEach(activa -> {
+            activa.setEstado("archivada");
+            activa.setUpdatedAt(LocalDateTime.now());
+            listaCompraRepository.save(activa);
+        });
+
         String nombreLista = (nombre == null || nombre.isBlank())
                 ? "Lista del " + LocalDate.now().format(FORMATO_FECHA_LISTA)
                 : nombre;
@@ -221,6 +228,13 @@ public class CarritoInteligenteService {
                 .items(aceptados.stream().map(ItemCarrito::getId).toList())
                 .build();
         return toListaDTO(listaCompraRepository.save(lista), usuarioId);
+    }
+
+    public ListaCompraResponseDTO obtenerListaActiva(String usuarioId) {
+        return listaCompraRepository.findByUsuarioIdAndEstado(usuarioId, "activa").stream()
+                .findFirst()
+                .map(lista -> toListaDTO(lista, usuarioId))
+                .orElse(null);
     }
 
     public List<ListaCompraResponseDTO> obtenerListasCompra(String usuarioId) {

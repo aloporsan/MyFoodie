@@ -96,6 +96,12 @@ public class CarritoController {
         return ResponseEntity.ok(carritoInteligenteService.obtenerListasCompra(getUsuarioId(principal)));
     }
 
+    @GetMapping("/listas/activa")
+    public ResponseEntity<ListaCompraResponseDTO> obtenerListaActiva(Principal principal) {
+        ListaCompraResponseDTO lista = carritoInteligenteService.obtenerListaActiva(getUsuarioId(principal));
+        return lista != null ? ResponseEntity.ok(lista) : ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/listas/{id}")
     public ResponseEntity<ListaCompraResponseDTO> obtenerLista(@PathVariable String id, Principal principal) {
         return ResponseEntity.ok(carritoInteligenteService.obtenerListaCompra(getUsuarioId(principal), id));

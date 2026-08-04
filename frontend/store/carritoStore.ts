@@ -15,6 +15,7 @@ interface CarritoState {
   resumen: CarritoResumen | null;
   listas: ListaCompra[];
   listaActiva: ListaCompra | null;
+  listaEnCurso: ListaCompra | null;
   isLoading: boolean;
   isGenerando: boolean;
   error: string | null;
@@ -33,6 +34,7 @@ interface CarritoActions {
   generarListaCompra: (nombre?: string) => Promise<ListaCompra>;
   cargarListas: () => Promise<void>;
   cargarLista: (id: string) => Promise<void>;
+  cargarListaEnCurso: () => Promise<void>;
   alternarComprado: (listaId: string, itemId: string) => Promise<void>;
   añadirCompradosADespensa: (listaId: string, ajustes?: ItemCompradoAjuste[]) => Promise<void>;
   clearError: () => void;
@@ -44,6 +46,7 @@ const ESTADO_INICIAL: CarritoState = {
   resumen: null,
   listas: [],
   listaActiva: null,
+  listaEnCurso: null,
   isLoading: false,
   isGenerando: false,
   error: null,
@@ -60,12 +63,23 @@ const calcularResumen = (items: ItemCarrito[]): CarritoResumen => {
   };
 };
 
-const actualizarItemEnLista = (listas: ListaCompra[], listaId: string, item: ItemCarrito): ListaCompra[] =>
+const actualizarItemEnListas = (listas: ListaCompra[], item: ItemCarrito): ListaCompra[] =>
   listas.map((l) =>
-    l.id === listaId
+    l.items.some((i) => i.id === item.id)
       ? { ...l, items: l.items.map((i) => (i.id === item.id ? item : i)) }
       : l
   );
+
+const quitarItemDeListas = (listas: ListaCompra[], itemId: string): ListaCompra[] =>
+  listas.map((l) => ({ ...l, items: l.items.filter((i) => i.id !== itemId) }));
+
+const actualizarItemEnListaCompra = (lista: ListaCompra | null, item: ItemCarrito): ListaCompra | null =>
+  lista && lista.items.some((i) => i.id === item.id)
+    ? { ...lista, items: lista.items.map((i) => (i.id === item.id ? item : i)) }
+    : lista;
+
+const quitarItemDeListaCompra = (lista: ListaCompra | null, itemId: string): ListaCompra | null =>
+  lista ? { ...lista, items: lista.items.filter((i) => i.id !== itemId) } : lista;
 
 export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get) => ({
   ...ESTADO_INICIAL,
@@ -150,7 +164,12 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
     set({ error: null });
     try {
       const actualizado = await carritoService.modificarCantidad(id, cantidad);
-      set((s) => ({ items: s.items.map((i) => (i.id === id ? actualizado : i)) }));
+      set((s) => ({
+        items: s.items.map((i) => (i.id === id ? actualizado : i)),
+        listas: actualizarItemEnListas(s.listas, actualizado),
+        listaActiva: actualizarItemEnListaCompra(s.listaActiva, actualizado),
+        listaEnCurso: actualizarItemEnListaCompra(s.listaEnCurso, actualizado),
+      }));
     } catch (e) {
       set({ error: handleApiError(e) });
       throw e;
@@ -177,7 +196,13 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
       await carritoService.eliminarItem(id);
       set((s) => {
         const items = s.items.filter((i) => i.id !== id);
-        return { items, resumen: calcularResumen(items) };
+        return {
+          items,
+          resumen: calcularResumen(items),
+          listas: quitarItemDeListas(s.listas, id),
+          listaActiva: quitarItemDeListaCompra(s.listaActiva, id),
+          listaEnCurso: quitarItemDeListaCompra(s.listaEnCurso, id),
+        };
       });
     } catch (e) {
       set({ error: handleApiError(e) });
@@ -189,7 +214,7 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
     set({ error: null });
     try {
       const lista = await carritoService.generarListaCompra(nombre);
-      set((s) => ({ listas: [lista, ...s.listas], listaActiva: lista }));
+      set((s) => ({ listas: [lista, ...s.listas], listaActiva: lista, listaEnCurso: lista }));
       return lista;
     } catch (e) {
       set({ error: handleApiError(e) });
@@ -214,6 +239,15 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
       set({ listaActiva, isLoading: false });
     } catch (e) {
       set({ error: handleApiError(e), isLoading: false });
+    }
+  },
+
+  cargarListaEnCurso: async () => {
+    try {
+      const listaEnCurso = await carritoService.obtenerListaActiva();
+      set({ listaEnCurso });
+    } catch (e) {
+      set({ error: handleApiError(e) });
     }
   },
 
@@ -245,10 +279,9 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
         : await carritoService.aceptarItem(itemId);
 
       set((s) => ({
-        listas: actualizarItemEnLista(s.listas, listaId, actualizado),
-        listaActiva: s.listaActiva && s.listaActiva.id === listaId
-          ? { ...s.listaActiva, items: s.listaActiva.items.map((i) => (i.id === itemId ? actualizado : i)) }
-          : s.listaActiva,
+        listas: actualizarItemEnListas(s.listas, actualizado),
+        listaActiva: actualizarItemEnListaCompra(s.listaActiva, actualizado),
+        listaEnCurso: actualizarItemEnListaCompra(s.listaEnCurso, actualizado),
         items: marcarComoComprado
           ? s.items.filter((i) => i.id !== itemId)
           : s.items.some((i) => i.id === itemId)
@@ -279,6 +312,7 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
       set((s) => ({
         listas: s.listas.map((l) => (l.id === listaId ? lista : l)),
         listaActiva: s.listaActiva && s.listaActiva.id === listaId ? lista : s.listaActiva,
+        listaEnCurso: s.listaEnCurso && s.listaEnCurso.id === listaId ? null : s.listaEnCurso,
       }));
     } catch (e) {
       set({ error: handleApiError(e) });
