@@ -74,6 +74,8 @@ export function CarritoScreen() {
     router.push('/carrito/generar-lista');
   }, [router]);
 
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)'));
+
   const handleAñadirManual = async (datos: ItemCarritoInput) => {
     setAñadiendoManual(true);
     try {
@@ -94,11 +96,15 @@ export function CarritoScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <LoadingOverlay visible={isLoading && items.length > 0} />
 
       <View style={styles.header}>
+        <Pressable onPress={goBack} hitSlop={8} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+        </Pressable>
         <Text style={styles.titulo}>Carrito inteligente</Text>
+        <View style={styles.backBtn} />
       </View>
 
       <View style={styles.resumenWrapper}>
@@ -106,7 +112,6 @@ export function CarritoScreen() {
           resumen={resumen}
           isGenerando={isGenerando}
           onRegenerar={generarCarrito}
-          onGenerarLista={handleGenerarLista}
         />
       </View>
 
@@ -167,20 +172,23 @@ export function CarritoScreen() {
             />
           )}
           ListEmptyComponent={<EmptyTab tab={tab} />}
-          ListFooterComponent={
-            tab === 'aceptados' && aceptados.length > 0 ? (
-              <Pressable style={styles.btnFooterLista} onPress={handleGenerarLista}>
-                <Ionicons name="list-outline" size={18} color={colors.white} />
-                <Text style={styles.btnFooterListaText}>Generar lista de compra</Text>
-              </Pressable>
-            ) : null
-          }
         />
       )}
 
       <Pressable style={styles.fab} onPress={() => setModalManual(true)}>
         <Ionicons name="add" size={28} color={colors.white} />
       </Pressable>
+
+      <View style={styles.footer}>
+        <Pressable
+          style={[styles.btnFooterLista, aceptados.length === 0 && styles.btnDisabled]}
+          onPress={handleGenerarLista}
+          disabled={aceptados.length === 0}
+        >
+          <Ionicons name="list-outline" size={18} color={colors.white} />
+          <Text style={styles.btnFooterListaText}>Generar lista de compra</Text>
+        </Pressable>
+      </View>
 
       <Modal
         visible={modalManual}
@@ -215,19 +223,22 @@ function EmptyTab({ tab }: { tab: TabId }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background.surface },
   header: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     backgroundColor: colors.white,
   },
-  titulo: { ...typography.heading1, color: colors.text.primary },
+  backBtn: { width: 24 },
+  titulo: { ...typography.heading2, color: colors.text.primary, flex: 1, textAlign: 'center' },
   resumenWrapper: {
-    padding: spacing.lg,
+    padding: spacing.md,
     paddingBottom: spacing.sm,
   },
   tabs: {
     flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     gap: spacing.sm,
     marginBottom: spacing.sm,
   },
@@ -249,7 +260,7 @@ const styles = StyleSheet.create({
   tabTextActivo: {
     color: colors.white,
   },
-  lista: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl, flexGrow: 1 },
+  lista: { paddingHorizontal: spacing.md, paddingBottom: spacing.xxxl, flexGrow: 1 },
   grupo: { marginBottom: spacing.md },
   grupoTitulo: {
     ...typography.label,
@@ -266,6 +277,12 @@ const styles = StyleSheet.create({
   },
   emptyTitulo: { ...typography.heading2, color: colors.text.primary, textAlign: 'center' },
   emptySubtitulo: { ...typography.body, color: colors.text.secondary, textAlign: 'center' },
+  footer: {
+    padding: spacing.lg,
+    backgroundColor: colors.white,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray,
+  },
   btnFooterLista: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -274,16 +291,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: borderRadius.xl,
     paddingVertical: spacing.md,
-    marginTop: spacing.md,
   },
   btnFooterListaText: {
     ...typography.button,
     color: colors.white,
   },
+  btnDisabled: {
+    opacity: 0.4,
+  },
   fab: {
     position: 'absolute',
     right: spacing.lg,
-    bottom: spacing.xl,
+    bottom: 88,
     width: 56,
     height: 56,
     borderRadius: 28,

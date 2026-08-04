@@ -16,7 +16,7 @@ export function ListaCompraScreen() {
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const id = Array.isArray(rawId) ? rawId[0] : rawId;
 
-  const { listaActiva, isLoading, cargarLista, marcarComprado } = useCarritoStore();
+  const { listaActiva, isLoading, cargarLista, alternarComprado } = useCarritoStore();
 
   useEffect(() => {
     if (id) cargarLista(id);
@@ -42,8 +42,8 @@ export function ListaCompraScreen() {
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/carrito/listas'));
 
   const handleToggle = (item: ItemCarrito) => {
-    if (esCompletada || item.estado === 'comprado' || !id) return;
-    marcarComprado(id, item.id);
+    if (esCompletada || !id) return;
+    alternarComprado(id, item.id);
   };
 
   if (isLoading && !listaActiva) {
@@ -53,7 +53,7 @@ export function ListaCompraScreen() {
   if (!listaActiva) return null;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <Pressable onPress={goBack} hitSlop={8}>
           <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
@@ -115,7 +115,7 @@ export function ListaCompraScreen() {
         <View style={styles.footer}>
           <Pressable
             style={[styles.btnAñadirDespensa, !todosComprados && styles.btnDisabled]}
-            onPress={() => id && router.push(`/carrito/lista/${id}/añadir-despensa`)}
+            onPress={() => id && router.push(`/carrito/lista/${id}/anadir-despensa`)}
             disabled={!todosComprados}
           >
             <Ionicons name="basket-outline" size={18} color={colors.white} />

@@ -33,7 +33,7 @@ interface CarritoActions {
   generarListaCompra: (nombre?: string) => Promise<ListaCompra>;
   cargarListas: () => Promise<void>;
   cargarLista: (id: string) => Promise<void>;
-  marcarComprado: (listaId: string, itemId: string) => Promise<void>;
+  alternarComprado: (listaId: string, itemId: string) => Promise<void>;
   añadirCompradosADespensa: (listaId: string, ajustes?: ItemCompradoAjuste[]) => Promise<void>;
   clearError: () => void;
   reset: () => void;
@@ -217,20 +217,57 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
     }
   },
 
-  marcarComprado: async (listaId, itemId) => {
-    set({ error: null });
+  alternarComprado: async (listaId, itemId) => {
+    const listaActual = get().listaActiva;
+    const itemActual = listaActual?.items.find((i) => i.id === itemId);
+    if (!listaActual || listaActual.id !== listaId || !itemActual) return;
+
+    const estadoAnterior = itemActual.estado;
+    const marcarComoComprado = estadoAnterior !== 'comprado';
+    const estadoOptimista = marcarComoComprado ? 'comprado' : 'aceptado';
+
+    // Actualización optimista: refleja el cambio al instante, sin esperar la red.
+    set((s) => ({
+      error: null,
+      listaActiva: s.listaActiva && s.listaActiva.id === listaId
+        ? {
+            ...s.listaActiva,
+            items: s.listaActiva.items.map((i) =>
+              i.id === itemId ? { ...i, estado: estadoOptimista } : i
+            ),
+          }
+        : s.listaActiva,
+    }));
+
     try {
-      const actualizado = await carritoService.marcarComprado(listaId, itemId);
+      const actualizado = marcarComoComprado
+        ? await carritoService.marcarComprado(listaId, itemId)
+        : await carritoService.aceptarItem(itemId);
+
       set((s) => ({
-        items: s.items.filter((i) => i.id !== itemId),
         listas: actualizarItemEnLista(s.listas, listaId, actualizado),
-        listaActiva:
-          s.listaActiva && s.listaActiva.id === listaId
-            ? { ...s.listaActiva, items: s.listaActiva.items.map((i) => (i.id === itemId ? actualizado : i)) }
-            : s.listaActiva,
+        listaActiva: s.listaActiva && s.listaActiva.id === listaId
+          ? { ...s.listaActiva, items: s.listaActiva.items.map((i) => (i.id === itemId ? actualizado : i)) }
+          : s.listaActiva,
+        items: marcarComoComprado
+          ? s.items.filter((i) => i.id !== itemId)
+          : s.items.some((i) => i.id === itemId)
+            ? s.items.map((i) => (i.id === itemId ? actualizado : i))
+            : [...s.items, actualizado],
       }));
     } catch (e) {
-      set({ error: handleApiError(e) });
+      // Revierte la actualización optimista si la petición falla.
+      set((s) => ({
+        error: handleApiError(e),
+        listaActiva: s.listaActiva && s.listaActiva.id === listaId
+          ? {
+              ...s.listaActiva,
+              items: s.listaActiva.items.map((i) =>
+                i.id === itemId ? { ...i, estado: estadoAnterior } : i
+              ),
+            }
+          : s.listaActiva,
+      }));
       throw e;
     }
   },

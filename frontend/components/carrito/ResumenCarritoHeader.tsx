@@ -10,17 +10,25 @@ interface Props {
   resumen: CarritoResumen | null;
   isGenerando?: boolean;
   onRegenerar: () => void;
-  onGenerarLista: () => void;
 }
 
-export function ResumenCarritoHeader({ resumen, isGenerando = false, onRegenerar, onGenerarLista }: Props) {
+export function ResumenCarritoHeader({ resumen, isGenerando = false, onRegenerar }: Props) {
   const totalItems = resumen?.totalItems ?? 0;
   const itemsAlta = resumen?.itemsAlta ?? 0;
   const itemsAceptados = resumen?.itemsAceptados ?? 0;
-  const puedeGenerarLista = itemsAceptados > 0;
 
   return (
     <View style={styles.container}>
+      <View style={styles.topRow}>
+        <Pressable style={styles.btnRegenerar} onPress={onRegenerar} disabled={isGenerando} hitSlop={8}>
+          {isGenerando ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <Ionicons name="refresh" size={20} color={colors.primary} />
+          )}
+        </Pressable>
+      </View>
+
       <View style={styles.statsRow}>
         <View style={styles.stat}>
           <Text style={styles.statValor}>{totalItems}</Text>
@@ -34,24 +42,7 @@ export function ResumenCarritoHeader({ resumen, isGenerando = false, onRegenerar
           <Text style={[styles.statValor, { color: colors.primaryDark }]}>{itemsAceptados}</Text>
           <Text style={styles.statLabel}>Aceptados</Text>
         </View>
-
-        <Pressable style={styles.btnRegenerar} onPress={onRegenerar} disabled={isGenerando} hitSlop={8}>
-          {isGenerando ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            <Ionicons name="refresh" size={20} color={colors.primary} />
-          )}
-        </Pressable>
       </View>
-
-      <Pressable
-        style={[styles.btnGenerarLista, !puedeGenerarLista && styles.btnDisabled]}
-        onPress={onGenerarLista}
-        disabled={!puedeGenerarLista}
-      >
-        <Ionicons name="list-outline" size={18} color={colors.white} />
-        <Text style={styles.btnGenerarListaText}>Generar lista de compra</Text>
-      </Pressable>
     </View>
   );
 }
@@ -61,7 +52,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderRadius: borderRadius.lg,
     padding: spacing.md,
-    gap: spacing.md,
+  },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: spacing.xs,
   },
   statsRow: {
     flexDirection: 'row',
@@ -82,27 +77,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   btnRegenerar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: colors.grayLight,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  btnGenerarLista: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.xl,
-    paddingVertical: spacing.md,
-  },
-  btnGenerarListaText: {
-    ...typography.button,
-    color: colors.white,
-  },
-  btnDisabled: {
-    opacity: 0.4,
   },
 });

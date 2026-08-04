@@ -46,7 +46,7 @@ export function GenerarListaScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <Pressable onPress={goBack} hitSlop={8}>
           <Ionicons name="arrow-back" size={24} color={colors.text.primary} />

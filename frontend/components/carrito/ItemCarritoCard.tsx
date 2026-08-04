@@ -11,7 +11,7 @@ import { typography } from '@/theme/typography';
 const PRIORIDAD_CONFIG: Record<PrioridadCarrito, { bg: string; text: string; label: string }> = {
   alta: { bg: colors.error, text: colors.white, label: 'Alta' },
   media: { bg: colors.secondary, text: colors.white, label: 'Media' },
-  baja: { bg: colors.grayMid, text: colors.text.primary, label: 'Baja' },
+  baja: { bg: colors.primary, text: colors.white, label: 'Baja' },
 };
 
 interface Props {
