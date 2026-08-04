@@ -42,6 +42,7 @@ class DespensaServiceTest {
     @Mock private ProductoRepository productoRepository;
     @Mock private PreferenciasRepository preferenciasRepository;
     @Mock private MovimientoProductoRepository movimientoRepository;
+    @Mock private CarritoInteligenteService carritoInteligenteService;
 
     @InjectMocks private DespensaService despensaService;
 
