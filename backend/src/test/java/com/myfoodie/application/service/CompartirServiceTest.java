@@ -7,6 +7,7 @@ import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.receta.RecetaResponseDTO;
 import com.myfoodie.domain.model.Privacidad;
 import com.myfoodie.domain.model.RecetaCompartida;
+import com.myfoodie.domain.model.Seguimiento;
 import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.BloqueoRepository;
 import com.myfoodie.domain.repository.RecetaCompartidaRepository;
@@ -306,6 +307,85 @@ class CompartirServiceTest {
 
         assertThatThrownBy(() -> compartirService.compartirReceta("emisor-1", "receta-1", dto))
                 .isInstanceOf(ApiException.class)
+                .satisfies(e -> assertThat(((ApiException) e).getStatus()).isEqualTo(HttpStatus.FORBIDDEN));
+
+        verify(recetaCompartidaRepository, never()).save(any());
+    }
+
+    // ===== RF-SOC-009 — privacidad y bloqueos =====
+
+    @Test
+    void compartirReceta_falla_si_receptor_tiene_perfil_privado_y_no_es_seguidor() {
+        CompartirRecetaRequestDTO dto = new CompartirRecetaRequestDTO(List.of("receptor-1"), null);
+        Usuario receptorPrivado = Usuario.builder()
+                .id("receptor-1").nombre("Receptor Privado").nombreUsuario("receptorprivado")
+                .privacidad(Privacidad.PRIVADA).build();
+
+        when(recetaService.obtenerReceta("receta-1", "emisor-1"))
+                .thenReturn(recetaResponse("receta-1", "publicada", List.of()));
+        when(bloqueoRepository.existsByBloqueadorIdAndBloqueadoId(anyString(), anyString())).thenReturn(false);
+        when(usuarioRepository.findById("receptor-1")).thenReturn(Optional.of(receptorPrivado));
+        when(seguimientoRepository.findBySeguidorIdAndSeguidoId("emisor-1", "receptor-1"))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> compartirService.compartirReceta("emisor-1", "receta-1", dto))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("No puedes enviar recetas a este usuario porque su perfil es privado")
+                .satisfies(e -> assertThat(((ApiException) e).getStatus()).isEqualTo(HttpStatus.FORBIDDEN));
+
+        verify(recetaCompartidaRepository, never()).save(any());
+    }
+
+    @Test
+    void compartirReceta_exitoso_si_receptor_privado_y_es_seguidor_confirmado() {
+        CompartirRecetaRequestDTO dto = new CompartirRecetaRequestDTO(List.of("receptor-1"), null);
+        Usuario receptorPrivado = Usuario.builder()
+                .id("receptor-1").nombre("Receptor Privado").nombreUsuario("receptorprivado")
+                .privacidad(Privacidad.PRIVADA).build();
+        Seguimiento seguimientoAceptado = Seguimiento.builder()
+                .id("seg-1").seguidorId("emisor-1").seguidoId("receptor-1").estado("aceptado").build();
+
+        when(recetaService.obtenerReceta("receta-1", "emisor-1"))
+                .thenReturn(recetaResponse("receta-1", "publicada", List.of()));
+        when(bloqueoRepository.existsByBloqueadorIdAndBloqueadoId(anyString(), anyString())).thenReturn(false);
+        when(usuarioRepository.findById("receptor-1")).thenReturn(Optional.of(receptorPrivado));
+        when(seguimientoRepository.findBySeguidorIdAndSeguidoId("emisor-1", "receptor-1"))
+                .thenReturn(Optional.of(seguimientoAceptado));
+        when(recetaCompartidaRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(usuarioRepository.findById("emisor-1")).thenReturn(Optional.of(emisor));
+
+        List<RecetaCompartidaResponseDTO> resultado = compartirService.compartirReceta("emisor-1", "receta-1", dto);
+
+        assertThat(resultado).hasSize(1);
+        verify(recetaCompartidaRepository).save(any());
+    }
+
+    @Test
+    void compartirReceta_falla_si_existe_bloqueo_del_receptor_al_emisor() {
+        CompartirRecetaRequestDTO dto = new CompartirRecetaRequestDTO(List.of("receptor-1"), null);
+        when(recetaService.obtenerReceta("receta-1", "emisor-1"))
+                .thenReturn(recetaResponse("receta-1", "publicada", List.of()));
+        when(bloqueoRepository.existsByBloqueadorIdAndBloqueadoId("emisor-1", "receptor-1")).thenReturn(false);
+        when(bloqueoRepository.existsByBloqueadorIdAndBloqueadoId("receptor-1", "emisor-1")).thenReturn(true);
+
+        assertThatThrownBy(() -> compartirService.compartirReceta("emisor-1", "receta-1", dto))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("No puedes interactuar con este usuario")
+                .satisfies(e -> assertThat(((ApiException) e).getStatus()).isEqualTo(HttpStatus.FORBIDDEN));
+
+        verify(recetaCompartidaRepository, never()).save(any());
+    }
+
+    @Test
+    void compartirReceta_falla_si_existe_bloqueo_del_emisor_al_receptor() {
+        CompartirRecetaRequestDTO dto = new CompartirRecetaRequestDTO(List.of("receptor-1"), null);
+        when(recetaService.obtenerReceta("receta-1", "emisor-1"))
+                .thenReturn(recetaResponse("receta-1", "publicada", List.of()));
+        when(bloqueoRepository.existsByBloqueadorIdAndBloqueadoId("emisor-1", "receptor-1")).thenReturn(true);
+
+        assertThatThrownBy(() -> compartirService.compartirReceta("emisor-1", "receta-1", dto))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("No puedes interactuar con este usuario")
                 .satisfies(e -> assertThat(((ApiException) e).getStatus()).isEqualTo(HttpStatus.FORBIDDEN));
 
         verify(recetaCompartidaRepository, never()).save(any());

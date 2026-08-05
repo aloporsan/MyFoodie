@@ -172,3 +172,34 @@ it('muestra_toast_exito_tras_compartir', async () => {
   expect(useToastStore.getState().tipo).toBe('success');
   expect(useToastStore.getState().mensaje).toBe('Receta compartida con 1 usuarios');
 });
+
+it('busca_usuarios_con_soloCompartibles_activado', () => {
+  mockSocialService.buscarUsuarios.mockResolvedValue([usuario()]);
+  const { getByTestId } = render(<ModalCompartir visible recetaId="receta-1" onClose={onClose} />);
+
+  buscarYSeleccionar(getByTestId, usuario());
+
+  expect(mockSocialService.buscarUsuarios).toHaveBeenCalledWith('anagarcia', true);
+});
+
+it('muestra_toast_error_si_backend_devuelve_403', async () => {
+  mockSocialService.buscarUsuarios.mockResolvedValue([usuario()]);
+  mockCompartirService.compartirReceta.mockRejectedValue(
+    new Error('No puedes enviar recetas a este usuario porque su perfil es privado')
+  );
+  const { getByTestId, getByText, findByTestId } = render(
+    <ModalCompartir visible recetaId="receta-1" onClose={onClose} />
+  );
+
+  buscarYSeleccionar(getByTestId, usuario());
+  fireEvent.press(await findByTestId('resultado-usuario-user-1'));
+
+  await act(async () => {
+    fireEvent.press(getByText('Compartir'));
+  });
+
+  expect(useToastStore.getState().tipo).toBe('error');
+  expect(useToastStore.getState().mensaje).toBe(
+    'No puedes enviar recetas a este usuario porque su perfil es privado'
+  );
+});
