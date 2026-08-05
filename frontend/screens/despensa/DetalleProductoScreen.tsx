@@ -139,8 +139,7 @@ export function DetalleProductoScreen() {
           <ProductoEstadoBadge estado={producto.estado} size="md" />
         </View>
 
-        {/* Nombre y marca */}
-        <Text style={styles.nombre}>{producto.nombre}</Text>
+        {/* Marca */}
         {producto.marca && <Text style={styles.marca}>{producto.marca}</Text>}
 
         {/* Control de cantidad */}
