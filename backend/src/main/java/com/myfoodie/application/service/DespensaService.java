@@ -274,15 +274,20 @@ public class DespensaService {
     }
 
     String calcularEstado(Producto p, int umbral) {
-        if (p.getFechaCaducidad() != null) {
-            long dias = ChronoUnit.DAYS.between(LocalDate.now(), p.getFechaCaducidad());
-            if (dias < 0)   return "caducado";
-            if (dias == 0)  return "caduca_hoy";
-            if (dias <= 3)  return "caduca_pronto";
-            if (dias <= 7)  return "caduca_semana";
-            if (dias <= 30) return "caduca_mes";
+        if (p.getCantidad() <= 0) {
+            return "sin_stock";
         }
+
+        Long dias = p.getFechaCaducidad() != null
+                ? ChronoUnit.DAYS.between(LocalDate.now(), p.getFechaCaducidad())
+                : null;
+
+        if (dias != null && dias < 0)  return "caducado";
+        if (dias != null && dias == 0) return "caduca_hoy";
+        if (dias != null && dias <= 3) return "caduca_pronto";
         if (p.getCantidad() <= umbral) return "bajoStock";
+        if (dias != null && dias <= 7)  return "caduca_semana";
+        if (dias != null && dias <= 30) return "caduca_mes";
         return "normal";
     }
 

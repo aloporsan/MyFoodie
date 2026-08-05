@@ -16,6 +16,7 @@ interface Chip {
 }
 
 const ESTADO_CHIPS: Record<EstadoProducto, Chip> = {
+  sin_stock:     { id: 'sin_stock',     label: 'Sin stock',     color: '#616161' },
   caducado:      { id: 'caducado',      label: 'Caducados',     color: colors.error },
   caduca_hoy:    { id: 'caduca_hoy',    label: 'Caduca hoy',    color: '#FF6D00' },
   caduca_pronto: { id: 'caduca_pronto', label: 'Caduca pronto', color: colors.secondary },

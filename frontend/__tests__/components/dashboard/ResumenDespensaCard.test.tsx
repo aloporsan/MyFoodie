@@ -8,8 +8,8 @@ jest.mock('expo-router', () => ({ useRouter: jest.fn() }));
 
 const mockPush = jest.fn();
 
-const resumenBase = { totalProductos: 10, caducados: 1, caduca_pronto: 2, caduca_semana: 4, caduca_mes: 5, bajoStock: 3 };
-const resumenVacio = { totalProductos: 0, caducados: 0, caduca_pronto: 0, caduca_semana: 0, caduca_mes: 0, bajoStock: 0 };
+const resumenBase = { totalProductos: 10, sinStock: 6, caducados: 1, caduca_pronto: 2, caduca_semana: 4, caduca_mes: 5, bajoStock: 3 };
+const resumenVacio = { totalProductos: 0, sinStock: 0, caducados: 0, caduca_pronto: 0, caduca_semana: 0, caduca_mes: 0, bajoStock: 0 };
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -79,5 +79,5 @@ it('navega_a_lista_filtrada_bajoStock_al_pulsar_contador', () => {
 
 it('renderiza_ceros_sin_errores_si_todos_los_contadores_son_cero', () => {
   const { getAllByText } = render(<ResumenDespensaCard resumen={resumenVacio} />);
-  expect(getAllByText('0')).toHaveLength(6);
+  expect(getAllByText('0')).toHaveLength(7);
 });

@@ -29,13 +29,14 @@ public class DashboardService {
         List<ProductoResponseDTO> productos = despensaService.listarProductos(usuarioId);
 
         int total         = productos.size();
+        int sinStock      = contarPorEstado(productos, "sin_stock");
         int caducados     = contarPorEstado(productos, "caducado") + contarPorEstado(productos, "caduca_hoy");
         int caduca_pronto = contarPorEstado(productos, "caduca_pronto");
         int caduca_semana = contarPorEstado(productos, "caduca_semana");
         int caduca_mes    = contarPorEstado(productos, "caduca_mes");
         int bajoStock     = contarPorEstado(productos, "bajoStock");
 
-        return new DashboardResumenDTO.ResumenDespensa(total, caducados, caduca_pronto, caduca_semana, caduca_mes, bajoStock);
+        return new DashboardResumenDTO.ResumenDespensa(total, sinStock, caducados, caduca_pronto, caduca_semana, caduca_mes, bajoStock);
     }
 
     public List<AlertaCaducidadDTO> obtenerAlertasCaducidad(String usuarioId) {
@@ -81,6 +82,7 @@ public class DashboardService {
         List<ProductoPrioritarioDTO> resultado = new ArrayList<>();
         Set<String> incluidos = new HashSet<>();
 
+        agregarPrioritarios(productos, "sin_stock",     "sin_stock",     incluidos, resultado);
         agregarPrioritarios(productos, "caducado",      "caducado",      incluidos, resultado);
         agregarPrioritarios(productos, "caduca_hoy",    "caduca_hoy",    incluidos, resultado);
         agregarPrioritarios(productos, "caduca_pronto", "caduca_pronto", incluidos, resultado);
