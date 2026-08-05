@@ -658,6 +658,28 @@ class DespensaServiceTest {
         assertThat(lista.get(0).alertaCompra()).isFalse();
     }
 
+    @Test
+    @DisplayName("añadirProducto acepta y persiste stockMinimo=0 (FIX-006)")
+    void stockMinimo_aceptaValorCero_yLoPersiste() {
+        Despensa d = despensa("desp-1", "user-1");
+        ProductoRequestDTO dto = new ProductoRequestDTO(
+                "Sal", 5, "kg", null, null, null, null, null, 0);
+        Producto guardado = Producto.builder()
+                .id("prod-1").despensaId("desp-1").nombre("Sal").cantidad(5).unidad("kg")
+                .stockMinimo(0)
+                .build();
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaIdAndNombreContainingIgnoreCase("desp-1", "Sal"))
+                .thenReturn(List.of());
+        when(productoRepository.save(any(Producto.class))).thenReturn(guardado);
+        when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
+
+        ProductoResponseDTO resultado = despensaService.añadirProducto("user-1", dto);
+
+        assertThat(resultado.stockMinimo()).isEqualTo(0);
+    }
+
     // -------------------------------------------------------------------------
     // MEJORA 2 — Granularidad de caducidad (#133 + #136)
     // -------------------------------------------------------------------------
