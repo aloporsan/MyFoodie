@@ -20,6 +20,7 @@ const mockReceta: Receta = {
   tiempoEstimado: 60,
   dificultad: 'Difícil',
   categoria: 'Arroces',
+  numPersonas: 4,
   etiquetas: [],
   estado: 'borrador',
   ingredientes: [],

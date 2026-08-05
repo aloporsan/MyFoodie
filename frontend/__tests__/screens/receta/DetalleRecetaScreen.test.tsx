@@ -24,7 +24,7 @@ jest.mock('@/store/authStore', () => ({ useAuthStore: jest.fn() }));
 const mockReceta = {
   id: 'r1', autorId: 'u1', titulo: 'Paella valenciana',
   descripcion: 'Receta tradicional', tiempoEstimado: 60,
-  dificultad: 'Difícil', categoria: 'Arroces', etiquetas: [],
+  dificultad: 'Difícil', categoria: 'Arroces', numPersonas: 4, etiquetas: [],
   estado: 'publicada' as const, ingredientes: [], pasos: [],
   createdAt: '', updatedAt: '',
 };

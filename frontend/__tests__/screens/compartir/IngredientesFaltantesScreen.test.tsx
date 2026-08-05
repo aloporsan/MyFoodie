@@ -34,6 +34,7 @@ function recetaCompartida(overrides: Partial<RecetaCompartida> = {}): RecetaComp
       tiempoEstimado: 10,
       dificultad: 'facil',
       categoria: 'entrante',
+      numPersonas: 2,
       etiquetas: [],
       estado: 'publicada',
       ingredientes: [

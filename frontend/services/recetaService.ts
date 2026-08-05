@@ -30,6 +30,7 @@ export interface Receta {
   etiquetas: string[];
   imagenUrl?: string;
   estado: EstadoReceta;
+  numPersonas: number;
   totalLikes?: number;
   likeUsuario?: boolean;
   ingredientes: IngredienteReceta[];
@@ -61,6 +62,7 @@ export interface RecetaInput {
   categoria: string;
   etiquetas: string[];
   imagenUrl?: string;
+  numPersonas?: number;
 }
 
 export interface IngredienteInput {

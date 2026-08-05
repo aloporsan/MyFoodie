@@ -203,6 +203,10 @@ export function DetalleRecetaFeedScreen() {
                 <Ionicons name="heart-outline" size={14} color={colors.grayDark} />
                 <Text style={styles.metaText}>{recetaFeed?.likes ?? receta.totalLikes ?? 0}</Text>
               </View>
+              <View style={styles.metaChip}>
+                <Ionicons name="people-outline" size={14} color={colors.grayDark} />
+                <Text style={styles.metaText}>Para {receta.numPersonas} personas</Text>
+              </View>
             </View>
 
             {receta.etiquetas.length > 0 && (

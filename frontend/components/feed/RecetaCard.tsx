@@ -65,6 +65,10 @@ export function RecetaCard({ receta, autorGesture }: RecetaCardProps) {
             <Ionicons name="time-outline" size={14} color={colors.white} />
             <Text style={styles.metaTexto}>{receta.tiempoEstimado} min</Text>
           </View>
+          <View style={styles.metaItem}>
+            <Ionicons name="people-outline" size={14} color={colors.white} />
+            <Text style={styles.metaTexto}>{receta.numPersonas} pers.</Text>
+          </View>
           <View style={[styles.dificultadBadge, { backgroundColor: dificultadColor }]}>
             <Text style={styles.dificultadTexto}>{receta.dificultad}</Text>
           </View>

@@ -2,6 +2,8 @@ import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
 import { FormRecetaBasica } from '@/components/receta/FormRecetaBasica';
 
+jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
+
 const onChange = jest.fn();
 
 const defaultProps = {
@@ -10,6 +12,7 @@ const defaultProps = {
   tiempoEstimado: '',
   dificultad: '',
   categoria: '',
+  numPersonas: '2',
   onChange,
 };
 

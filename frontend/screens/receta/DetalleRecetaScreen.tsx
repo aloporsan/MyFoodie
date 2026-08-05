@@ -264,6 +264,10 @@ export function DetalleRecetaScreen() {
                 <Ionicons name="restaurant-outline" size={14} color={colors.grayDark} />
                 <Text style={styles.metaText}>{receta.categoria}</Text>
               </View>
+              <View style={styles.metaChip}>
+                <Ionicons name="people-outline" size={14} color={colors.grayDark} />
+                <Text style={styles.metaText}>Para {receta.numPersonas} personas</Text>
+              </View>
             </View>
 
             {/* Etiquetas */}
