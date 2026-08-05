@@ -321,20 +321,20 @@ class DespensaServiceTest {
     }
 
     @Test
-    @DisplayName("actualizarCantidad clampea a 0 si el resultado sería negativo")
-    void actualizarCantidad_clampea_a_cero_siResultadoNegativo() {
+    @DisplayName("actualizarCantidad lanza 400 si el resultado sería negativo")
+    void actualizarCantidad_falla_siResultadoSeriaNegativo() {
         Despensa d = despensa("desp-1", "user-1");
         Producto p = producto("prod-1", "desp-1", "Sal", 1, null);
 
         when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
         when(productoRepository.findByDespensaIdAndId("desp-1", "prod-1")).thenReturn(Optional.of(p));
-        when(productoRepository.save(any(Producto.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
 
-        ProductoResponseDTO resultado = despensaService.actualizarCantidad(
-                "user-1", "prod-1", new ProductoUpdateCantidadDTO(-99.0, null, null));
-
-        assertThat(resultado.cantidad()).isEqualTo(0.0);
+        assertThatThrownBy(() -> despensaService.actualizarCantidad(
+                "user-1", "prod-1", new ProductoUpdateCantidadDTO(-99.0, null, null)))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("La cantidad no puede ser negativa")
+                .satisfies(ex -> assertThat(((ApiException) ex).getStatus())
+                        .isEqualTo(HttpStatus.BAD_REQUEST));
     }
 
     @Test

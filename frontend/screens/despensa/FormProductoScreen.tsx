@@ -88,7 +88,7 @@ export function FormProductoScreen() {
     if (!unidad) e.unidad = 'Selecciona una unidad';
     if (stockMinimo) {
       const sm = parseInt(stockMinimo, 10);
-      if (isNaN(sm) || sm < 1) e.stockMinimo = 'Debe ser un número entero positivo';
+      if (isNaN(sm) || sm < 0) e.stockMinimo = 'Debe ser un número entero positivo o cero';
     }
     setErrores(e);
     return Object.keys(e).length === 0;

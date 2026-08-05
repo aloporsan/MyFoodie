@@ -143,7 +143,10 @@ public class DespensaService {
         Producto p = getProductoDeUsuario(despensa.getId(), productoId);
 
         double cantidadAnterior = p.getCantidad();
-        double nuevaCantidad = Math.max(0, cantidadAnterior + dto.delta());
+        double nuevaCantidad = cantidadAnterior + dto.delta();
+        if (nuevaCantidad < 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "La cantidad no puede ser negativa");
+        }
         p.setCantidad(nuevaCantidad);
         p.setUpdatedAt(LocalDateTime.now());
 

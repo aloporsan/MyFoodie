@@ -149,7 +149,11 @@ it('renderiza_campo_stock_minimo_personalizado', () => {
   expect(getByPlaceholderText('ej. 3')).toBeTruthy();
 });
 
-it('stock_minimo_invalido_muestra_error_de_validacion', async () => {
+it('stock_minimo_cero_es_aceptado_como_valor_valido', async () => {
+  mockAñadirProducto.mockResolvedValue({
+    id: 'prod-1', despensaId: 'desp-1', nombre: 'Leche', cantidad: 2,
+    unidad: 'unidades', estado: 'normal', createdAt: '', updatedAt: '',
+  });
   const { getByPlaceholderText, getByText } = render(<FormProductoScreen />);
   fireEvent.changeText(getByPlaceholderText('ej. Leche entera'), 'Leche');
   fireEvent.changeText(getByPlaceholderText('ej. 2'), '2');
@@ -157,9 +161,8 @@ it('stock_minimo_invalido_muestra_error_de_validacion', async () => {
   fireEvent.press(getByText('Añadir producto'));
 
   await waitFor(() => {
-    expect(mockAñadirProducto).not.toHaveBeenCalled();
+    expect(mockAñadirProducto).toHaveBeenCalledWith(expect.objectContaining({ stockMinimo: 0 }));
   });
-  expect(getByText('Debe ser un número entero positivo')).toBeTruthy();
 });
 
 it('boton_guardar_no_queda_deshabilitado_al_escribir_stock_minimo_valido', async () => {
