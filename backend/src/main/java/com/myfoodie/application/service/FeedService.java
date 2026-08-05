@@ -94,6 +94,7 @@ public class FeedService {
                 autor != null ? autor.getFotoPerfil() : null,
                 receta.getTiempoEstimado(),
                 receta.getDificultad(),
+                receta.getNumPersonas(),
                 receta.getEtiquetas(),
                 receta.getImagenUrl(),
                 likes,

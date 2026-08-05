@@ -72,7 +72,7 @@ class CompartirServiceTest {
                                               List<RecetaResponseDTO.IngredienteResponseDTO> ingredientes) {
         return new RecetaResponseDTO(
                 id, "autor-1", "Autor Uno", "autoruno", "Título", "Descripción",
-                20, "facil", "entrante", List.of(), null, estado,
+                20, "facil", "entrante", List.of(), null, estado, 2,
                 ingredientes, List.of(), LocalDateTime.now(), LocalDateTime.now());
     }
 

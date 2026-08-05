@@ -6,9 +6,12 @@ import com.myfoodie.application.dto.carrito.ItemCarritoResponseDTO;
 import com.myfoodie.application.dto.carrito.ItemCompradoAjusteDTO;
 import com.myfoodie.application.dto.carrito.ListaCompraResponseDTO;
 import com.myfoodie.domain.model.Despensa;
+import com.myfoodie.domain.model.IngredienteReceta;
 import com.myfoodie.domain.model.ItemCarrito;
 import com.myfoodie.domain.model.ListaCompra;
 import com.myfoodie.domain.model.Producto;
+import com.myfoodie.domain.model.Receta;
+import com.myfoodie.domain.model.RecetaGuardada;
 import com.myfoodie.domain.repository.DespensaRepository;
 import com.myfoodie.domain.repository.IngredienteRecetaRepository;
 import com.myfoodie.domain.repository.ItemCarritoRepository;
@@ -401,6 +404,62 @@ class CarritoInteligenteServiceTest {
         assertThat(resultado.estado()).isEqualTo("pendiente");
         assertThat(resultado.prioridad()).isEqualTo("media");
         assertThat(resultado.nombre()).isEqualTo("Café");
+    }
+
+    // -------------------------------------------------------------------------
+    // FIX-004 — Categorización automática de ingredientes (#152)
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("inferirCategoria devuelve 'lácteos' para 'leche'")
+    void inferirCategoria_devuelve_lacteos_para_leche() {
+        assertThat(carritoInteligenteService.inferirCategoria("Leche")).isEqualTo("lácteos");
+    }
+
+    @Test
+    @DisplayName("inferirCategoria devuelve 'verduras' para 'tomate'")
+    void inferirCategoria_devuelve_verduras_para_tomate() {
+        assertThat(carritoInteligenteService.inferirCategoria("Tomate")).isEqualTo("verduras");
+    }
+
+    @Test
+    @DisplayName("inferirCategoria devuelve 'otros' si no hay coincidencia en la tabla de mapeo")
+    void inferirCategoria_devuelve_otros_si_no_hay_coincidencia() {
+        assertThat(carritoInteligenteService.inferirCategoria("Kombucha")).isEqualTo("otros");
+    }
+
+    @Test
+    @DisplayName("añadirItemManual sin categoría infiere la categoría automáticamente a partir del nombre")
+    void añadirItemManual_sinCategoria_infiereCategoriaAutomaticamente() {
+        guardarItemsComoLlegan();
+        ItemCarritoRequestDTO dto = new ItemCarritoRequestDTO("Tomate", 3f, "unidades", null);
+
+        ItemCarritoResponseDTO resultado = carritoInteligenteService.añadirItemManual("user-1", dto);
+
+        assertThat(resultado.categoria()).isEqualTo("verduras");
+    }
+
+    @Test
+    @DisplayName("item desde receta (ingrediente faltante) tiene categoría asignada automáticamente")
+    void item_desde_receta_tiene_categoria_asignada_automaticamente() {
+        Despensa d = despensa("desp-1", "user-1");
+        Receta receta = Receta.builder().id("receta-1").titulo("Tortilla").build();
+        RecetaGuardada guardada = RecetaGuardada.builder().id("rg-1").usuarioId("user-1").recetaId("receta-1").build();
+        IngredienteReceta ingrediente = IngredienteReceta.builder()
+                .id("ing-1").recetaId("receta-1").nombre("Leche").cantidad(1).unidad("litros").build();
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of());
+        when(recetaGuardadaRepository.findByUsuarioId("user-1")).thenReturn(List.of(guardada));
+        when(recetaRepository.findById("receta-1")).thenReturn(Optional.of(receta));
+        when(ingredienteRecetaRepository.findByRecetaId("receta-1")).thenReturn(List.of(ingrediente));
+        guardarItemsComoLlegan();
+
+        List<ItemCarrito> resultado = carritoInteligenteService.generarRecomendaciones("user-1");
+
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).getNombre()).isEqualTo("Leche");
+        assertThat(resultado.get(0).getCategoria()).isEqualTo("lácteos");
     }
 
     @Test

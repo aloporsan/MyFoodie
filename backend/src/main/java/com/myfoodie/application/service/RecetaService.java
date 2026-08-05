@@ -52,6 +52,7 @@ public class RecetaService {
                 .categoria(dto.categoria())
                 .etiquetas(dto.etiquetas() != null ? dto.etiquetas() : new ArrayList<>())
                 .imagenUrl(dto.imagenUrl())
+                .numPersonas(dto.numPersonas() != null ? dto.numPersonas() : 2)
                 .estado("borrador")
                 .build();
 
@@ -73,6 +74,7 @@ public class RecetaService {
         receta.setCategoria(dto.categoria());
         receta.setEtiquetas(dto.etiquetas() != null ? dto.etiquetas() : new ArrayList<>());
         receta.setImagenUrl(dto.imagenUrl());
+        receta.setNumPersonas(dto.numPersonas() != null ? dto.numPersonas() : 2);
         receta.setUpdatedAt(LocalDateTime.now());
 
         return toDTO(recetaRepository.save(receta));
@@ -324,6 +326,7 @@ public class RecetaService {
                 receta.getEtiquetas(),
                 receta.getImagenUrl(),
                 receta.getEstado(),
+                receta.getNumPersonas(),
                 ingredientes,
                 pasos,
                 receta.getCreatedAt(),

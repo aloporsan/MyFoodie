@@ -55,7 +55,7 @@ class RecetaServiceTest {
     }
 
     private RecetaRequestDTO request(String titulo) {
-        return new RecetaRequestDTO(titulo, "Descripción", 30, "Fácil", "Pasta", List.of(), null);
+        return new RecetaRequestDTO(titulo, "Descripción", 30, "Fácil", "Pasta", List.of(), null, null);
     }
 
     private IngredienteReceta ingrediente(String id, String recetaId) {
@@ -328,7 +328,7 @@ class RecetaServiceTest {
     @DisplayName("crearReceta_falla_siTituloVacio")
     void crearReceta_falla_siTituloVacio() {
         assertThatThrownBy(() ->
-                recetaService.crearReceta("user-1", new RecetaRequestDTO("", "desc", 30, "Fácil", "Pasta", List.of(), null)))
+                recetaService.crearReceta("user-1", new RecetaRequestDTO("", "desc", 30, "Fácil", "Pasta", List.of(), null, null)))
                 .isInstanceOf(ApiException.class)
                 .hasFieldOrPropertyWithValue("status", HttpStatus.BAD_REQUEST);
     }

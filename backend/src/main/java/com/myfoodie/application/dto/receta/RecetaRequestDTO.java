@@ -1,5 +1,7 @@
 package com.myfoodie.application.dto.receta;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 
@@ -11,5 +13,8 @@ public record RecetaRequestDTO(
         String dificultad,
         String categoria,
         List<String> etiquetas,
-        String imagenUrl
+        String imagenUrl,
+        @Min(value = 1, message = "El número de personas debe ser al menos 1")
+        @Max(value = 20, message = "El número de personas no puede superar 20")
+        Integer numPersonas
 ) {}
