@@ -197,6 +197,97 @@ class DespensaServiceTest {
     }
 
     // -------------------------------------------------------------------------
+    // RF-DESP-018 — Jerarquía de alertas de estado (#160)
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("calcularEstado devuelve 'sin_stock' cuando cantidad es 0, aunque no esté caducado")
+    void estado_sin_stock_cuando_cantidad_es_cero_aunque_no_caducado() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p = producto("p-1", "desp-1", "Leche", 0, LocalDate.now().plusDays(20));
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista.get(0).estado()).isEqualTo("sin_stock");
+    }
+
+    @Test
+    @DisplayName("calcularEstado devuelve 'sin_stock' con prioridad sobre 'caducado' cuando cantidad es 0")
+    void estado_sin_stock_tiene_prioridad_sobre_caducado() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p = producto("p-1", "desp-1", "Yogur", 0, LocalDate.now().minusDays(5));
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista.get(0).estado()).isEqualTo("sin_stock");
+    }
+
+    @Test
+    @DisplayName("calcularEstado devuelve 'sin_stock' con prioridad sobre 'caduca_hoy' cuando cantidad es 0")
+    void estado_sin_stock_tiene_prioridad_sobre_caduca_hoy() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p = producto("p-1", "desp-1", "Fresas", 0, LocalDate.now());
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista.get(0).estado()).isEqualTo("sin_stock");
+    }
+
+    @Test
+    @DisplayName("calcularEstado devuelve 'caducado' cuando la cantidad es positiva y la fecha ya pasó")
+    void estado_caducado_cuando_cantidad_positiva_y_fecha_pasada() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p = producto("p-1", "desp-1", "Queso", 2, LocalDate.now().minusDays(1));
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista.get(0).estado()).isEqualTo("caducado");
+    }
+
+    @Test
+    @DisplayName("la jerarquía respeta el orden correcto de prioridades: sin_stock > caducado > caduca_hoy > "
+            + "caduca_pronto > bajoStock > caduca_semana > caduca_mes > normal")
+    void jerarquia_respeta_orden_correcto_de_prioridades() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto sinStock    = producto("p-1", "desp-1", "SinStock", 0, null);
+        Producto caducado    = producto("p-2", "desp-1", "Caducado", 2, LocalDate.now().minusDays(1));
+        Producto caducaHoy   = producto("p-3", "desp-1", "CaducaHoy", 2, LocalDate.now());
+        Producto caducaPronto = producto("p-4", "desp-1", "CaducaPronto", 2, LocalDate.now().plusDays(2));
+        // cantidad=1 <= umbral por defecto (1), fecha lejana: bajoStock tiene prioridad sobre caduca_mes
+        Producto bajoStock   = producto("p-5", "desp-1", "BajoStock", 1, LocalDate.now().plusDays(10));
+        Producto caducaSemana = producto("p-6", "desp-1", "CaducaSemana", 5, LocalDate.now().plusDays(5));
+        Producto caducaMes   = producto("p-7", "desp-1", "CaducaMes", 5, LocalDate.now().plusDays(20));
+        Producto normal      = producto("p-8", "desp-1", "Normal", 5, LocalDate.now().plusDays(40));
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(
+                sinStock, caducado, caducaHoy, caducaPronto, bajoStock, caducaSemana, caducaMes, normal));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(porNombre(lista, "SinStock").estado()).isEqualTo("sin_stock");
+        assertThat(porNombre(lista, "Caducado").estado()).isEqualTo("caducado");
+        assertThat(porNombre(lista, "CaducaHoy").estado()).isEqualTo("caduca_hoy");
+        assertThat(porNombre(lista, "CaducaPronto").estado()).isEqualTo("caduca_pronto");
+        assertThat(porNombre(lista, "BajoStock").estado()).isEqualTo("bajoStock");
+        assertThat(porNombre(lista, "CaducaSemana").estado()).isEqualTo("caduca_semana");
+        assertThat(porNombre(lista, "CaducaMes").estado()).isEqualTo("caduca_mes");
+        assertThat(porNombre(lista, "Normal").estado()).isEqualTo("normal");
+    }
+
+    // -------------------------------------------------------------------------
     // editarProducto
     // -------------------------------------------------------------------------
 
