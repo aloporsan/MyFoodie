@@ -77,8 +77,11 @@ public class SocialController {
     }
 
     @GetMapping("/buscar")
-    public ResponseEntity<List<UsuarioBusquedaResponseDTO>> buscar(@RequestParam String q, Principal principal) {
-        return ResponseEntity.ok(socialService.buscarUsuarios(q, getUsuarioId(principal)));
+    public ResponseEntity<List<UsuarioBusquedaResponseDTO>> buscar(
+            @RequestParam String q,
+            @RequestParam(required = false, defaultValue = "false") boolean soloCompartibles,
+            Principal principal) {
+        return ResponseEntity.ok(socialService.buscarUsuarios(q, getUsuarioId(principal), soloCompartibles));
     }
 
     @PostMapping("/bloquear/{usuarioId}")

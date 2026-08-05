@@ -44,12 +44,12 @@ export function ModalCompartir({ visible, recetaId, onClose }: Props) {
 
   const handleBuscar = (t: string) => {
     setTexto(t);
-    buscarUsuarios(t);
+    buscarUsuarios(t, true);
   };
 
   const handleLimpiar = () => {
     setTexto('');
-    buscarUsuarios('');
+    buscarUsuarios('', true);
   };
 
   const handleSeleccionar = (usuario: UsuarioBusqueda) => {

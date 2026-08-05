@@ -76,9 +76,9 @@ export const socialService = {
     return data;
   },
 
-  buscarUsuarios: async (texto: string): Promise<UsuarioBusqueda[]> => {
+  buscarUsuarios: async (texto: string, soloCompartibles?: boolean): Promise<UsuarioBusqueda[]> => {
     const { data } = await apiClient.get<UsuarioBusqueda[]>('/social/buscar', {
-      params: { q: texto },
+      params: { q: texto, ...(soloCompartibles ? { soloCompartibles: true } : {}) },
     });
     return data;
   },

@@ -8,6 +8,7 @@ import com.myfoodie.domain.model.Privacidad;
 import com.myfoodie.domain.model.Seguimiento;
 import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.BloqueoRepository;
+import com.myfoodie.domain.repository.NotificacionRepository;
 import com.myfoodie.domain.repository.RecetaRepository;
 import com.myfoodie.domain.repository.SeguimientoRepository;
 import com.myfoodie.domain.repository.UsuarioRepository;
@@ -39,6 +40,7 @@ class SocialServiceTest {
     @Mock private BloqueoRepository bloqueoRepository;
     @Mock private UsuarioRepository usuarioRepository;
     @Mock private RecetaRepository recetaRepository;
+    @Mock private NotificacionRepository notificacionRepository;
 
     @InjectMocks
     private SocialService socialService;

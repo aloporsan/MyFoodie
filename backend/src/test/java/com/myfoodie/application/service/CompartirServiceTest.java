@@ -5,10 +5,12 @@ import com.myfoodie.application.dto.compartir.IngredienteFaltanteResponseDTO;
 import com.myfoodie.application.dto.compartir.RecetaCompartidaResponseDTO;
 import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.receta.RecetaResponseDTO;
+import com.myfoodie.domain.model.Privacidad;
 import com.myfoodie.domain.model.RecetaCompartida;
 import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.BloqueoRepository;
 import com.myfoodie.domain.repository.RecetaCompartidaRepository;
+import com.myfoodie.domain.repository.SeguimientoRepository;
 import com.myfoodie.domain.repository.UsuarioRepository;
 import com.myfoodie.exception.ApiException;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,6 +40,7 @@ class CompartirServiceTest {
 
     @Mock private RecetaCompartidaRepository recetaCompartidaRepository;
     @Mock private BloqueoRepository bloqueoRepository;
+    @Mock private SeguimientoRepository seguimientoRepository;
     @Mock private UsuarioRepository usuarioRepository;
     @Mock private RecetaService recetaService;
     @Mock private DespensaService despensaService;
@@ -46,6 +49,7 @@ class CompartirServiceTest {
     private CompartirService compartirService;
 
     private Usuario emisor;
+    private Usuario receptorPublico;
 
     @BeforeEach
     void setUp() {
@@ -54,6 +58,12 @@ class CompartirServiceTest {
                 .nombre("Emisor Uno")
                 .nombreUsuario("emisoruno")
                 .fotoPerfil("foto.jpg")
+                .build();
+        receptorPublico = Usuario.builder()
+                .id("receptor-1")
+                .nombre("Receptor Uno")
+                .nombreUsuario("receptoruno")
+                .privacidad(Privacidad.PUBLICA)
                 .build();
     }
 
@@ -81,6 +91,7 @@ class CompartirServiceTest {
         when(bloqueoRepository.existsByBloqueadorIdAndBloqueadoId(anyString(), anyString())).thenReturn(false);
         when(recetaCompartidaRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(usuarioRepository.findById("emisor-1")).thenReturn(Optional.of(emisor));
+        when(usuarioRepository.findById("receptor-1")).thenReturn(Optional.of(receptorPublico));
 
         List<RecetaCompartidaResponseDTO> resultado = compartirService.compartirReceta("emisor-1", "receta-1", dto);
 
@@ -103,6 +114,7 @@ class CompartirServiceTest {
         when(bloqueoRepository.existsByBloqueadorIdAndBloqueadoId(anyString(), anyString())).thenReturn(false);
         when(recetaCompartidaRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(usuarioRepository.findById("emisor-1")).thenReturn(Optional.of(emisor));
+        when(usuarioRepository.findById("receptor-1")).thenReturn(Optional.of(receptorPublico));
 
         List<RecetaCompartidaResponseDTO> resultado = compartirService.compartirReceta("emisor-1", "receta-1", dto);
 
@@ -117,6 +129,10 @@ class CompartirServiceTest {
         when(bloqueoRepository.existsByBloqueadorIdAndBloqueadoId(anyString(), anyString())).thenReturn(false);
         when(recetaCompartidaRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(usuarioRepository.findById("emisor-1")).thenReturn(Optional.of(emisor));
+        when(usuarioRepository.findById("receptor-1")).thenReturn(Optional.of(receptorPublico));
+        when(usuarioRepository.findById("receptor-2")).thenReturn(Optional.of(
+                Usuario.builder().id("receptor-2").nombre("Receptor Dos").nombreUsuario("receptordos")
+                        .privacidad(Privacidad.PUBLICA).build()));
 
         List<RecetaCompartidaResponseDTO> resultado = compartirService.compartirReceta("emisor-1", "receta-1", dto);
 
