@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Image,
   Pressable,
@@ -14,8 +14,11 @@ import { ModalCompartir } from '@/components/compartir/ModalCompartir';
 import { ErrorScreen } from '@/components/common/ErrorScreen';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { showConfirm } from '@/hooks/useConfirm';
+import { useToast } from '@/hooks/useToast';
+import { despensaService } from '@/services/despensaService';
 import { IngredienteReceta, PasoReceta } from '@/services/recetaService';
 import { useAuthStore } from '@/store/authStore';
+import { useCarritoStore } from '@/store/carritoStore';
 import { useRecetaStore } from '@/store/recetaStore';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
@@ -32,6 +35,7 @@ const DIFICULTAD_COLOR: Record<string, string> = {
 
 export function DetalleRecetaScreen() {
   const router = useRouter();
+  const { showSuccess: showToastSuccess, showError: showToastError } = useToast();
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const id = Array.isArray(rawId) ? rawId[0] : rawId;
   const currentUserId = useAuthStore((s) => s.usuario?.userId);
@@ -43,15 +47,41 @@ export function DetalleRecetaScreen() {
   const recetasGuardadas = useRecetaStore((s) => s.recetasGuardadas);
   const cargarRecetasGuardadas = useRecetaStore((s) => s.cargarRecetasGuardadas);
   const guardarReceta = useRecetaStore((s) => s.guardarReceta);
+  const añadirItemManual = useCarritoStore((s) => s.añadirItemManual);
 
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [modalCompartirVisible, setModalCompartirVisible] = useState(false);
+  const [nombresDespensa, setNombresDespensa] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!id) return;
     cargarReceta(id).finally(() => setCargando(false));
   }, [id]);
+
+  useEffect(() => {
+    if (!receta) return;
+    despensaService
+      .listarProductos()
+      .then((productos) => {
+        setNombresDespensa(new Set(productos.map((p) => p.nombre.trim().toLowerCase())));
+      })
+      .catch(() => {});
+  }, [receta?.id]);
+
+  const { disponibles, faltantes } = useMemo(() => {
+    if (!receta) return { disponibles: [] as IngredienteReceta[], faltantes: [] as IngredienteReceta[] };
+    const disponibles: IngredienteReceta[] = [];
+    const faltantes: IngredienteReceta[] = [];
+    for (const ingrediente of receta.ingredientes) {
+      if (nombresDespensa.has(ingrediente.nombre.trim().toLowerCase())) {
+        disponibles.push(ingrediente);
+      } else {
+        faltantes.push(ingrediente);
+      }
+    }
+    return { disponibles, faltantes };
+  }, [receta, nombresDespensa]);
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)'));
   const esPropia = receta?.autorId === currentUserId;
@@ -60,6 +90,23 @@ export function DetalleRecetaScreen() {
   useEffect(() => {
     if (receta && !esPropia) cargarRecetasGuardadas();
   }, [receta?.id, esPropia]);
+
+  const handleAñadirAlCarrito = async () => {
+    try {
+      for (const ingrediente of faltantes) {
+        await añadirItemManual({
+          nombre: ingrediente.nombre,
+          cantidad: ingrediente.cantidad,
+          unidad: ingrediente.unidad,
+        });
+      }
+      showToastSuccess(
+        `${faltantes.length} ingrediente${faltantes.length !== 1 ? 's' : ''} añadido${faltantes.length !== 1 ? 's' : ''} al carrito`
+      );
+    } catch {
+      showToastError('No se pudieron añadir los ingredientes al carrito');
+    }
+  };
 
   const handleGuardar = async () => {
     if (!receta) return;
@@ -231,21 +278,49 @@ export function DetalleRecetaScreen() {
             )}
           </View>
 
-          {/* Ingredientes */}
+          {/* Ingredientes en despensa */}
           <View style={styles.card}>
             <SectionHeader
-              icon="nutrition-outline"
-              titulo="Ingredientes"
-              count={receta.ingredientes.length}
+              icon="checkmark-circle"
+              titulo="Ingredientes en tu despensa"
+              count={disponibles.length}
+              iconColor={colors.primary}
+              iconBg="#E8F5D0"
             />
-            {receta.ingredientes.length === 0 ? (
-              <Text style={styles.vaciText}>Sin ingredientes</Text>
+            {disponibles.length === 0 ? (
+              <Text style={styles.vaciText}>No tienes ninguno de estos ingredientes</Text>
             ) : (
               <View style={styles.ingredientesList}>
-                {receta.ingredientes.map((ing) => (
+                {disponibles.map((ing) => (
                   <IngredienteRow key={ing.id} ingrediente={ing} />
                 ))}
               </View>
+            )}
+          </View>
+
+          {/* Ingredientes que faltan */}
+          <View style={styles.card}>
+            <SectionHeader
+              icon="close-circle"
+              titulo="Ingredientes que te faltan"
+              count={faltantes.length}
+              iconColor={colors.error}
+              iconBg="#FCE4E4"
+            />
+            {faltantes.length === 0 ? (
+              <Text style={styles.vaciText}>¡Tienes todo lo que necesitas!</Text>
+            ) : (
+              <>
+                <View style={styles.ingredientesList}>
+                  {faltantes.map((ing) => (
+                    <IngredienteRow key={ing.id} ingrediente={ing} />
+                  ))}
+                </View>
+                <Pressable style={styles.carritoBtn} onPress={handleAñadirAlCarrito}>
+                  <Ionicons name="cart-outline" size={18} color={colors.white} />
+                  <Text style={styles.carritoBtnTexto}>Añadir faltantes al carrito</Text>
+                </Pressable>
+              </>
             )}
           </View>
 
@@ -276,15 +351,19 @@ function SectionHeader({
   icon,
   titulo,
   count,
+  iconColor = colors.primary,
+  iconBg = '#E8F5D0',
 }: {
   icon: string;
   titulo: string;
   count: number;
+  iconColor?: string;
+  iconBg?: string;
 }) {
   return (
     <View style={secStyles.header}>
-      <View style={secStyles.icono}>
-        <Ionicons name={icon as any} size={18} color={colors.primary} />
+      <View style={[secStyles.icono, { backgroundColor: iconBg }]}>
+        <Ionicons name={icon as any} size={18} color={iconColor} />
       </View>
       <Text style={secStyles.titulo}>{titulo}</Text>
       <View style={secStyles.badge}>
@@ -425,6 +504,19 @@ const styles = StyleSheet.create({
 
   ingredientesList: { gap: spacing.sm },
   pasosList: { gap: spacing.md },
+
+  carritoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.secondary,
+    borderRadius: borderRadius.full,
+    paddingVertical: spacing.md,
+    minHeight: 44,
+    marginTop: spacing.sm,
+  },
+  carritoBtnTexto: { ...typography.button, color: colors.white },
 });
 
 const secStyles = StyleSheet.create({

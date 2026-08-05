@@ -80,6 +80,11 @@ function RootLayoutNav() {
         <Stack.Screen name="social"                     options={{ headerShown: false }} />
         <Stack.Screen name="compartir/recibidas"        options={{ headerShown: false }} />
         <Stack.Screen name="compartir/recibidas/[id]"   options={{ headerShown: false }} />
+        <Stack.Screen name="carrito/index"                     options={{ headerShown: false }} />
+        <Stack.Screen name="carrito/generar-lista"             options={{ headerShown: false }} />
+        <Stack.Screen name="carrito/listas"                    options={{ headerShown: false }} />
+        <Stack.Screen name="carrito/lista/[id]"                options={{ headerShown: false }} />
+        <Stack.Screen name="carrito/lista/[id]/anadir-despensa" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
       <StatusBar style="auto" />

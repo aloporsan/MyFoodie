@@ -28,6 +28,9 @@ public class MovimientoProducto {
 
     private String usuarioId;
 
+    /** Nombre del producto en el momento del movimiento (se conserva aunque el producto se elimine) */
+    private String nombre;
+
     /** añadido | editado | cantidad_actualizada | eliminado */
     private String tipo;
 

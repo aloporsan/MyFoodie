@@ -39,6 +39,7 @@ public class DespensaService {
     private final ProductoRepository productoRepository;
     private final PreferenciasRepository preferenciasRepository;
     private final MovimientoProductoRepository movimientoRepository;
+    private final CarritoInteligenteService carritoInteligenteService;
 
     // -------------------------------------------------------------------------
     // CRUD básico
@@ -68,6 +69,7 @@ public class DespensaService {
         actualizarDespensa(despensa);
         registrarMovimiento(saved, usuarioId, "añadido", "Producto añadido a la despensa",
                 null, saved.getCantidad(), null, null);
+        carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
 
         List<ProductoResponseDTO> duplicados = similares.stream()
                 .map(p -> toDTO(p, null, resolverUmbral(p, globalUmbral)))
@@ -118,6 +120,7 @@ public class DespensaService {
         actualizarDespensa(despensa);
         registrarMovimiento(saved, usuarioId, "editado", "Producto actualizado",
                 null, null, null, null);
+        carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
         return toDTO(saved, null, resolverUmbral(saved, globalUmbral));
     }
 
@@ -130,6 +133,7 @@ public class DespensaService {
                 p.getCantidad(), null, motivo, motivoDetalle);
         productoRepository.delete(p);
         actualizarDespensa(despensa);
+        carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
     }
 
     public ProductoResponseDTO actualizarCantidad(String usuarioId, String productoId,
@@ -147,6 +151,7 @@ public class DespensaService {
         actualizarDespensa(despensa);
         registrarMovimiento(saved, usuarioId, "cantidad_actualizada", "Cantidad actualizada",
                 cantidadAnterior, nuevaCantidad, dto.motivo(), dto.motivoDetalle());
+        carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
         return toDTO(saved, null, resolverUmbral(saved, globalUmbral));
     }
 
@@ -243,6 +248,7 @@ public class DespensaService {
                 .productoId(p.getId())
                 .despensaId(p.getDespensaId())
                 .usuarioId(usuarioId)
+                .nombre(p.getNombre())
                 .tipo(tipo)
                 .descripcion(descripcion)
                 .cantidadAnterior(cantidadAnterior)

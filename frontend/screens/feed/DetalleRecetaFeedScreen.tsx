@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/useToast';
 import { despensaService } from '@/services/despensaService';
 import { feedService } from '@/services/feedService';
 import { IngredienteReceta, Receta } from '@/services/recetaService';
+import { useCarritoStore } from '@/store/carritoStore';
 import { useFeedStore } from '@/store/feedStore';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
 import { resolveImagenUrl } from '@/utils/media';
@@ -31,6 +32,7 @@ export function DetalleRecetaFeedScreen() {
   const darLike = useFeedStore((s) => s.darLike);
   const quitarLike = useFeedStore((s) => s.quitarLike);
   const guardarReceta = useFeedStore((s) => s.guardarReceta);
+  const añadirItemManual = useCarritoStore((s) => s.añadirItemManual);
 
   const recetaFeed = recetas.find((r) => r.id === id);
 
@@ -103,8 +105,21 @@ export function DetalleRecetaFeedScreen() {
     }
   };
 
-  const handleAñadirAlCarrito = () => {
-    showSuccess('El carrito inteligente estará disponible próximamente');
+  const handleAñadirAlCarrito = async () => {
+    try {
+      for (const ingrediente of faltantes) {
+        await añadirItemManual({
+          nombre: ingrediente.nombre,
+          cantidad: ingrediente.cantidad,
+          unidad: ingrediente.unidad,
+        });
+      }
+      showSuccess(
+        `${faltantes.length} ingrediente${faltantes.length !== 1 ? 's' : ''} añadido${faltantes.length !== 1 ? 's' : ''} al carrito`
+      );
+    } catch {
+      showError('No se pudieron añadir los ingredientes al carrito');
+    }
   };
 
   if (cargando) {

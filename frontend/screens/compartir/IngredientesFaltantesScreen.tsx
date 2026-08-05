@@ -8,6 +8,7 @@ import { ErrorScreen } from '@/components/common/ErrorScreen';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { useToast } from '@/hooks/useToast';
 import type { IngredienteReceta } from '@/services/recetaService';
+import { useCarritoStore } from '@/store/carritoStore';
 import { useCompartirStore } from '@/store/compartirStore';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
 import { resolveImagenUrl } from '@/utils/media';
@@ -20,7 +21,7 @@ const DIFICULTAD_COLOR: Record<string, string> = {
 
 export function IngredientesFaltantesScreen() {
   const router = useRouter();
-  const { showInfo } = useToast();
+  const { showSuccess, showError } = useToast();
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const id = Array.isArray(rawId) ? rawId[0] : rawId;
 
@@ -28,6 +29,7 @@ export function IngredientesFaltantesScreen() {
   const ingredientesFaltantes = useCompartirStore((s) => s.ingredientesFaltantes);
   const isLoading = useCompartirStore((s) => s.isLoading);
   const cargarIngredientesFaltantes = useCompartirStore((s) => s.cargarIngredientesFaltantes);
+  const añadirItemManual = useCarritoStore((s) => s.añadirItemManual);
 
   const recetaCompartida = recetasRecibidas.find((r) => r.id === id);
 
@@ -52,8 +54,21 @@ export function IngredientesFaltantesScreen() {
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/compartir/recibidas'));
 
-  const handleAñadirAlCarrito = () => {
-    showInfo('Disponible próximamente');
+  const handleAñadirAlCarrito = async () => {
+    try {
+      for (const ingrediente of faltantes) {
+        await añadirItemManual({
+          nombre: ingrediente.nombre,
+          cantidad: ingrediente.cantidad,
+          unidad: ingrediente.unidad,
+        });
+      }
+      showSuccess(
+        `${faltantes.length} ingrediente${faltantes.length !== 1 ? 's' : ''} añadido${faltantes.length !== 1 ? 's' : ''} al carrito`
+      );
+    } catch {
+      showError('No se pudieron añadir los ingredientes al carrito');
+    }
   };
 
   if (isLoading && !recetaCompartida) {
