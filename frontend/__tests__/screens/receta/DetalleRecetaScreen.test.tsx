@@ -77,6 +77,13 @@ it('muestra_descripcion_tras_cargar', async () => {
   });
 });
 
+it('detalle_muestra_para_X_personas', async () => {
+  const { getByText } = render(<DetalleRecetaScreen />);
+  await waitFor(() => {
+    expect(getByText('Para 4 personas')).toBeTruthy();
+  });
+});
+
 it('muestra_error_si_el_servicio_falla', async () => {
   recetaService.obtenerReceta.mockRejectedValue(new Error('No encontrada'));
   const { getByTestId } = render(<DetalleRecetaScreen />);

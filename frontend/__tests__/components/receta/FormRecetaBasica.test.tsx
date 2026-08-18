@@ -49,3 +49,24 @@ it('llama_onChange_al_pulsar_chip_de_categoria', () => {
   fireEvent.press(getByText('Postre'));
   expect(onChange).toHaveBeenCalledWith('categoria', 'Postre');
 });
+
+it('campo_numPersonas_renderiza_con_valor_por_defecto_2', () => {
+  const { getByTestId } = render(<FormRecetaBasica {...defaultProps} />);
+  expect(getByTestId('valor-num-personas').props.children).toBe(2);
+});
+
+it('campo_numPersonas_acepta_valores_entre_1_y_20', () => {
+  const { getByTestId, rerender } = render(<FormRecetaBasica {...defaultProps} numPersonas="2" />);
+  fireEvent.press(getByTestId('btn-sumar-num-personas'));
+  expect(onChange).toHaveBeenCalledWith('numPersonas', '3');
+
+  onChange.mockClear();
+  rerender(<FormRecetaBasica {...defaultProps} numPersonas="20" />);
+  fireEvent.press(getByTestId('btn-sumar-num-personas'));
+  expect(onChange).not.toHaveBeenCalled();
+
+  onChange.mockClear();
+  rerender(<FormRecetaBasica {...defaultProps} numPersonas="1" />);
+  fireEvent.press(getByTestId('btn-restar-num-personas'));
+  expect(onChange).not.toHaveBeenCalled();
+});

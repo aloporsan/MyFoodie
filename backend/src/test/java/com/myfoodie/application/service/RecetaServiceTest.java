@@ -105,6 +105,41 @@ class RecetaServiceTest {
         assertThat(result.autorId()).isEqualTo("user-42");
     }
 
+    @Test
+    @DisplayName("crearReceta_con_numPersonas_guarda_valor_correctamente")
+    void crearReceta_con_numPersonas_guarda_valor_correctamente() {
+        when(recetaRepository.save(any())).thenAnswer(inv -> {
+            Receta r = inv.getArgument(0);
+            r.setId("r1");
+            return r;
+        });
+        when(ingredienteRepository.findByRecetaId("r1")).thenReturn(List.of());
+        when(pasoRepository.findByRecetaIdOrderByOrdenAsc("r1")).thenReturn(List.of());
+
+        RecetaRequestDTO dto = new RecetaRequestDTO(
+                "Paella", "Descripción", 30, "Fácil", "Pasta", List.of(), null, 6);
+
+        RecetaResponseDTO result = recetaService.crearReceta("user-1", dto);
+
+        assertThat(result.numPersonas()).isEqualTo(6);
+    }
+
+    @Test
+    @DisplayName("crearReceta_sin_numPersonas_usa_valor_por_defecto_2")
+    void crearReceta_sin_numPersonas_usa_valor_por_defecto_2() {
+        when(recetaRepository.save(any())).thenAnswer(inv -> {
+            Receta r = inv.getArgument(0);
+            r.setId("r1");
+            return r;
+        });
+        when(ingredienteRepository.findByRecetaId("r1")).thenReturn(List.of());
+        when(pasoRepository.findByRecetaIdOrderByOrdenAsc("r1")).thenReturn(List.of());
+
+        RecetaResponseDTO result = recetaService.crearReceta("user-1", request("Tortilla"));
+
+        assertThat(result.numPersonas()).isEqualTo(2);
+    }
+
     // -------------------------------------------------------------------------
     // editarReceta — positivos
     // -------------------------------------------------------------------------
