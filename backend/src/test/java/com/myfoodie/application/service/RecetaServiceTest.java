@@ -1,12 +1,17 @@
 package com.myfoodie.application.service;
 
+import com.myfoodie.application.dto.despensa.ProductoUpdateCantidadDTO;
 import com.myfoodie.application.dto.receta.*;
+import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.IngredienteReceta;
 import com.myfoodie.domain.model.Paso;
+import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.model.Receta;
+import com.myfoodie.domain.repository.DespensaRepository;
 import com.myfoodie.domain.repository.IngredienteRecetaRepository;
 import com.myfoodie.domain.repository.LikeRepository;
 import com.myfoodie.domain.repository.PasoRepository;
+import com.myfoodie.domain.repository.ProductoRepository;
 import com.myfoodie.domain.repository.RecetaGuardadaRepository;
 import com.myfoodie.domain.repository.RecetaRepository;
 import com.myfoodie.domain.repository.UsuarioRepository;
@@ -38,6 +43,9 @@ class RecetaServiceTest {
     @Mock private RecetaGuardadaRepository recetaGuardadaRepository;
     @Mock private LikeRepository likeRepository;
     @Mock private UsuarioRepository usuarioRepository;
+    @Mock private DespensaRepository despensaRepository;
+    @Mock private ProductoRepository productoRepository;
+    @Mock private DespensaService despensaService;
 
     @InjectMocks private RecetaService recetaService;
 
@@ -51,6 +59,19 @@ class RecetaServiceTest {
                 .titulo("Paella valenciana").descripcion("Receta tradicional")
                 .tiempoEstimado(60).dificultad("Difícil").categoria("Arroces")
                 .etiquetas(new ArrayList<>()).estado("borrador")
+                .build();
+    }
+
+    private Despensa despensa(String id, String usuarioId) {
+        Despensa d = new Despensa();
+        d.setId(id);
+        d.setUsuarioId(usuarioId);
+        return d;
+    }
+
+    private Producto productoDespensa(String id, String despensaId, String nombre, double cantidad) {
+        return Producto.builder()
+                .id(id).despensaId(despensaId).nombre(nombre).cantidad(cantidad).unidad("g")
                 .build();
     }
 
@@ -521,5 +542,117 @@ class RecetaServiceTest {
                 recetaService.añadirPaso("user-1", "r1", new PasoRequestDTO("", null)))
                 .isInstanceOf(ApiException.class)
                 .hasFieldOrPropertyWithValue("status", HttpStatus.BAD_REQUEST);
+    }
+
+    // -------------------------------------------------------------------------
+    // marcarRecetaComoRealizada / descontarIngredientesReceta
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("marcarRecetaComoRealizada_calcula_ingredientes_correctamente")
+    void marcarRecetaComoRealizada_calcula_ingredientes_correctamente() {
+        Receta receta = receta("r1", "user-1"); // numPersonas = 2
+        Despensa despensa = despensa("desp-1", "user-1");
+        Producto arroz = productoDespensa("prod-1", "desp-1", "Arroz", 150);
+
+        when(recetaRepository.findById("r1")).thenReturn(Optional.of(receta));
+        when(recetaGuardadaRepository.existsByUsuarioIdAndRecetaId("user-1", "r1")).thenReturn(true);
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(despensa));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(arroz));
+        when(ingredienteRepository.findByRecetaId("r1")).thenReturn(List.of(ingrediente("ing-1", "r1")));
+
+        List<IngredienteConsumoDTO> resultado = recetaService.marcarRecetaComoRealizada("user-1", "r1", 2);
+
+        assertThat(resultado).hasSize(1);
+        IngredienteConsumoDTO consumo = resultado.get(0);
+        assertThat(consumo.nombre()).isEqualTo("Arroz");
+        assertThat(consumo.cantidadCalculada()).isEqualTo(200.0);
+        assertThat(consumo.unidad()).isEqualTo("g");
+        assertThat(consumo.productoEnDespensa()).isTrue();
+        assertThat(consumo.cantidadDisponible()).isEqualTo(150.0);
+        assertThat(consumo.suficiente()).isFalse();
+    }
+
+    @Test
+    @DisplayName("marcarRecetaComoRealizada_escala_segun_raciones_elaboradas")
+    void marcarRecetaComoRealizada_escala_segun_raciones_elaboradas() {
+        Receta receta = receta("r1", "user-1"); // numPersonas = 2
+        when(recetaRepository.findById("r1")).thenReturn(Optional.of(receta));
+        when(recetaGuardadaRepository.existsByUsuarioIdAndRecetaId("user-1", "r1")).thenReturn(true);
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.empty());
+        when(ingredienteRepository.findByRecetaId("r1")).thenReturn(List.of(ingrediente("ing-1", "r1")));
+
+        List<IngredienteConsumoDTO> resultado = recetaService.marcarRecetaComoRealizada("user-1", "r1", 4);
+
+        assertThat(resultado.get(0).cantidadCalculada()).isEqualTo(400.0);
+        assertThat(resultado.get(0).productoEnDespensa()).isFalse();
+    }
+
+    @Test
+    @DisplayName("descontarIngredientesReceta_actualiza_cantidades_en_despensa")
+    void descontarIngredientesReceta_actualiza_cantidades_en_despensa() {
+        Receta receta = receta("r1", "user-1"); // numPersonas = 2
+        Despensa despensa = despensa("desp-1", "user-1");
+        Producto arroz = productoDespensa("prod-1", "desp-1", "Arroz", 500);
+
+        when(recetaRepository.findById("r1")).thenReturn(Optional.of(receta));
+        when(recetaGuardadaRepository.existsByUsuarioIdAndRecetaId("user-1", "r1")).thenReturn(true);
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(despensa));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(arroz));
+        when(ingredienteRepository.findByRecetaId("r1")).thenReturn(List.of(ingrediente("ing-1", "r1")));
+
+        DescuentoRecetaResponseDTO resultado = recetaService.descontarIngredientesReceta("user-1", "r1", 2);
+
+        assertThat(resultado.descontados()).hasSize(1);
+        assertThat(resultado.noDisponibles()).isEmpty();
+
+        ArgumentCaptor<ProductoUpdateCantidadDTO> captor = ArgumentCaptor.forClass(ProductoUpdateCantidadDTO.class);
+        verify(despensaService).actualizarCantidad(eq("user-1"), eq("prod-1"), captor.capture());
+        assertThat(captor.getValue().delta()).isEqualTo(-200.0);
+    }
+
+    @Test
+    @DisplayName("descontarIngredientesReceta_deja_en_cero_si_stock_insuficiente")
+    void descontarIngredientesReceta_deja_en_cero_si_stock_insuficiente() {
+        Receta receta = receta("r1", "user-1"); // numPersonas = 2
+        Despensa despensa = despensa("desp-1", "user-1");
+        Producto arroz = productoDespensa("prod-1", "desp-1", "Arroz", 50);
+
+        when(recetaRepository.findById("r1")).thenReturn(Optional.of(receta));
+        when(recetaGuardadaRepository.existsByUsuarioIdAndRecetaId("user-1", "r1")).thenReturn(true);
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(despensa));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(arroz));
+        when(ingredienteRepository.findByRecetaId("r1")).thenReturn(List.of(ingrediente("ing-1", "r1")));
+
+        DescuentoRecetaResponseDTO resultado = recetaService.descontarIngredientesReceta("user-1", "r1", 2);
+
+        assertThat(resultado.descontados()).hasSize(1);
+        assertThat(resultado.descontados().get(0).suficiente()).isFalse();
+
+        // Deja el producto en 0 en vez de intentar restar más de lo disponible.
+        ArgumentCaptor<ProductoUpdateCantidadDTO> captor = ArgumentCaptor.forClass(ProductoUpdateCantidadDTO.class);
+        verify(despensaService).actualizarCantidad(eq("user-1"), eq("prod-1"), captor.capture());
+        assertThat(captor.getValue().delta()).isEqualTo(-50.0);
+    }
+
+    @Test
+    @DisplayName("descontarIngredientesReceta_registra_movimiento_con_descripcion_receta")
+    void descontarIngredientesReceta_registra_movimiento_con_descripcion_receta() {
+        Receta receta = receta("r1", "user-1"); // titulo = "Paella valenciana"
+        Despensa despensa = despensa("desp-1", "user-1");
+        Producto arroz = productoDespensa("prod-1", "desp-1", "Arroz", 500);
+
+        when(recetaRepository.findById("r1")).thenReturn(Optional.of(receta));
+        when(recetaGuardadaRepository.existsByUsuarioIdAndRecetaId("user-1", "r1")).thenReturn(true);
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(despensa));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(arroz));
+        when(ingredienteRepository.findByRecetaId("r1")).thenReturn(List.of(ingrediente("ing-1", "r1")));
+
+        recetaService.descontarIngredientesReceta("user-1", "r1", 2);
+
+        ArgumentCaptor<ProductoUpdateCantidadDTO> captor = ArgumentCaptor.forClass(ProductoUpdateCantidadDTO.class);
+        verify(despensaService).actualizarCantidad(eq("user-1"), eq("prod-1"), captor.capture());
+        assertThat(captor.getValue().descripcion()).isEqualTo("Usado en receta: Paella valenciana");
+        assertThat(captor.getValue().motivo()).isEqualTo("usado_en_receta");
     }
 }

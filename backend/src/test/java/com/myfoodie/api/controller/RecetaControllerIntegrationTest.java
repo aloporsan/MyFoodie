@@ -461,6 +461,61 @@ class RecetaControllerIntegrationTest {
     }
 
     // -------------------------------------------------------------------------
+    // POST /api/recetas/{id}/realizada y /descontar-stock
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("POST /api/recetas/{id}/realizada devuelve 200 con preview de ingredientes")
+    void POST_realizada_devuelve200_con_preview_ingredientes() throws Exception {
+        String recetaId = crearRecetaCompletaYObtenerID(tokenA); // numPersonas por defecto = 2, ingrediente Arroz 200g
+        guardarReceta(tokenB, recetaId);
+
+        mockMvc.perform(post("/api/recetas/" + recetaId + "/realizada")
+                        .header("Authorization", "Bearer " + tokenB)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(racionesJson(2)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].nombre").value("Arroz"))
+                .andExpect(jsonPath("$[0].cantidadCalculada").value(200.0))
+                .andExpect(jsonPath("$[0].productoEnDespensa").value(false));
+    }
+
+    @Test
+    @DisplayName("POST /api/recetas/{id}/descontar-stock devuelve 200 y actualiza despensa")
+    void POST_descontar_stock_devuelve200_y_actualiza_despensa() throws Exception {
+        String recetaId = crearRecetaCompletaYObtenerID(tokenA); // numPersonas por defecto = 2, ingrediente Arroz 200g
+        guardarReceta(tokenB, recetaId);
+        String productoId = añadirProductoYObtenerID(tokenB, "Arroz", 500, "g");
+
+        mockMvc.perform(post("/api/recetas/" + recetaId + "/descontar-stock")
+                        .header("Authorization", "Bearer " + tokenB)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(racionesJson(2)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.descontados", hasSize(1)))
+                .andExpect(jsonPath("$.descontados[0].nombre").value("Arroz"))
+                .andExpect(jsonPath("$.noDisponibles", hasSize(0)));
+
+        mockMvc.perform(get("/api/despensa/productos/" + productoId)
+                        .header("Authorization", "Bearer " + tokenB))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cantidad").value(300.0));
+    }
+
+    @Test
+    @DisplayName("POST /api/recetas/{id}/realizada devuelve 404 si la receta no está guardada")
+    void POST_realizada_devuelve404_si_receta_no_guardada() throws Exception {
+        String recetaId = crearRecetaCompletaYObtenerID(tokenA);
+
+        mockMvc.perform(post("/api/recetas/" + recetaId + "/realizada")
+                        .header("Authorization", "Bearer " + tokenB)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(racionesJson(2)))
+                .andExpect(status().isNotFound());
+    }
+
+    // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
 
@@ -511,6 +566,24 @@ class RecetaControllerIntegrationTest {
         mockMvc.perform(post("/api/recetas/" + recetaId + "/guardar")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isCreated());
+    }
+
+    private String añadirProductoYObtenerID(String token, String nombre, double cantidad,
+                                             String unidad) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/despensa/productos")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "nombre", nombre,
+                                "cantidad", cantidad,
+                                "unidad", unidad
+                        ))))
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText();
+    }
+
+    private String racionesJson(double racionesElaboradas) throws Exception {
+        return objectMapper.writeValueAsString(Map.of("racionesElaboradas", racionesElaboradas));
     }
 
     private String añadirPasoYObtenerID(String token, String recetaId, String descripcion) throws Exception {
