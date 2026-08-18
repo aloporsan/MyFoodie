@@ -105,31 +105,51 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
   },
 
   aceptarItem: async (id) => {
-    set({ error: null });
-    try {
-      const actualizado = await carritoService.aceptarItem(id);
-      set((s) => {
-        const items = s.items.map((i) => (i.id === id ? actualizado : i));
-        return { items, resumen: calcularResumen(items) };
+    const snapshotItems = get().items;
+    const itemAnterior = snapshotItems.find((i) => i.id === id);
+    if (!itemAnterior) return;
+
+    // Actualización optimista: refleja el cambio al instante, sin esperar la red.
+    const itemsOptimistas = snapshotItems.map((i) =>
+      i.id === id ? { ...i, estado: 'aceptado' as const } : i
+    );
+    set({ error: null, items: itemsOptimistas, resumen: calcularResumen(itemsOptimistas) });
+
+    carritoService.aceptarItem(id)
+      .then((actualizado) => {
+        set((s) => {
+          const items = s.items.map((i) => (i.id === id ? actualizado : i));
+          return { items, resumen: calcularResumen(items) };
+        });
+      })
+      .catch((e) => {
+        // Revierte la actualización optimista si la petición falla.
+        set({ error: handleApiError(e), items: snapshotItems, resumen: calcularResumen(snapshotItems) });
       });
-    } catch (e) {
-      set({ error: handleApiError(e) });
-      throw e;
-    }
   },
 
   rechazarItem: async (id) => {
-    set({ error: null });
-    try {
-      const actualizado = await carritoService.rechazarItem(id);
-      set((s) => {
-        const items = s.items.map((i) => (i.id === id ? actualizado : i));
-        return { items, resumen: calcularResumen(items) };
+    const snapshotItems = get().items;
+    const itemAnterior = snapshotItems.find((i) => i.id === id);
+    if (!itemAnterior) return;
+
+    // Actualización optimista: refleja el cambio al instante, sin esperar la red.
+    const itemsOptimistas = snapshotItems.map((i) =>
+      i.id === id ? { ...i, estado: 'rechazado' as const } : i
+    );
+    set({ error: null, items: itemsOptimistas, resumen: calcularResumen(itemsOptimistas) });
+
+    carritoService.rechazarItem(id)
+      .then((actualizado) => {
+        set((s) => {
+          const items = s.items.map((i) => (i.id === id ? actualizado : i));
+          return { items, resumen: calcularResumen(items) };
+        });
+      })
+      .catch((e) => {
+        // Revierte la actualización optimista si la petición falla.
+        set({ error: handleApiError(e), items: snapshotItems, resumen: calcularResumen(snapshotItems) });
       });
-    } catch (e) {
-      set({ error: handleApiError(e) });
-      throw e;
-    }
   },
 
   marcarNoVolver: async (id) => {

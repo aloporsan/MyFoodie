@@ -168,13 +168,14 @@ export function ItemCarritoCard({
               </View>
             )
           ) : (
-            <View style={styles.actions}>
-              <Pressable style={[styles.actionBtn, styles.btnAceptar]} onPress={handleAceptar} hitSlop={4}>
-                <Ionicons name="checkmark" size={18} color={colors.white} />
-              </Pressable>
-              <Pressable style={[styles.actionBtn, styles.btnRechazar]} onPress={handleRechazar} hitSlop={4}>
-                <Ionicons name="close" size={18} color={colors.text.secondary} />
-              </Pressable>
+            <View style={styles.actionsPendiente}>
+              <View style={styles.swipeHint}>
+                <Ionicons name="chevron-back" size={14} color={colors.text.secondary} />
+                <Text style={styles.swipeHintText}>Descartar</Text>
+                <Text style={styles.swipeHintDivider}>·</Text>
+                <Text style={styles.swipeHintText}>Aceptar</Text>
+                <Ionicons name="chevron-forward" size={14} color={colors.text.secondary} />
+              </View>
               <Pressable style={[styles.actionBtn, styles.btnMas]} onPress={handleMasOpciones} hitSlop={4}>
                 <Ionicons name="ellipsis-vertical" size={18} color={colors.text.secondary} />
               </Pressable>
@@ -356,18 +357,32 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.sm,
   },
+  actionsPendiente: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+  },
+  swipeHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  swipeHintText: {
+    ...typography.caption,
+    color: colors.text.secondary,
+  },
+  swipeHintDivider: {
+    ...typography.caption,
+    color: colors.text.secondary,
+    marginHorizontal: 2,
+  },
   actionBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  btnAceptar: {
-    backgroundColor: colors.primary,
-  },
-  btnRechazar: {
-    backgroundColor: colors.grayLight,
   },
   btnMas: {
     backgroundColor: colors.grayLight,
