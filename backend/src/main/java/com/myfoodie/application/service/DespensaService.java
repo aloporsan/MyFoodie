@@ -6,6 +6,7 @@ import com.myfoodie.application.dto.despensa.ProductoFiltroDTO;
 import com.myfoodie.application.dto.despensa.ProductoRequestDTO;
 import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.despensa.ProductoUpdateCantidadDTO;
+import com.myfoodie.application.dto.unidad.UnidadConvertidaDTO;
 import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.MovimientoProducto;
 import com.myfoodie.domain.model.Preferencias;
@@ -40,6 +41,7 @@ public class DespensaService {
     private final PreferenciasRepository preferenciasRepository;
     private final MovimientoProductoRepository movimientoRepository;
     private final CarritoInteligenteService carritoInteligenteService;
+    private final UnidadNormalizadorService unidadNormalizadorService;
 
     // -------------------------------------------------------------------------
     // CRUD básico
@@ -52,11 +54,14 @@ public class DespensaService {
         List<Producto> similares = productoRepository
                 .findByDespensaIdAndNombreContainingIgnoreCase(despensa.getId(), dto.nombre().trim());
 
+        UnidadConvertidaDTO normalizado = unidadNormalizadorService.normalizarUnidades(dto.cantidad(), dto.unidad());
+
         Producto producto = Producto.builder()
                 .despensaId(despensa.getId())
                 .nombre(dto.nombre())
-                .cantidad(dto.cantidad())
-                .unidad(dto.unidad())
+                .cantidad(normalizado.cantidadConvertida())
+                .unidad(normalizado.unidadConvertida())
+                .unidadOriginal(dto.unidad())
                 .categoria(dto.categoria())
                 .fechaCaducidad(dto.fechaCaducidad())
                 .fechaCompra(dto.fechaCompra())
@@ -305,6 +310,7 @@ public class DespensaService {
                 p.getNombre(),
                 p.getCantidad(),
                 p.getUnidad(),
+                p.getUnidadOriginal(),
                 p.getCategoria(),
                 p.getFechaCaducidad(),
                 p.getFechaCompra(),

@@ -2,6 +2,7 @@ package com.myfoodie.application.service;
 
 import com.myfoodie.application.dto.despensa.ProductoUpdateCantidadDTO;
 import com.myfoodie.application.dto.receta.*;
+import com.myfoodie.application.dto.unidad.UnidadConvertidaDTO;
 import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.IngredienteReceta;
 import com.myfoodie.domain.model.Paso;
@@ -43,6 +44,7 @@ public class RecetaService {
     private final DespensaRepository despensaRepository;
     private final ProductoRepository productoRepository;
     private final DespensaService despensaService;
+    private final UnidadNormalizadorService unidadNormalizadorService;
 
     // -------------------------------------------------------------------------
     // CRUD básico
@@ -268,7 +270,7 @@ public class RecetaService {
 
         for (IngredienteReceta ingrediente : ingredienteRepository.findByRecetaId(recetaId)) {
             IngredienteConsumoDTO consumo = calcularConsumo(ingrediente, factor, productos);
-            if (!consumo.productoEnDespensa()) {
+            if (!consumo.productoEnDespensa() || consumo.noComparable()) {
                 noDisponibles.add(consumo);
                 continue;
             }
@@ -308,14 +310,24 @@ public class RecetaService {
 
     private IngredienteConsumoDTO calcularConsumo(IngredienteReceta ingrediente, double factor,
                                                     List<Producto> productos) {
-        double cantidadCalculada = ingrediente.getCantidad() * factor;
+        UnidadConvertidaDTO normalizado = unidadNormalizadorService
+                .normalizarUnidades(ingrediente.getCantidad(), ingrediente.getUnidad());
+        double cantidadCalculada = normalizado.cantidadConvertida() * factor;
         Producto producto = buscarProductoPorNombre(productos, ingrediente.getNombre());
         boolean enDespensa = producto != null;
-        double disponible = enDespensa ? producto.getCantidad() : 0;
-        boolean suficiente = enDespensa && disponible >= cantidadCalculada;
+
+        boolean comparable = enDespensa && unidadesCompatibles(normalizado.unidadConvertida(), producto.getUnidad());
+        double disponible = comparable ? producto.getCantidad() : 0;
+        boolean suficiente = comparable && disponible >= cantidadCalculada;
+        boolean noComparable = enDespensa && !comparable;
+
         return new IngredienteConsumoDTO(
-                ingrediente.getNombre(), cantidadCalculada, ingrediente.getUnidad(),
-                enDespensa, disponible, suficiente);
+                ingrediente.getNombre(), cantidadCalculada, normalizado.unidadConvertida(),
+                enDespensa, disponible, suficiente, noComparable);
+    }
+
+    private boolean unidadesCompatibles(String unidadIngrediente, String unidadProducto) {
+        return normalizar(unidadIngrediente).equals(normalizar(unidadProducto));
     }
 
     private Producto buscarProductoPorNombre(List<Producto> productos, String nombre) {

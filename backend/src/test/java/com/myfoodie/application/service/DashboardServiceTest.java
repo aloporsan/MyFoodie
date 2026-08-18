@@ -41,7 +41,7 @@ class DashboardServiceTest {
     private ProductoResponseDTO dto(String id, String estado, String categoria,
                                     LocalDate fechaCaducidad, double cantidad,
                                     LocalDateTime createdAt) {
-        return new ProductoResponseDTO(id, "desp-1", "Producto " + id, cantidad, "unidades",
+        return new ProductoResponseDTO(id, "desp-1", "Producto " + id, cantidad, "unidades", null,
                 categoria, fechaCaducidad, null, null, null,
                 null, false,
                 estado, null, null, createdAt, createdAt);

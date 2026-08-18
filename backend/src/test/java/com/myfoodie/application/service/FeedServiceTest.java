@@ -66,7 +66,7 @@ class FeedServiceTest {
 
     private ProductoResponseDTO productoDespensa(String nombre) {
         return new ProductoResponseDTO(
-                "p-1", "desp-1", nombre, 1, "unidades", null, null, null, null, null,
+                "p-1", "desp-1", nombre, 1, "unidades", null, null, null, null, null, null,
                 null, false, "normal", null, null, null, null);
     }
 

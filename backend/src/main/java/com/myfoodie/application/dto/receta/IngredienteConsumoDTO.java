@@ -6,5 +6,6 @@ public record IngredienteConsumoDTO(
         String unidad,
         boolean productoEnDespensa,
         double cantidadDisponible,
-        boolean suficiente
+        boolean suficiente,
+        boolean noComparable
 ) {}

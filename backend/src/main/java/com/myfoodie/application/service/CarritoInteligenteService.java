@@ -6,6 +6,7 @@ import com.myfoodie.application.dto.carrito.ItemCarritoRequestDTO;
 import com.myfoodie.application.dto.carrito.ItemCompradoAjusteDTO;
 import com.myfoodie.application.dto.carrito.ItemCarritoResponseDTO;
 import com.myfoodie.application.dto.carrito.ListaCompraResponseDTO;
+import com.myfoodie.application.dto.unidad.UnidadConvertidaDTO;
 import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.IngredienteReceta;
 import com.myfoodie.domain.model.ItemCarrito;
@@ -97,6 +98,7 @@ public class CarritoInteligenteService {
     private final RecetaGuardadaRepository recetaGuardadaRepository;
     private final IngredienteRecetaRepository ingredienteRecetaRepository;
     private final RecetaRepository recetaRepository;
+    private final UnidadNormalizadorService unidadNormalizadorService;
 
     // -------------------------------------------------------------------------
     // Generación de recomendaciones
@@ -502,12 +504,19 @@ public class CarritoInteligenteService {
     }
 
     private double ratioDisponibilidad(IngredienteReceta ingrediente, List<Producto> productos) {
+        UnidadConvertidaDTO normalizado = unidadNormalizadorService
+                .normalizarUnidades(ingrediente.getCantidad(), ingrediente.getUnidad());
         double disponible = productos.stream()
                 .filter(p -> normalizar(p.getNombre()).equals(normalizar(ingrediente.getNombre())))
+                .filter(p -> unidadesCompatibles(normalizado.unidadConvertida(), p.getUnidad()))
                 .mapToDouble(Producto::getCantidad)
                 .sum();
-        if (ingrediente.getCantidad() <= 0) return disponible > 0 ? 1 : 0;
-        return disponible / ingrediente.getCantidad();
+        if (normalizado.cantidadConvertida() <= 0) return disponible > 0 ? 1 : 0;
+        return disponible / normalizado.cantidadConvertida();
+    }
+
+    private boolean unidadesCompatibles(String unidadIngrediente, String unidadProducto) {
+        return normalizar(unidadIngrediente).equals(normalizar(unidadProducto));
     }
 
     private boolean enDespensaConStockSuficiente(String nombre, List<Producto> productos, int umbral) {
