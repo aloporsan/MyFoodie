@@ -6,5 +6,6 @@ public record ProductoUpdateCantidadDTO(
         @NotNull(message = "El delta es obligatorio")
         Double delta,
         String motivo,
-        String motivoDetalle
+        String motivoDetalle,
+        String descripcion
 ) {}

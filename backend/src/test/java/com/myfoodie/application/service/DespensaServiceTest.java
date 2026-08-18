@@ -389,7 +389,7 @@ class DespensaServiceTest {
         when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
 
         ProductoResponseDTO resultado = despensaService.actualizarCantidad(
-                "user-1", "prod-1", new ProductoUpdateCantidadDTO(2.0, null, null));
+                "user-1", "prod-1", new ProductoUpdateCantidadDTO(2.0, null, null, null));
 
         assertThat(resultado.cantidad()).isEqualTo(5.0);
     }
@@ -406,7 +406,7 @@ class DespensaServiceTest {
         when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
 
         ProductoResponseDTO resultado = despensaService.actualizarCantidad(
-                "user-1", "prod-1", new ProductoUpdateCantidadDTO(-1.0, null, null));
+                "user-1", "prod-1", new ProductoUpdateCantidadDTO(-1.0, null, null, null));
 
         assertThat(resultado.cantidad()).isEqualTo(2.0);
     }
@@ -421,7 +421,7 @@ class DespensaServiceTest {
         when(productoRepository.findByDespensaIdAndId("desp-1", "prod-1")).thenReturn(Optional.of(p));
 
         assertThatThrownBy(() -> despensaService.actualizarCantidad(
-                "user-1", "prod-1", new ProductoUpdateCantidadDTO(-99.0, null, null)))
+                "user-1", "prod-1", new ProductoUpdateCantidadDTO(-99.0, null, null, null)))
                 .isInstanceOf(ApiException.class)
                 .hasMessage("La cantidad no puede ser negativa")
                 .satisfies(ex -> assertThat(((ApiException) ex).getStatus())
@@ -440,7 +440,7 @@ class DespensaServiceTest {
         when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
 
         despensaService.actualizarCantidad("user-1", "prod-1",
-                new ProductoUpdateCantidadDTO(-1.0, "consumido", null));
+                new ProductoUpdateCantidadDTO(-1.0, "consumido", null, null));
 
         ArgumentCaptor<MovimientoProducto> captor = ArgumentCaptor.forClass(MovimientoProducto.class);
         verify(movimientoRepository).save(captor.capture());
@@ -465,7 +465,7 @@ class DespensaServiceTest {
         when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
 
         despensaService.actualizarCantidad("user-1", "prod-1",
-                new ProductoUpdateCantidadDTO(2.0, null, null));
+                new ProductoUpdateCantidadDTO(2.0, null, null, null));
 
         ArgumentCaptor<MovimientoProducto> captor = ArgumentCaptor.forClass(MovimientoProducto.class);
         verify(movimientoRepository).save(captor.capture());
@@ -609,7 +609,7 @@ class DespensaServiceTest {
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> despensaService.actualizarCantidad(
-                "user-1", "no-existe", new ProductoUpdateCantidadDTO(1.0, null, null)))
+                "user-1", "no-existe", new ProductoUpdateCantidadDTO(1.0, null, null, null)))
                 .isInstanceOf(ApiException.class)
                 .hasMessage("Producto no encontrado")
                 .satisfies(ex -> assertThat(((ApiException) ex).getStatus())

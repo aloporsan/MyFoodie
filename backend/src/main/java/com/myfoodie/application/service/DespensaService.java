@@ -152,7 +152,8 @@ public class DespensaService {
 
         Producto saved = productoRepository.save(p);
         actualizarDespensa(despensa);
-        registrarMovimiento(saved, usuarioId, "cantidad_actualizada", "Cantidad actualizada",
+        String descripcion = dto.descripcion() != null ? dto.descripcion() : "Cantidad actualizada";
+        registrarMovimiento(saved, usuarioId, "cantidad_actualizada", descripcion,
                 cantidadAnterior, nuevaCantidad, dto.motivo(), dto.motivoDetalle());
         carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
         return toDTO(saved, null, resolverUmbral(saved, globalUmbral));

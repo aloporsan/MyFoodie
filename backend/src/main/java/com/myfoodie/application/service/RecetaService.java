@@ -1,14 +1,19 @@
 package com.myfoodie.application.service;
 
+import com.myfoodie.application.dto.despensa.ProductoUpdateCantidadDTO;
 import com.myfoodie.application.dto.receta.*;
+import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.IngredienteReceta;
 import com.myfoodie.domain.model.Paso;
+import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.model.Receta;
 import com.myfoodie.domain.model.RecetaGuardada;
 import com.myfoodie.domain.model.Usuario;
+import com.myfoodie.domain.repository.DespensaRepository;
 import com.myfoodie.domain.repository.IngredienteRecetaRepository;
 import com.myfoodie.domain.repository.LikeRepository;
 import com.myfoodie.domain.repository.PasoRepository;
+import com.myfoodie.domain.repository.ProductoRepository;
 import com.myfoodie.domain.repository.RecetaGuardadaRepository;
 import com.myfoodie.domain.repository.RecetaRepository;
 import com.myfoodie.domain.repository.UsuarioRepository;
@@ -20,6 +25,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -34,6 +40,9 @@ public class RecetaService {
     private final RecetaGuardadaRepository recetaGuardadaRepository;
     private final LikeRepository likeRepository;
     private final UsuarioRepository usuarioRepository;
+    private final DespensaRepository despensaRepository;
+    private final ProductoRepository productoRepository;
+    private final DespensaService despensaService;
 
     // -------------------------------------------------------------------------
     // CRUD básico
@@ -229,6 +238,95 @@ public class RecetaService {
         }
         pasoRepository.saveAll(restantes);
         actualizarTimestamp(recetaId);
+    }
+
+    // -------------------------------------------------------------------------
+    // Marcar como realizada / descontar stock
+    // -------------------------------------------------------------------------
+
+    public List<IngredienteConsumoDTO> marcarRecetaComoRealizada(String usuarioId, String recetaId,
+                                                                   int racionesElaboradas) {
+        Receta receta = getReceta(recetaId);
+        validarRecetaGuardada(usuarioId, recetaId);
+        double factor = factorRaciones(receta, racionesElaboradas);
+        List<Producto> productos = productosDespensa(usuarioId);
+
+        return ingredienteRepository.findByRecetaId(recetaId).stream()
+                .map(i -> calcularConsumo(i, factor, productos))
+                .toList();
+    }
+
+    public DescuentoRecetaResponseDTO descontarIngredientesReceta(String usuarioId, String recetaId,
+                                                                    int racionesElaboradas) {
+        Receta receta = getReceta(recetaId);
+        validarRecetaGuardada(usuarioId, recetaId);
+        double factor = factorRaciones(receta, racionesElaboradas);
+        List<Producto> productos = productosDespensa(usuarioId);
+
+        List<IngredienteConsumoDTO> descontados = new ArrayList<>();
+        List<IngredienteConsumoDTO> noDisponibles = new ArrayList<>();
+
+        for (IngredienteReceta ingrediente : ingredienteRepository.findByRecetaId(recetaId)) {
+            IngredienteConsumoDTO consumo = calcularConsumo(ingrediente, factor, productos);
+            if (!consumo.productoEnDespensa()) {
+                noDisponibles.add(consumo);
+                continue;
+            }
+
+            double aDescontar = Math.min(consumo.cantidadCalculada(), consumo.cantidadDisponible());
+            if (aDescontar > 0) {
+                Producto producto = buscarProductoPorNombre(productos, ingrediente.getNombre());
+                despensaService.actualizarCantidad(usuarioId, producto.getId(),
+                        new ProductoUpdateCantidadDTO(-aDescontar, "usado_en_receta", null,
+                                "Usado en receta: " + receta.getTitulo()));
+            }
+            descontados.add(consumo);
+        }
+
+        return new DescuentoRecetaResponseDTO(descontados, noDisponibles);
+    }
+
+    private void validarRecetaGuardada(String usuarioId, String recetaId) {
+        if (!recetaGuardadaRepository.existsByUsuarioIdAndRecetaId(usuarioId, recetaId)) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "La receta no está guardada");
+        }
+    }
+
+    private double factorRaciones(Receta receta, int racionesElaboradas) {
+        if (racionesElaboradas <= 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Las raciones elaboradas deben ser mayores que 0");
+        }
+        return (double) racionesElaboradas / receta.getNumPersonas();
+    }
+
+    private List<Producto> productosDespensa(String usuarioId) {
+        return despensaRepository.findByUsuarioId(usuarioId)
+                .map(Despensa::getId)
+                .map(productoRepository::findByDespensaId)
+                .orElse(List.of());
+    }
+
+    private IngredienteConsumoDTO calcularConsumo(IngredienteReceta ingrediente, double factor,
+                                                    List<Producto> productos) {
+        double cantidadCalculada = ingrediente.getCantidad() * factor;
+        Producto producto = buscarProductoPorNombre(productos, ingrediente.getNombre());
+        boolean enDespensa = producto != null;
+        double disponible = enDespensa ? producto.getCantidad() : 0;
+        boolean suficiente = enDespensa && disponible >= cantidadCalculada;
+        return new IngredienteConsumoDTO(
+                ingrediente.getNombre(), cantidadCalculada, ingrediente.getUnidad(),
+                enDespensa, disponible, suficiente);
+    }
+
+    private Producto buscarProductoPorNombre(List<Producto> productos, String nombre) {
+        return productos.stream()
+                .filter(p -> normalizar(p.getNombre()).equals(normalizar(nombre)))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private String normalizar(String texto) {
+        return texto == null ? "" : texto.trim().toLowerCase(Locale.ROOT);
     }
 
     // -------------------------------------------------------------------------
