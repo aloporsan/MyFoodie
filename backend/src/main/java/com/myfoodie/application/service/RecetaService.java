@@ -245,7 +245,7 @@ public class RecetaService {
     // -------------------------------------------------------------------------
 
     public List<IngredienteConsumoDTO> marcarRecetaComoRealizada(String usuarioId, String recetaId,
-                                                                   int racionesElaboradas) {
+                                                                   double racionesElaboradas) {
         Receta receta = getReceta(recetaId);
         validarRecetaGuardada(usuarioId, recetaId);
         double factor = factorRaciones(receta, racionesElaboradas);
@@ -257,7 +257,7 @@ public class RecetaService {
     }
 
     public DescuentoRecetaResponseDTO descontarIngredientesReceta(String usuarioId, String recetaId,
-                                                                    int racionesElaboradas) {
+                                                                    double racionesElaboradas) {
         Receta receta = getReceta(recetaId);
         validarRecetaGuardada(usuarioId, recetaId);
         double factor = factorRaciones(receta, racionesElaboradas);
@@ -292,11 +292,11 @@ public class RecetaService {
         }
     }
 
-    private double factorRaciones(Receta receta, int racionesElaboradas) {
+    private double factorRaciones(Receta receta, double racionesElaboradas) {
         if (racionesElaboradas <= 0) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Las raciones elaboradas deben ser mayores que 0");
         }
-        return (double) racionesElaboradas / receta.getNumPersonas();
+        return racionesElaboradas / receta.getNumPersonas();
     }
 
     private List<Producto> productosDespensa(String usuarioId) {
@@ -464,6 +464,7 @@ public class RecetaService {
                 receta.getEtiquetas(),
                 receta.getImagenUrl(),
                 receta.getEstado(),
+                receta.getNumPersonas(),
                 totalLikes,
                 likeUsuario,
                 ingredientes,

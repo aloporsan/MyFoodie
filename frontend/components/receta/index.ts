@@ -5,4 +5,5 @@ export { FormRecetaBasica } from './FormRecetaBasica';
 export { ImagenReceta } from './ImagenReceta';
 export { ListaIngredientes } from './ListaIngredientes';
 export { ListaPasos } from './ListaPasos';
+export { ModalRecetaRealizada } from './ModalRecetaRealizada';
 export { ValidacionReceta } from './ValidacionReceta';
