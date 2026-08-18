@@ -177,10 +177,10 @@ export function DetalleProductoScreen() {
           {producto.categoria && (
             <FilaDetalle icono="grid-outline" label="Categoría" valor={producto.categoria} />
           )}
-          {producto.fechaCaducidad && (
+          {producto.estado !== 'sin_stock' && producto.fechaCaducidad && (
             <FilaDetalle icono="calendar-outline" label="Caduca" valor={producto.fechaCaducidad} />
           )}
-          {producto.fechaCompra && (
+          {producto.estado !== 'sin_stock' && producto.fechaCompra && (
             <FilaDetalle icono="bag-handle-outline" label="Comprado" valor={producto.fechaCompra} />
           )}
           {producto.notas && (
