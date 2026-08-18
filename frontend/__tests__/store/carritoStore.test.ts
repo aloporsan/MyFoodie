@@ -95,6 +95,28 @@ it('aceptarItem_actualiza_el_item_en_la_lista', async () => {
   expect(useCarritoStore.getState().items[0].estado).toBe('aceptado');
 });
 
+it('aceptarItem_es_optimista_actualiza_antes_de_que_resuelva_la_peticion', async () => {
+  useCarritoStore.setState({ ...estadoInicial, items: [mockItem] });
+  mockService.aceptarItem.mockReturnValue(new Promise(() => {})); // nunca se resuelve en el test
+
+  const promesa = useCarritoStore.getState().aceptarItem('item-1');
+
+  // El estado ya refleja el cambio sin esperar la respuesta del backend.
+  expect(useCarritoStore.getState().items[0].estado).toBe('aceptado');
+  await promesa;
+});
+
+it('aceptarItem_revierte_el_cambio_optimista_si_falla_la_peticion', async () => {
+  useCarritoStore.setState({ ...estadoInicial, items: [mockItem] });
+  mockService.aceptarItem.mockRejectedValue(new Error('Error de red'));
+
+  await useCarritoStore.getState().aceptarItem('item-1');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  expect(useCarritoStore.getState().items[0].estado).toBe('pendiente');
+  expect(useCarritoStore.getState().error).toBe('Error de red');
+});
+
 it('rechazarItem_actualiza_el_item_en_la_lista', async () => {
   useCarritoStore.setState({ ...estadoInicial, items: [mockItem] });
   mockService.rechazarItem.mockResolvedValue({ ...mockItem, estado: 'rechazado' });
@@ -102,6 +124,28 @@ it('rechazarItem_actualiza_el_item_en_la_lista', async () => {
   await useCarritoStore.getState().rechazarItem('item-1');
 
   expect(useCarritoStore.getState().items[0].estado).toBe('rechazado');
+});
+
+it('rechazarItem_es_optimista_actualiza_antes_de_que_resuelva_la_peticion', async () => {
+  useCarritoStore.setState({ ...estadoInicial, items: [mockItem] });
+  mockService.rechazarItem.mockReturnValue(new Promise(() => {})); // nunca se resuelve en el test
+
+  const promesa = useCarritoStore.getState().rechazarItem('item-1');
+
+  // El estado ya refleja el cambio sin esperar la respuesta del backend.
+  expect(useCarritoStore.getState().items[0].estado).toBe('rechazado');
+  await promesa;
+});
+
+it('rechazarItem_revierte_el_cambio_optimista_si_falla_la_peticion', async () => {
+  useCarritoStore.setState({ ...estadoInicial, items: [mockItem] });
+  mockService.rechazarItem.mockRejectedValue(new Error('Error de red'));
+
+  await useCarritoStore.getState().rechazarItem('item-1');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  expect(useCarritoStore.getState().items[0].estado).toBe('pendiente');
+  expect(useCarritoStore.getState().error).toBe('Error de red');
 });
 
 it('marcarNoVolver_propaga_el_error_si_falla', async () => {
