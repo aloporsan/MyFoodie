@@ -170,11 +170,11 @@ export function ItemCarritoCard({
           ) : (
             <View style={styles.actionsPendiente}>
               <View style={styles.swipeHint}>
-                <Ionicons name="chevron-back" size={14} color={colors.text.secondary} />
-                <Text style={styles.swipeHintText}>Descartar</Text>
+                <Ionicons name="chevron-back" size={14} color={colors.error} />
+                <Text style={styles.swipeHintTextRechazar}>Descartar</Text>
                 <Text style={styles.swipeHintDivider}>·</Text>
-                <Text style={styles.swipeHintText}>Aceptar</Text>
-                <Ionicons name="chevron-forward" size={14} color={colors.text.secondary} />
+                <Text style={styles.swipeHintTextAceptar}>Aceptar</Text>
+                <Ionicons name="chevron-forward" size={14} color={colors.primaryDark} />
               </View>
               <Pressable style={[styles.actionBtn, styles.btnMas]} onPress={handleMasOpciones} hitSlop={4}>
                 <Ionicons name="ellipsis-vertical" size={18} color={colors.text.secondary} />
@@ -368,9 +368,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  swipeHintText: {
+  swipeHintTextRechazar: {
     ...typography.caption,
-    color: colors.text.secondary,
+    color: colors.error,
+    fontWeight: '600',
+  },
+  swipeHintTextAceptar: {
+    ...typography.caption,
+    color: colors.primaryDark,
+    fontWeight: '600',
   },
   swipeHintDivider: {
     ...typography.caption,

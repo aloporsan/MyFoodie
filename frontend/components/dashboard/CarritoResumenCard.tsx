@@ -19,7 +19,7 @@ export function CarritoResumenCard({ resumen, onPress }: Props) {
     <Pressable style={styles.card} onPress={onPress}>
       <View style={styles.row}>
         <View style={styles.iconWrapper}>
-          <Ionicons name="cart" size={26} color={colors.white} />
+          <Ionicons name="cart-outline" size={22} color={colors.primaryDark} />
         </View>
         <View style={styles.texto}>
           <Text style={styles.titulo}>Carrito inteligente</Text>
@@ -35,7 +35,7 @@ export function CarritoResumenCard({ resumen, onPress }: Props) {
             </Text>
           )}
         </View>
-        <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.85)" />
+        <Ionicons name="chevron-forward" size={18} color={colors.grayMid} />
       </View>
     </Pressable>
   );
@@ -43,45 +43,44 @@ export function CarritoResumenCard({ resumen, onPress }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.white,
     borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 3,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.gray,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    justifyContent: 'center',
+    gap: spacing.sm,
   },
   iconWrapper: {
-    width: 48,
-    height: 48,
+    width: 40,
+    height: 40,
     borderRadius: borderRadius.md,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: '#E8F5D0',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
   texto: {
-    flex: 1,
     gap: 2,
   },
   titulo: {
     ...typography.label,
-    color: colors.white,
-    fontWeight: '700',
+    color: colors.text.primary,
+    textAlign: 'center',
   },
   descripcion: {
     ...typography.caption,
-    color: 'rgba(255,255,255,0.85)',
+    color: colors.text.secondary,
+    textAlign: 'center',
   },
   aceptadosTexto: {
     ...typography.caption,
-    color: 'rgba(255,255,255,0.7)',
-    fontWeight: '400',
+    color: colors.primaryDark,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
