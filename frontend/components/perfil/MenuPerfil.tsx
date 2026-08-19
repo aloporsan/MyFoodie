@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import type React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -9,6 +9,7 @@ import { usePerfilStore } from '@/store/perfilStore';
 
 interface MenuItem {
   icono: React.ComponentProps<typeof Ionicons>['name'];
+  iconoMaterial?: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
   label: string;
   onPress: () => void;
   destructivo?: boolean;
@@ -102,6 +103,12 @@ export function MenuPerfil() {
       onPress: () => router.push('/perfil/preferencias'),
     },
     {
+      icono: 'restaurant-outline',
+      iconoMaterial: 'chef-hat',
+      label: 'Mis gustos culinarios',
+      onPress: () => router.push('/perfil/gustos'),
+    },
+    {
       icono: 'lock-closed-outline',
       label: 'Privacidad',
       onPress: () => router.push('/perfil/privacidad'),
@@ -136,11 +143,19 @@ export function MenuPerfil() {
         >
           <View style={styles.itemIzquierda}>
             <View style={[styles.iconoWrapper, item.destructivo && styles.iconoWrapperDestructivo]}>
-              <Ionicons
-                name={item.icono}
-                size={18}
-                color={item.destructivo ? colors.error : colors.grayDark}
-              />
+              {item.iconoMaterial ? (
+                <MaterialCommunityIcons
+                  name={item.iconoMaterial}
+                  size={18}
+                  color={item.destructivo ? colors.error : colors.grayDark}
+                />
+              ) : (
+                <Ionicons
+                  name={item.icono}
+                  size={18}
+                  color={item.destructivo ? colors.error : colors.grayDark}
+                />
+              )}
             </View>
             <Text style={[styles.itemLabel, item.destructivo && styles.itemLabelDestructivo]}>
               {item.label}

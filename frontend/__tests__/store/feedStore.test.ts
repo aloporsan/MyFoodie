@@ -29,12 +29,15 @@ const mockReceta = (overrides: Partial<RecetaFeed> = {}): RecetaFeed => ({
 
 const estadoInicial = {
   recetas: [],
+  fuente: 'para-ti' as const,
   pagina: 0,
   hayMas: false,
   isLoading: false,
   isLoadingMas: false,
   error: null,
   ultimaAccion: null,
+  perfilGustos: null,
+  isLoadingPerfilGustos: false,
 };
 
 beforeEach(() => {
@@ -190,4 +193,168 @@ it('deshacerUltimaAccion_no_hace_nada_si_no_hay_ninguna_accion_registrada', asyn
   await useFeedStore.getState().deshacerUltimaAccion();
 
   expect(mockService.deshacerUltimaAccion).not.toHaveBeenCalled();
+});
+
+// -------------------------------------------------------------------------
+// cargarFeed — fuente 'seguidos' usa el servicio de recetas de seguidos
+// -------------------------------------------------------------------------
+
+it('cargarFeed_con_fuente_seguidos_llama_a_obtenerRecetasSeguidos', async () => {
+  mockService.obtenerRecetasSeguidos.mockResolvedValue({
+    recetas: [mockReceta()],
+    pagina: 0,
+    totalPaginas: 1,
+    hayMas: false,
+  });
+
+  await useFeedStore.getState().cargarFeed('seguidos');
+
+  expect(mockService.obtenerRecetasSeguidos).toHaveBeenCalledWith(0, 10);
+  expect(mockService.obtenerFeed).not.toHaveBeenCalled();
+  expect(useFeedStore.getState().fuente).toBe('seguidos');
+  expect(useFeedStore.getState().recetas).toHaveLength(1);
+});
+
+// -------------------------------------------------------------------------
+// cargarMas
+// -------------------------------------------------------------------------
+
+it('cargarMas_añade_recetas_a_las_existentes_y_avanza_de_pagina', async () => {
+  useFeedStore.setState({ ...estadoInicial, recetas: [mockReceta({ id: 'receta-1' })], pagina: 0, hayMas: true });
+  mockService.obtenerFeed.mockResolvedValue({
+    recetas: [mockReceta({ id: 'receta-2' })],
+    pagina: 1,
+    totalPaginas: 2,
+    hayMas: false,
+  });
+
+  await useFeedStore.getState().cargarMas();
+
+  expect(mockService.obtenerFeed).toHaveBeenCalledWith(1, 10);
+  expect(useFeedStore.getState().recetas.map((r) => r.id)).toEqual(['receta-1', 'receta-2']);
+  expect(useFeedStore.getState().hayMas).toBe(false);
+});
+
+it('cargarMas_no_hace_nada_si_no_hay_mas_paginas', async () => {
+  useFeedStore.setState({ ...estadoInicial, hayMas: false });
+
+  await useFeedStore.getState().cargarMas();
+
+  expect(mockService.obtenerFeed).not.toHaveBeenCalled();
+});
+
+it('cargarMas_guarda_el_error_si_falla_el_servicio', async () => {
+  useFeedStore.setState({ ...estadoInicial, hayMas: true });
+  mockService.obtenerFeed.mockRejectedValue(new Error('Error de red'));
+
+  await useFeedStore.getState().cargarMas();
+
+  expect(useFeedStore.getState().error).toBe('Error de red');
+  expect(useFeedStore.getState().isLoadingMas).toBe(false);
+});
+
+// -------------------------------------------------------------------------
+// cargarPerfilGustos
+// -------------------------------------------------------------------------
+
+const mockPerfilGustos = {
+  usuarioId: 'usuario-1',
+  categoriasPreferidas: { Cena: 5 },
+  etiquetasPreferidas: {},
+  dificultadesPreferidas: {},
+  tiempoMaximoHabitual: 45,
+  ingredientesHabituales: [],
+  updatedAt: '2026-01-01T00:00:00.000Z',
+};
+
+it('cargarPerfilGustos_actualiza_el_perfil_en_el_store', async () => {
+  mockService.obtenerPerfilGustos.mockResolvedValue(mockPerfilGustos);
+
+  await useFeedStore.getState().cargarPerfilGustos();
+
+  expect(useFeedStore.getState().perfilGustos).toEqual(mockPerfilGustos);
+  expect(useFeedStore.getState().isLoadingPerfilGustos).toBe(false);
+});
+
+it('cargarPerfilGustos_guarda_el_error_si_falla_el_servicio', async () => {
+  mockService.obtenerPerfilGustos.mockRejectedValue(new Error('Error de red'));
+
+  await useFeedStore.getState().cargarPerfilGustos();
+
+  expect(useFeedStore.getState().error).toBe('Error de red');
+  expect(useFeedStore.getState().perfilGustos).toBeNull();
+});
+
+// -------------------------------------------------------------------------
+// resetearPerfilGustos
+// -------------------------------------------------------------------------
+
+it('resetearPerfilGustos_deja_el_perfil_en_null', async () => {
+  useFeedStore.setState({ ...estadoInicial, perfilGustos: mockPerfilGustos });
+  mockService.resetearPerfilGustos.mockResolvedValue(undefined);
+
+  await useFeedStore.getState().resetearPerfilGustos();
+
+  expect(useFeedStore.getState().perfilGustos).toBeNull();
+});
+
+it('resetearPerfilGustos_no_modifica_el_perfil_si_falla_y_relanza_el_error', async () => {
+  useFeedStore.setState({ ...estadoInicial, perfilGustos: mockPerfilGustos });
+  mockService.resetearPerfilGustos.mockRejectedValue(new Error('Error de red'));
+
+  await expect(useFeedStore.getState().resetearPerfilGustos()).rejects.toThrow();
+
+  expect(useFeedStore.getState().perfilGustos).toEqual(mockPerfilGustos);
+  expect(useFeedStore.getState().error).toBe('Error de red');
+});
+
+// -------------------------------------------------------------------------
+// limpiarDescartadas
+// -------------------------------------------------------------------------
+
+it('limpiarDescartadas_recarga_el_feed_con_la_fuente_activa', async () => {
+  useFeedStore.setState({ ...estadoInicial, fuente: 'seguidos' });
+  mockService.limpiarDescartadas.mockResolvedValue(undefined);
+  mockService.obtenerRecetasSeguidos.mockResolvedValue({
+    recetas: [mockReceta()],
+    pagina: 0,
+    totalPaginas: 1,
+    hayMas: false,
+  });
+
+  await useFeedStore.getState().limpiarDescartadas();
+
+  expect(mockService.limpiarDescartadas).toHaveBeenCalled();
+  expect(mockService.obtenerRecetasSeguidos).toHaveBeenCalledWith(0, 10);
+  expect(useFeedStore.getState().recetas).toHaveLength(1);
+});
+
+it('limpiarDescartadas_guarda_el_error_y_relanza_si_falla', async () => {
+  mockService.limpiarDescartadas.mockRejectedValue(new Error('Error de red'));
+
+  await expect(useFeedStore.getState().limpiarDescartadas()).rejects.toThrow();
+
+  expect(useFeedStore.getState().error).toBe('Error de red');
+  expect(mockService.obtenerFeed).not.toHaveBeenCalled();
+});
+
+// -------------------------------------------------------------------------
+// limpiarFeed
+// -------------------------------------------------------------------------
+
+it('limpiarFeed_restaura_el_estado_inicial', () => {
+  useFeedStore.setState({
+    ...estadoInicial,
+    recetas: [mockReceta()],
+    fuente: 'seguidos',
+    perfilGustos: mockPerfilGustos,
+    error: 'algún error',
+  });
+
+  useFeedStore.getState().limpiarFeed();
+
+  expect(useFeedStore.getState().recetas).toHaveLength(0);
+  expect(useFeedStore.getState().fuente).toBe('para-ti');
+  expect(useFeedStore.getState().perfilGustos).toBeNull();
+  expect(useFeedStore.getState().error).toBeNull();
 });

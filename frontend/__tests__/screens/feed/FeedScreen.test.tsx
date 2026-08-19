@@ -26,6 +26,7 @@ jest.mock('@/components/feed', () => {
   const { Pressable: P, Text: T } = require('react-native');
   return {
     FeedEmptyState: () => <T>Sin recetas</T>,
+    FiltroFeedBar: () => null,
     GestosCard: ({ receta, posicion, onGuardar, onDescartar }: any) => {
       if (posicion !== 0) return null;
       return (

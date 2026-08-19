@@ -4,7 +4,7 @@ import { MenuPerfil } from '@/components/perfil/MenuPerfil';
 import { ConfirmModal } from '@/components/common/ConfirmModal';
 import { useConfirmStore } from '@/hooks/useConfirm';
 
-jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
+jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons', MaterialCommunityIcons: 'MaterialCommunityIcons' }));
 
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({

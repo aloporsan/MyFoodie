@@ -1,6 +1,7 @@
 package com.myfoodie.api.controller;
 
 import com.myfoodie.application.dto.feed.FeedResponseDTO;
+import com.myfoodie.application.dto.feed.PerfilGustosResponseDTO;
 import com.myfoodie.application.dto.receta.RecetaResponseDTO;
 import com.myfoodie.application.service.FeedAccionService;
 import com.myfoodie.application.service.FeedService;
@@ -75,6 +76,31 @@ public class FeedController {
     public ResponseEntity<Void> deshacer(Principal principal) {
         feedAccionService.deshacerUltimaAccion(getUsuarioId(principal));
         return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/descartadas")
+    public ResponseEntity<Void> limpiarDescartadas(Principal principal) {
+        feedAccionService.limpiarDescartadas(getUsuarioId(principal));
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/perfil-gustos")
+    public ResponseEntity<PerfilGustosResponseDTO> obtenerPerfilGustos(Principal principal) {
+        return ResponseEntity.ok(feedService.obtenerPerfilGustos(getUsuarioId(principal)));
+    }
+
+    @DeleteMapping("/perfil-gustos")
+    public ResponseEntity<Void> resetearPerfilGustos(Principal principal) {
+        feedService.resetearPerfilGustos(getUsuarioId(principal));
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/recetas-seguidos")
+    public ResponseEntity<FeedResponseDTO> obtenerRecetasSeguidos(
+            @RequestParam(defaultValue = "0") int pagina,
+            @RequestParam(name = "tamaño", defaultValue = "10") int tamaño,
+            Principal principal) {
+        return ResponseEntity.ok(feedService.obtenerRecetasSeguidos(getUsuarioId(principal), pagina, tamaño));
     }
 
     private String getUsuarioId(Principal principal) {

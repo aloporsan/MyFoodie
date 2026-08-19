@@ -26,6 +26,7 @@ public class FeedAccionService {
     private final RecetaDescartadaRepository recetaDescartadaRepository;
     private final LikeRepository likeRepository;
     private final AccionFeedRepository accionFeedRepository;
+    private final InteraccionUsuarioService interaccionUsuarioService;
 
     public void guardarReceta(String usuarioId, String recetaId) {
         if (!recetaGuardadaRepository.existsByUsuarioIdAndRecetaId(usuarioId, recetaId)) {
@@ -34,6 +35,7 @@ public class FeedAccionService {
                     .recetaId(recetaId)
                     .build());
             registrarAccion(usuarioId, TIPO_GUARDADA, recetaId);
+            interaccionUsuarioService.actualizarPerfilGustos(usuarioId, recetaId, TIPO_GUARDADA);
         }
     }
 
@@ -46,6 +48,7 @@ public class FeedAccionService {
                 .recetaId(recetaId)
                 .build());
         registrarAccion(usuarioId, TIPO_DESCARTADA, recetaId);
+        interaccionUsuarioService.actualizarPerfilGustos(usuarioId, recetaId, TIPO_DESCARTADA);
     }
 
     public void darLike(String usuarioId, String recetaId) {
@@ -57,6 +60,7 @@ public class FeedAccionService {
                 .recetaId(recetaId)
                 .build());
         registrarAccion(usuarioId, TIPO_LIKE, recetaId);
+        interaccionUsuarioService.actualizarPerfilGustos(usuarioId, recetaId, TIPO_LIKE);
     }
 
     public void quitarLike(String usuarioId, String recetaId) {
@@ -94,6 +98,10 @@ public class FeedAccionService {
         }
 
         accionFeedRepository.delete(ultimaAccion);
+    }
+
+    public void limpiarDescartadas(String usuarioId) {
+        recetaDescartadaRepository.deleteByUsuarioId(usuarioId);
     }
 
     private void registrarAccion(String usuarioId, String tipo, String recetaId) {

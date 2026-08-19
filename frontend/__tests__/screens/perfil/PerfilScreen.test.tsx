@@ -2,7 +2,7 @@ import React from 'react';
 import { render, fireEvent, act } from '@testing-library/react-native';
 import { PerfilScreen } from '@/screens/perfil/PerfilScreen';
 
-jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
+jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons', MaterialCommunityIcons: 'MaterialCommunityIcons' }));
 jest.mock('expo-linear-gradient', () => ({
   LinearGradient: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));

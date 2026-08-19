@@ -3,6 +3,8 @@ package com.myfoodie.domain.repository;
 import com.myfoodie.domain.model.Like;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public interface LikeRepository extends MongoRepository<Like, String> {
@@ -12,4 +14,6 @@ public interface LikeRepository extends MongoRepository<Like, String> {
     boolean existsByUsuarioIdAndRecetaId(String usuarioId, String recetaId);
 
     long countByRecetaId(String recetaId);
+
+    List<Like> findByRecetaIdInAndUsuarioIdIn(Collection<String> recetaIds, Collection<String> usuarioIds);
 }

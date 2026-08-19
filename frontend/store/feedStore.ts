@@ -1,8 +1,10 @@
 import { create } from 'zustand';
-import { RecetaFeed, feedService } from '@/services/feedService';
+import { PerfilGustos, RecetaFeed, feedService } from '@/services/feedService';
 import { handleApiError } from '@/utils/errorHandler';
 
 const TAMAÑO_PAGINA = 10;
+
+export type FuenteFeed = 'para-ti' | 'seguidos';
 
 type TipoAccionFeed = 'guardada' | 'descartada' | 'like' | 'like_quitado';
 
@@ -15,16 +17,19 @@ interface AccionFeed {
 
 interface FeedState {
   recetas: RecetaFeed[];
+  fuente: FuenteFeed;
   pagina: number;
   hayMas: boolean;
   isLoading: boolean;
   isLoadingMas: boolean;
   error: string | null;
   ultimaAccion: AccionFeed | null;
+  perfilGustos: PerfilGustos | null;
+  isLoadingPerfilGustos: boolean;
 }
 
 interface FeedActions {
-  cargarFeed: () => Promise<void>;
+  cargarFeed: (fuente?: FuenteFeed) => Promise<void>;
   cargarMas: () => Promise<void>;
   guardarReceta: (id: string) => Promise<void>;
   descartarReceta: (id: string) => Promise<void>;
@@ -32,25 +37,35 @@ interface FeedActions {
   quitarLike: (id: string) => Promise<void>;
   deshacerUltimaAccion: () => Promise<void>;
   limpiarFeed: () => void;
+  cargarPerfilGustos: () => Promise<void>;
+  resetearPerfilGustos: () => Promise<void>;
+  limpiarDescartadas: () => Promise<void>;
 }
 
 const ESTADO_INICIAL: FeedState = {
   recetas: [],
+  fuente: 'para-ti',
   pagina: 0,
   hayMas: false,
   isLoading: false,
   isLoadingMas: false,
   error: null,
   ultimaAccion: null,
+  perfilGustos: null,
+  isLoadingPerfilGustos: false,
 };
+
+function obtenerFeedPorFuente(fuente: FuenteFeed) {
+  return fuente === 'seguidos' ? feedService.obtenerRecetasSeguidos : feedService.obtenerFeed;
+}
 
 export const useFeedStore = create<FeedState & FeedActions>()((set, get) => ({
   ...ESTADO_INICIAL,
 
-  cargarFeed: async () => {
-    set({ isLoading: true, error: null });
+  cargarFeed: async (fuente = 'para-ti') => {
+    set({ isLoading: true, error: null, fuente });
     try {
-      const respuesta = await feedService.obtenerFeed(0, TAMAÑO_PAGINA);
+      const respuesta = await obtenerFeedPorFuente(fuente)(0, TAMAÑO_PAGINA);
       set({
         recetas: respuesta.recetas,
         pagina: respuesta.pagina,
@@ -63,12 +78,12 @@ export const useFeedStore = create<FeedState & FeedActions>()((set, get) => ({
   },
 
   cargarMas: async () => {
-    const { hayMas, isLoadingMas, pagina } = get();
+    const { hayMas, isLoadingMas, pagina, fuente } = get();
     if (!hayMas || isLoadingMas) return;
 
     set({ isLoadingMas: true, error: null });
     try {
-      const respuesta = await feedService.obtenerFeed(pagina + 1, TAMAÑO_PAGINA);
+      const respuesta = await obtenerFeedPorFuente(fuente)(pagina + 1, TAMAÑO_PAGINA);
       set((s) => ({
         recetas: [...s.recetas, ...respuesta.recetas],
         pagina: respuesta.pagina,
@@ -200,4 +215,36 @@ export const useFeedStore = create<FeedState & FeedActions>()((set, get) => ({
   },
 
   limpiarFeed: () => set({ ...ESTADO_INICIAL }),
+
+  cargarPerfilGustos: async () => {
+    set({ isLoadingPerfilGustos: true, error: null });
+    try {
+      const perfilGustos = await feedService.obtenerPerfilGustos();
+      set({ perfilGustos, isLoadingPerfilGustos: false });
+    } catch (e) {
+      set({ error: handleApiError(e), isLoadingPerfilGustos: false });
+    }
+  },
+
+  resetearPerfilGustos: async () => {
+    set({ error: null });
+    try {
+      await feedService.resetearPerfilGustos();
+      set({ perfilGustos: null });
+    } catch (e) {
+      set({ error: handleApiError(e) });
+      throw e;
+    }
+  },
+
+  limpiarDescartadas: async () => {
+    set({ error: null });
+    try {
+      await feedService.limpiarDescartadas();
+      await get().cargarFeed(get().fuente);
+    } catch (e) {
+      set({ error: handleApiError(e) });
+      throw e;
+    }
+  },
 }));
