@@ -9,6 +9,8 @@ import com.myfoodie.domain.model.RecetaDescartada;
 import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.IngredienteRecetaRepository;
 import com.myfoodie.domain.repository.LikeRepository;
+import com.myfoodie.domain.repository.PerfilGustosRepository;
+import com.myfoodie.domain.repository.RecetaCompartidaRepository;
 import com.myfoodie.domain.repository.RecetaDescartadaRepository;
 import com.myfoodie.domain.repository.RecetaGuardadaRepository;
 import com.myfoodie.domain.repository.RecetaRepository;
@@ -19,6 +21,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.InjectMocks;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -44,9 +47,13 @@ class FeedServiceTest {
     @Mock private RecetaDescartadaRepository recetaDescartadaRepository;
     @Mock private RecetaGuardadaRepository recetaGuardadaRepository;
     @Mock private LikeRepository likeRepository;
+    @Mock private RecetaCompartidaRepository recetaCompartidaRepository;
     @Mock private IngredienteRecetaRepository ingredienteRepository;
     @Mock private UsuarioRepository usuarioRepository;
+    @Mock private PerfilGustosRepository perfilGustosRepository;
     @Mock private DespensaService despensaService;
+    @Mock private SocialService socialService;
+    @Spy private RecomendacionService recomendacionService = new RecomendacionService();
 
     @InjectMocks private FeedService feedService;
 
