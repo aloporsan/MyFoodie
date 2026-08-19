@@ -21,11 +21,45 @@ const DIFICULTAD_COLOR: Record<string, string> = {
   'difícil': colors.error,
 };
 
+const CHIP_AZUL = '#5B8DEF';
+const MAXIMO_CHIPS_SOCIALES = 2;
+
+interface ChipSocial {
+  key: string;
+  texto: string;
+  backgroundColor: string;
+}
+
+function obtenerChipsSociales(receta: RecetaFeed): ChipSocial[] {
+  const contexto = receta.contextoSocial;
+  if (!contexto) return [];
+
+  const chips: ChipSocial[] = [];
+
+  if (contexto.publicadaPorSeguido) {
+    chips.push({ key: 'publicada', texto: 'Publicado por alguien que sigues', backgroundColor: colors.primary });
+  }
+
+  if (contexto.seguidosQueDieronLike.length > 0) {
+    const [primero] = contexto.seguidosQueDieronLike;
+    const total = receta.likesDeSeguidosCount ?? contexto.seguidosQueDieronLike.length;
+    const texto = total > 1 ? `A ${primero} y ${total - 1} más les gusta` : `A ${primero} le gusta`;
+    chips.push({ key: 'likes', texto, backgroundColor: CHIP_AZUL });
+  }
+
+  if (contexto.compartidaContigo) {
+    chips.push({ key: 'compartida', texto: 'Compartida contigo', backgroundColor: colors.secondary });
+  }
+
+  return chips.slice(0, MAXIMO_CHIPS_SOCIALES);
+}
+
 export function RecetaCard({ receta, autorGesture }: RecetaCardProps) {
   const totalIngredientes = receta.ingredientesDisponibles + receta.ingredientesFaltantes;
   const coincidencia = obtenerCoincidencia(receta.coincidenciaDespensa, receta.ingredientesFaltantes);
   const dificultadColor = DIFICULTAD_COLOR[receta.dificultad?.toLowerCase()] ?? colors.grayMid;
   const imagenUrl = resolveImagenUrl(receta.imagenUrl);
+  const chipsSociales = obtenerChipsSociales(receta);
 
   return (
     <View style={styles.container}>
@@ -39,6 +73,18 @@ export function RecetaCard({ receta, autorGesture }: RecetaCardProps) {
       ) : (
         <View style={[styles.imagen, styles.imagenPlaceholder]}>
           <Ionicons name="restaurant-outline" size={48} color="rgba(255,255,255,0.7)" />
+        </View>
+      )}
+
+      {chipsSociales.length > 0 && (
+        <View style={styles.chipsSocialesRow}>
+          {chipsSociales.map((chip) => (
+            <View key={chip.key} style={[styles.chipSocial, { backgroundColor: chip.backgroundColor }]}>
+              <Text style={styles.chipSocialTexto} numberOfLines={1}>
+                {chip.texto}
+              </Text>
+            </View>
+          ))}
         </View>
       )}
 
@@ -92,6 +138,12 @@ export function RecetaCard({ receta, autorGesture }: RecetaCardProps) {
             {coincidencia.mensaje}
           </Text>
         </View>
+
+        {receta.motivoRecomendacion && (
+          <Text style={styles.motivoTexto} numberOfLines={1}>
+            Recomendado porque: {receta.motivoRecomendacion}
+          </Text>
+        )}
       </View>
     </View>
   );
@@ -150,6 +202,26 @@ const styles = StyleSheet.create({
   },
   gradient: {
     ...StyleSheet.absoluteFillObject,
+  },
+  chipsSocialesRow: {
+    position: 'absolute',
+    top: spacing.lg,
+    left: spacing.lg,
+    right: 60,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  chipSocial: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: borderRadius.full,
+    maxWidth: '100%',
+  },
+  chipSocialTexto: {
+    ...typography.caption,
+    color: colors.white,
+    fontWeight: '700',
   },
   likesBadge: {
     position: 'absolute',
@@ -255,5 +327,9 @@ const styles = StyleSheet.create({
   coincidenciaMensaje: {
     ...typography.label,
     fontWeight: '700',
+  },
+  motivoTexto: {
+    ...typography.caption,
+    color: 'rgba(255,255,255,0.6)',
   },
 });
