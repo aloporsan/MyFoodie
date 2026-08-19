@@ -107,6 +107,12 @@ public class CarritoController {
         return ResponseEntity.ok(carritoInteligenteService.obtenerListaCompra(getUsuarioId(principal), id));
     }
 
+    @PutMapping("/listas/{id}/cancelar")
+    public ResponseEntity<Void> cancelarLista(@PathVariable String id, Principal principal) {
+        carritoInteligenteService.cancelarListaCompra(getUsuarioId(principal), id);
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping("/listas/{id}/items/{itemId}/comprado")
     public ResponseEntity<ItemCarritoResponseDTO> marcarComprado(
             @PathVariable String id,

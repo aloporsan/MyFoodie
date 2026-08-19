@@ -287,6 +287,16 @@ public class CarritoInteligenteService {
         return toListaDTO(getListaDeUsuario(usuarioId, listaId), usuarioId);
     }
 
+    public void cancelarListaCompra(String usuarioId, String listaId) {
+        ListaCompra lista = getListaDeUsuario(usuarioId, listaId);
+        if (!"activa".equals(lista.getEstado())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Solo se puede cancelar una lista activa");
+        }
+        lista.setEstado("archivada");
+        lista.setUpdatedAt(LocalDateTime.now());
+        listaCompraRepository.save(lista);
+    }
+
     public ItemCarritoResponseDTO marcarItemComoComprado(String usuarioId, String itemId) {
         ItemCarrito item = getItemDeUsuario(usuarioId, itemId);
         item.setEstado("comprado");
