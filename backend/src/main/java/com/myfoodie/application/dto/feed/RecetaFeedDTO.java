@@ -21,5 +21,8 @@ public record RecetaFeedDTO(
         double coincidenciaDespensa,
         int ingredientesDisponibles,
         int ingredientesFaltantes,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        String motivoRecomendacion,
+        Boolean publicadaPorSeguido,
+        Integer likesDeSeguidosCount
 ) {}

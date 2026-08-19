@@ -13,4 +13,6 @@ public interface RecetaDescartadaRepository extends MongoRepository<RecetaDescar
     List<RecetaDescartada> findByUsuarioId(String usuarioId);
 
     boolean existsByUsuarioIdAndRecetaId(String usuarioId, String recetaId);
+
+    void deleteByUsuarioId(String usuarioId);
 }

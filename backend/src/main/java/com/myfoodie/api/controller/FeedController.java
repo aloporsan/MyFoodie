@@ -77,6 +77,12 @@ public class FeedController {
         return ResponseEntity.ok().build();
     }
 
+    @DeleteMapping("/descartadas")
+    public ResponseEntity<Void> limpiarDescartadas(Principal principal) {
+        feedAccionService.limpiarDescartadas(getUsuarioId(principal));
+        return ResponseEntity.noContent().build();
+    }
+
     private String getUsuarioId(Principal principal) {
         return usuarioRepository.findByEmail(principal.getName())
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "Usuario no encontrado"))
