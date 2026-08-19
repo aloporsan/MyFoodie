@@ -2,6 +2,7 @@ package com.myfoodie.application.service;
 
 import com.myfoodie.application.dto.despensa.ProductoUpdateCantidadDTO;
 import com.myfoodie.application.dto.receta.*;
+import com.myfoodie.application.dto.unidad.UnidadConvertidaDTO;
 import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.IngredienteReceta;
 import com.myfoodie.domain.model.Paso;
@@ -16,6 +17,7 @@ import com.myfoodie.domain.repository.RecetaGuardadaRepository;
 import com.myfoodie.domain.repository.RecetaRepository;
 import com.myfoodie.domain.repository.UsuarioRepository;
 import com.myfoodie.exception.ApiException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -46,8 +48,18 @@ class RecetaServiceTest {
     @Mock private DespensaRepository despensaRepository;
     @Mock private ProductoRepository productoRepository;
     @Mock private DespensaService despensaService;
+    @Mock private CarritoInteligenteService carritoInteligenteService;
+    @Mock private UnidadNormalizadorService unidadNormalizadorService;
 
     @InjectMocks private RecetaService recetaService;
+
+    // Por defecto, unidadNormalizadorService devuelve la cantidad/unidad tal cual (comportamiento
+    // real para unidades ya objetivas, que es lo que usa el helper ingrediente() por defecto: "g").
+    @BeforeEach
+    void configurarNormalizadorPorDefecto() {
+        lenient().when(unidadNormalizadorService.normalizarUnidades(anyDouble(), anyString()))
+                .thenAnswer(inv -> new UnidadConvertidaDTO(inv.getArgument(0), inv.getArgument(1), false));
+    }
 
     // -------------------------------------------------------------------------
     // Helpers
@@ -82,6 +94,11 @@ class RecetaServiceTest {
     private IngredienteReceta ingrediente(String id, String recetaId) {
         return IngredienteReceta.builder().id(id).recetaId(recetaId)
                 .nombre("Arroz").cantidad(200).unidad("g").build();
+    }
+
+    private IngredienteReceta ingrediente(String id, String recetaId, String nombre, double cantidad, String unidad) {
+        return IngredienteReceta.builder().id(id).recetaId(recetaId)
+                .nombre(nombre).cantidad(cantidad).unidad(unidad).build();
     }
 
     private Paso paso(String id, String recetaId, int orden) {
@@ -607,7 +624,7 @@ class RecetaServiceTest {
         assertThat(resultado.noDisponibles()).isEmpty();
 
         ArgumentCaptor<ProductoUpdateCantidadDTO> captor = ArgumentCaptor.forClass(ProductoUpdateCantidadDTO.class);
-        verify(despensaService).actualizarCantidad(eq("user-1"), eq("prod-1"), captor.capture());
+        verify(despensaService).actualizarCantidad(eq("user-1"), eq("prod-1"), captor.capture(), eq(false));
         assertThat(captor.getValue().delta()).isEqualTo(-200.0);
     }
 
@@ -631,7 +648,7 @@ class RecetaServiceTest {
 
         // Deja el producto en 0 en vez de intentar restar más de lo disponible.
         ArgumentCaptor<ProductoUpdateCantidadDTO> captor = ArgumentCaptor.forClass(ProductoUpdateCantidadDTO.class);
-        verify(despensaService).actualizarCantidad(eq("user-1"), eq("prod-1"), captor.capture());
+        verify(despensaService).actualizarCantidad(eq("user-1"), eq("prod-1"), captor.capture(), eq(false));
         assertThat(captor.getValue().delta()).isEqualTo(-50.0);
     }
 
@@ -651,8 +668,83 @@ class RecetaServiceTest {
         recetaService.descontarIngredientesReceta("user-1", "r1", 2);
 
         ArgumentCaptor<ProductoUpdateCantidadDTO> captor = ArgumentCaptor.forClass(ProductoUpdateCantidadDTO.class);
-        verify(despensaService).actualizarCantidad(eq("user-1"), eq("prod-1"), captor.capture());
+        verify(despensaService).actualizarCantidad(eq("user-1"), eq("prod-1"), captor.capture(), eq(false));
         assertThat(captor.getValue().descripcion()).isEqualTo("Usado en receta: Paella valenciana");
         assertThat(captor.getValue().motivo()).isEqualTo("usado_en_receta");
+    }
+
+    @Test
+    @DisplayName("descontarIngredientesReceta_ingredientes_con_unidades_incompatibles_marcados_como_no_comparables")
+    void descontarIngredientesReceta_ingredientesConUnidadesIncompatibles_marcadosComoNoComparables() {
+        Receta receta = receta("r1", "user-1"); // numPersonas = 2
+        Despensa despensa = despensa("desp-1", "user-1");
+        Producto aceite = Producto.builder()
+                .id("prod-1").despensaId("desp-1").nombre("Aceite").cantidad(500).unidad("ml").build();
+
+        when(recetaRepository.findById("r1")).thenReturn(Optional.of(receta));
+        when(recetaGuardadaRepository.existsByUsuarioIdAndRecetaId("user-1", "r1")).thenReturn(true);
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(despensa));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(aceite));
+        when(ingredienteRepository.findByRecetaId("r1")).thenReturn(
+                List.of(ingrediente("ing-1", "r1", "Aceite", 100, "g")));
+
+        DescuentoRecetaResponseDTO resultado = recetaService.descontarIngredientesReceta("user-1", "r1", 2);
+
+        assertThat(resultado.descontados()).isEmpty();
+        assertThat(resultado.noDisponibles()).hasSize(1);
+        assertThat(resultado.noDisponibles().get(0).noComparable()).isTrue();
+        assertThat(resultado.noDisponibles().get(0).productoEnDespensa()).isTrue();
+        verify(despensaService, never()).actualizarCantidad(anyString(), anyString(), any(), anyBoolean());
+        verify(carritoInteligenteService, never()).actualizarCarritoTrasModificacionDespensa(anyString());
+    }
+
+    @Test
+    @DisplayName("descontarIngredientesReceta_usa_unidades_normalizadas")
+    void descontarIngredientesReceta_usaUnidadesNormalizadas() {
+        Receta receta = receta("r1", "user-1"); // numPersonas = 2
+        Despensa despensa = despensa("desp-1", "user-1");
+        Producto leche = Producto.builder()
+                .id("prod-1").despensaId("desp-1").nombre("Leche").cantidad(500).unidad("ml").build();
+
+        when(unidadNormalizadorService.normalizarUnidades(1, "taza"))
+                .thenReturn(new UnidadConvertidaDTO(250, "ml", true));
+        when(recetaRepository.findById("r1")).thenReturn(Optional.of(receta));
+        when(recetaGuardadaRepository.existsByUsuarioIdAndRecetaId("user-1", "r1")).thenReturn(true);
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(despensa));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(leche));
+        when(ingredienteRepository.findByRecetaId("r1")).thenReturn(
+                List.of(ingrediente("ing-1", "r1", "Leche", 1, "taza")));
+
+        DescuentoRecetaResponseDTO resultado = recetaService.descontarIngredientesReceta("user-1", "r1", 2);
+
+        assertThat(resultado.descontados()).hasSize(1);
+        assertThat(resultado.descontados().get(0).cantidadCalculada()).isEqualTo(250.0);
+        assertThat(resultado.descontados().get(0).unidad()).isEqualTo("ml");
+
+        ArgumentCaptor<ProductoUpdateCantidadDTO> captor = ArgumentCaptor.forClass(ProductoUpdateCantidadDTO.class);
+        verify(despensaService).actualizarCantidad(eq("user-1"), eq("prod-1"), captor.capture(), eq(false));
+        assertThat(captor.getValue().delta()).isEqualTo(-250.0);
+    }
+
+    @Test
+    @DisplayName("descontarIngredientesReceta solo actualiza el carrito una vez, aunque se descuenten varios ingredientes")
+    void descontarIngredientesReceta_actualizaCarritoUnaSolaVez_aunqueHayaVariosIngredientes() {
+        Receta receta = receta("r1", "user-1"); // numPersonas = 2
+        Despensa despensa = despensa("desp-1", "user-1");
+        Producto arroz = productoDespensa("prod-1", "desp-1", "Arroz", 500);
+        Producto sal = productoDespensa("prod-2", "desp-1", "Sal", 50);
+
+        when(recetaRepository.findById("r1")).thenReturn(Optional.of(receta));
+        when(recetaGuardadaRepository.existsByUsuarioIdAndRecetaId("user-1", "r1")).thenReturn(true);
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(despensa));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(arroz, sal));
+        when(ingredienteRepository.findByRecetaId("r1")).thenReturn(List.of(
+                ingrediente("ing-1", "r1", "Arroz", 200, "g"),
+                ingrediente("ing-2", "r1", "Sal", 10, "g")));
+
+        recetaService.descontarIngredientesReceta("user-1", "r1", 2);
+
+        verify(despensaService, times(2)).actualizarCantidad(eq("user-1"), anyString(), any(), eq(false));
+        verify(carritoInteligenteService, times(1)).actualizarCarritoTrasModificacionDespensa("user-1");
     }
 }

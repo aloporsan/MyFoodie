@@ -5,6 +5,7 @@ import com.myfoodie.application.dto.carrito.ItemCarritoRequestDTO;
 import com.myfoodie.application.dto.carrito.ItemCarritoResponseDTO;
 import com.myfoodie.application.dto.carrito.ItemCompradoAjusteDTO;
 import com.myfoodie.application.dto.carrito.ListaCompraResponseDTO;
+import com.myfoodie.application.dto.unidad.UnidadConvertidaDTO;
 import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.IngredienteReceta;
 import com.myfoodie.domain.model.ItemCarrito;
@@ -22,6 +23,7 @@ import com.myfoodie.domain.repository.ProductoRepository;
 import com.myfoodie.domain.repository.RecetaGuardadaRepository;
 import com.myfoodie.domain.repository.RecetaRepository;
 import com.myfoodie.exception.ApiException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +41,9 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -57,8 +62,19 @@ class CarritoInteligenteServiceTest {
     @Mock private RecetaGuardadaRepository recetaGuardadaRepository;
     @Mock private IngredienteRecetaRepository ingredienteRecetaRepository;
     @Mock private RecetaRepository recetaRepository;
+    @Mock private UnidadNormalizadorService unidadNormalizadorService;
 
     @InjectMocks private CarritoInteligenteService carritoInteligenteService;
+
+    // Por defecto, unidadNormalizadorService devuelve la cantidad/unidad tal cual (comportamiento
+    // real para unidades ya objetivas), tanto para comparar disponibilidad como para el carrito.
+    @BeforeEach
+    void configurarNormalizadorPorDefecto() {
+        lenient().when(unidadNormalizadorService.normalizarUnidades(anyDouble(), anyString()))
+                .thenAnswer(inv -> new UnidadConvertidaDTO(inv.getArgument(0), inv.getArgument(1), false));
+        lenient().when(unidadNormalizadorService.convertirAUnidadDeCompra(anyDouble(), anyString()))
+                .thenAnswer(inv -> new UnidadConvertidaDTO(inv.getArgument(0), inv.getArgument(1), false));
+    }
 
     // -------------------------------------------------------------------------
     // Helpers
@@ -460,6 +476,31 @@ class CarritoInteligenteServiceTest {
         assertThat(resultado).hasSize(1);
         assertThat(resultado.get(0).getNombre()).isEqualTo("Leche");
         assertThat(resultado.get(0).getCategoria()).isEqualTo("lácteos");
+    }
+
+    @Test
+    @DisplayName("recomendación desde ingrediente de receta usa la unidad de compra (litros/kilos), no la subjetiva original")
+    void item_desde_receta_usa_unidad_de_compra_paraLaRecomendacion() {
+        Despensa d = despensa("desp-1", "user-1");
+        Receta receta = Receta.builder().id("receta-1").titulo("Tarta").build();
+        RecetaGuardada guardada = RecetaGuardada.builder().id("rg-1").usuarioId("user-1").recetaId("receta-1").build();
+        IngredienteReceta ingrediente = IngredienteReceta.builder()
+                .id("ing-1").recetaId("receta-1").nombre("Leche").cantidad(3).unidad("taza").build();
+
+        when(unidadNormalizadorService.convertirAUnidadDeCompra(3, "taza"))
+                .thenReturn(new UnidadConvertidaDTO(0.75, "l", true));
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of());
+        when(recetaGuardadaRepository.findByUsuarioId("user-1")).thenReturn(List.of(guardada));
+        when(recetaRepository.findById("receta-1")).thenReturn(Optional.of(receta));
+        when(ingredienteRecetaRepository.findByRecetaId("receta-1")).thenReturn(List.of(ingrediente));
+        guardarItemsComoLlegan();
+
+        List<ItemCarrito> resultado = carritoInteligenteService.generarRecomendaciones("user-1");
+
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).getCantidad()).isEqualTo(0.75f);
+        assertThat(resultado.get(0).getUnidad()).isEqualTo("l");
     }
 
     @Test

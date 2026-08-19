@@ -195,3 +195,39 @@ it('rellena_stock_minimo_en_modo_edicion_si_el_producto_lo_tiene', () => {
   const { getByDisplayValue } = render(<FormProductoScreen />);
   expect(getByDisplayValue('3')).toBeTruthy();
 });
+
+// -------------------------------------------------------------------------
+// RF-DESP-019 — Normalización de unidades subjetivas (#161)
+// -------------------------------------------------------------------------
+
+it('selector_unidad_muestra_dos_grupos', () => {
+  const { getByText } = render(<FormProductoScreen />);
+  expect(getByText('Unidades objetivas (recomendadas)')).toBeTruthy();
+  expect(getByText('Unidades subjetivas (se convertirán automáticamente)')).toBeTruthy();
+});
+
+it('seleccionar_unidad_subjetiva_muestra_aviso_conversion', () => {
+  const { getByText, queryByTestId } = render(<FormProductoScreen />);
+  expect(queryByTestId('aviso-conversion-unidad')).toBeNull();
+
+  fireEvent.press(getByText('Taza(s)'));
+
+  expect(queryByTestId('aviso-conversion-unidad')).toBeTruthy();
+  expect(getByText(/se convertirá automáticamente/)).toBeTruthy();
+});
+
+it('aviso_muestra_equivalencia_correcta', () => {
+  const { getByText, getByPlaceholderText } = render(<FormProductoScreen />);
+  fireEvent.changeText(getByPlaceholderText('ej. 2'), '3');
+  fireEvent.press(getByText('Taza(s)'));
+
+  expect(getByText(/750 ml/)).toBeTruthy();
+});
+
+it('seleccionar_unidad_objetiva_no_muestra_aviso', () => {
+  const { getByText, queryByTestId } = render(<FormProductoScreen />);
+
+  fireEvent.press(getByText('kg'));
+
+  expect(queryByTestId('aviso-conversion-unidad')).toBeNull();
+});

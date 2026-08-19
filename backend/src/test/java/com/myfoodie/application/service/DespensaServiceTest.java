@@ -5,6 +5,7 @@ import com.myfoodie.application.dto.despensa.ProductoFiltroDTO;
 import com.myfoodie.application.dto.despensa.ProductoRequestDTO;
 import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.despensa.ProductoUpdateCantidadDTO;
+import com.myfoodie.application.dto.unidad.UnidadConvertidaDTO;
 import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.MovimientoProducto;
 import com.myfoodie.domain.model.Preferencias;
@@ -14,6 +15,7 @@ import com.myfoodie.domain.repository.MovimientoProductoRepository;
 import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.ProductoRepository;
 import com.myfoodie.exception.ApiException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +33,9 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -43,8 +48,17 @@ class DespensaServiceTest {
     @Mock private PreferenciasRepository preferenciasRepository;
     @Mock private MovimientoProductoRepository movimientoRepository;
     @Mock private CarritoInteligenteService carritoInteligenteService;
+    @Mock private UnidadNormalizadorService unidadNormalizadorService;
 
     @InjectMocks private DespensaService despensaService;
+
+    // Por defecto, unidadNormalizadorService devuelve la cantidad/unidad tal cual (comportamiento
+    // real para unidades ya objetivas, que es lo que usan la mayoría de los tests de este archivo).
+    @BeforeEach
+    void configurarNormalizadorPorDefecto() {
+        lenient().when(unidadNormalizadorService.normalizarUnidades(anyDouble(), anyString()))
+                .thenAnswer(inv -> new UnidadConvertidaDTO(inv.getArgument(0), inv.getArgument(1), false));
+    }
 
     // -------------------------------------------------------------------------
     // Helpers
@@ -120,6 +134,32 @@ class DespensaServiceTest {
 
         assertThat(resultado.posiblesDuplicados()).hasSize(1);
         assertThat(resultado.posiblesDuplicados().get(0).nombre()).isEqualTo("Leche Entera");
+    }
+
+    @Test
+    @DisplayName("añadirProducto normaliza una unidad subjetiva y conserva la unidad original (RF-DESP-019)")
+    void añadirProducto_normalizaUnidadSubjetiva_yConservaUnidadOriginal() {
+        Despensa d = despensa("desp-1", "user-1");
+        ProductoRequestDTO dtoTaza = new ProductoRequestDTO(
+                "Leche", 3, "taza", null, null, null, null, null, null);
+        Producto guardado = Producto.builder()
+                .id("prod-1").despensaId("desp-1").nombre("Leche")
+                .cantidad(750).unidad("ml").unidadOriginal("taza")
+                .build();
+
+        when(unidadNormalizadorService.normalizarUnidades(3, "taza"))
+                .thenReturn(new UnidadConvertidaDTO(750, "ml", true));
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaIdAndNombreContainingIgnoreCase("desp-1", "Leche"))
+                .thenReturn(List.of());
+        when(productoRepository.save(any(Producto.class))).thenReturn(guardado);
+        when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
+
+        ProductoResponseDTO resultado = despensaService.añadirProducto("user-1", dtoTaza);
+
+        assertThat(resultado.cantidad()).isEqualTo(750);
+        assertThat(resultado.unidad()).isEqualTo("ml");
+        assertThat(resultado.unidadOriginal()).isEqualTo("taza");
     }
 
     // -------------------------------------------------------------------------
