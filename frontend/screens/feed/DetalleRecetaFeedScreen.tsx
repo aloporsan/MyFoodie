@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ModalCompartir } from '@/components/compartir/ModalCompartir';
 import { ErrorScreen } from '@/components/common/ErrorScreen';
@@ -15,6 +15,7 @@ import { useCarritoStore } from '@/store/carritoStore';
 import { useFeedStore } from '@/store/feedStore';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
 import { resolveImagenUrl } from '@/utils/media';
+import { unidadDeCompra } from '@/utils/unidadConfig';
 
 const DIFICULTAD_COLOR: Record<string, string> = {
   'fácil': colors.primary,
@@ -32,7 +33,7 @@ export function DetalleRecetaFeedScreen() {
   const darLike = useFeedStore((s) => s.darLike);
   const quitarLike = useFeedStore((s) => s.quitarLike);
   const guardarReceta = useFeedStore((s) => s.guardarReceta);
-  const añadirItemManual = useCarritoStore((s) => s.añadirItemManual);
+  const añadirYAceptarItemManual = useCarritoStore((s) => s.añadirYAceptarItemManual);
 
   const recetaFeed = recetas.find((r) => r.id === id);
 
@@ -105,13 +106,17 @@ export function DetalleRecetaFeedScreen() {
     }
   };
 
+  const [añadiendoCarrito, setAñadiendoCarrito] = useState(false);
+
   const handleAñadirAlCarrito = async () => {
+    setAñadiendoCarrito(true);
     try {
       for (const ingrediente of faltantes) {
-        await añadirItemManual({
+        const compra = unidadDeCompra(ingrediente.cantidad, ingrediente.unidad);
+        await añadirYAceptarItemManual({
           nombre: ingrediente.nombre,
-          cantidad: ingrediente.cantidad,
-          unidad: ingrediente.unidad,
+          cantidad: compra?.cantidad ?? ingrediente.cantidad,
+          unidad: compra?.unidad ?? ingrediente.unidad,
         });
       }
       showSuccess(
@@ -119,6 +124,8 @@ export function DetalleRecetaFeedScreen() {
       );
     } catch {
       showError('No se pudieron añadir los ingredientes al carrito');
+    } finally {
+      setAñadiendoCarrito(false);
     }
   };
 
@@ -254,9 +261,19 @@ export function DetalleRecetaFeedScreen() {
                     <IngredienteRow key={ing.id} ingrediente={ing} icono="close-circle" color={colors.error} />
                   ))}
                 </View>
-                <Pressable style={styles.carritoBtn} onPress={handleAñadirAlCarrito}>
-                  <Ionicons name="cart-outline" size={18} color={colors.white} />
-                  <Text style={styles.carritoBtnTexto}>Añadir faltantes al carrito</Text>
+                <Pressable
+                  style={[styles.carritoBtn, añadiendoCarrito && styles.carritoBtnPresionado]}
+                  onPress={handleAñadirAlCarrito}
+                  disabled={añadiendoCarrito}
+                >
+                  {añadiendoCarrito ? (
+                    <ActivityIndicator size="small" color={colors.white} />
+                  ) : (
+                    <>
+                      <Ionicons name="cart-outline" size={18} color={colors.white} />
+                      <Text style={styles.carritoBtnTexto}>Añadir faltantes al carrito</Text>
+                    </>
+                  )}
                 </Pressable>
               </>
             )}
@@ -420,6 +437,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     minHeight: 44,
   },
+  carritoBtnPresionado: { backgroundColor: '#C98400' },
   carritoBtnTexto: { ...typography.button, color: colors.white },
 
   pasosList: { gap: spacing.md },

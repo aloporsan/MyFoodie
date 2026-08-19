@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
@@ -26,6 +27,7 @@ import { shadows } from '@/theme/shadows';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 import { resolveImagenUrl } from '@/utils/media';
+import { unidadDeCompra } from '@/utils/unidadConfig';
 
 const DIFICULTAD_COLOR: Record<string, string> = {
   Fácil: colors.primary,
@@ -47,7 +49,7 @@ export function DetalleRecetaScreen() {
   const recetasGuardadas = useRecetaStore((s) => s.recetasGuardadas);
   const cargarRecetasGuardadas = useRecetaStore((s) => s.cargarRecetasGuardadas);
   const guardarReceta = useRecetaStore((s) => s.guardarReceta);
-  const añadirItemManual = useCarritoStore((s) => s.añadirItemManual);
+  const añadirYAceptarItemManual = useCarritoStore((s) => s.añadirYAceptarItemManual);
 
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
@@ -91,13 +93,17 @@ export function DetalleRecetaScreen() {
     if (receta && !esPropia) cargarRecetasGuardadas();
   }, [receta?.id, esPropia]);
 
+  const [añadiendoCarrito, setAñadiendoCarrito] = useState(false);
+
   const handleAñadirAlCarrito = async () => {
+    setAñadiendoCarrito(true);
     try {
       for (const ingrediente of faltantes) {
-        await añadirItemManual({
+        const compra = unidadDeCompra(ingrediente.cantidad, ingrediente.unidad);
+        await añadirYAceptarItemManual({
           nombre: ingrediente.nombre,
-          cantidad: ingrediente.cantidad,
-          unidad: ingrediente.unidad,
+          cantidad: compra?.cantidad ?? ingrediente.cantidad,
+          unidad: compra?.unidad ?? ingrediente.unidad,
         });
       }
       showToastSuccess(
@@ -105,6 +111,8 @@ export function DetalleRecetaScreen() {
       );
     } catch {
       showToastError('No se pudieron añadir los ingredientes al carrito');
+    } finally {
+      setAñadiendoCarrito(false);
     }
   };
 
@@ -320,9 +328,19 @@ export function DetalleRecetaScreen() {
                     <IngredienteRow key={ing.id} ingrediente={ing} />
                   ))}
                 </View>
-                <Pressable style={styles.carritoBtn} onPress={handleAñadirAlCarrito}>
-                  <Ionicons name="cart-outline" size={18} color={colors.white} />
-                  <Text style={styles.carritoBtnTexto}>Añadir faltantes al carrito</Text>
+                <Pressable
+                  style={[styles.carritoBtn, añadiendoCarrito && styles.carritoBtnPresionado]}
+                  onPress={handleAñadirAlCarrito}
+                  disabled={añadiendoCarrito}
+                >
+                  {añadiendoCarrito ? (
+                    <ActivityIndicator size="small" color={colors.white} />
+                  ) : (
+                    <>
+                      <Ionicons name="cart-outline" size={18} color={colors.white} />
+                      <Text style={styles.carritoBtnTexto}>Añadir faltantes al carrito</Text>
+                    </>
+                  )}
                 </Pressable>
               </>
             )}
@@ -520,6 +538,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     marginTop: spacing.sm,
   },
+  carritoBtnPresionado: { backgroundColor: '#C98400' },
   carritoBtnTexto: { ...typography.button, color: colors.white },
 });
 

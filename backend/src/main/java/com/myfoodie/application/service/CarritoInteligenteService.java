@@ -359,8 +359,7 @@ public class CarritoInteligenteService {
             for (IngredienteReceta ingrediente : ingredientes) {
                 double ratio = ratioDisponibilidad(ingrediente, productos);
                 if (ratio == 0) {
-                    resultado.add(nuevoItem(ingrediente.getNombre(), (float) ingrediente.getCantidad(),
-                            ingrediente.getUnidad(), inferirCategoria(ingrediente.getNombre()), "alta",
+                    resultado.add(nuevoItemDesdeIngrediente(ingrediente, "alta",
                             "Necesitas " + ingrediente.getNombre() + " para preparar " + receta.getTitulo(),
                             receta.getId()));
                 }
@@ -406,8 +405,7 @@ public class CarritoInteligenteService {
             for (IngredienteReceta ingrediente : ingredientes) {
                 double ratio = ratioDisponibilidad(ingrediente, productos);
                 if (ratio > 0 && ratio < RATIO_INSUFICIENTE) {
-                    resultado.add(nuevoItem(ingrediente.getNombre(), (float) ingrediente.getCantidad(),
-                            ingrediente.getUnidad(), inferirCategoria(ingrediente.getNombre()), "media",
+                    resultado.add(nuevoItemDesdeIngrediente(ingrediente, "media",
                             "Tienes poco " + ingrediente.getNombre() + " para preparar " + receta.getTitulo(),
                             receta.getId()));
                 }
@@ -468,8 +466,7 @@ public class CarritoInteligenteService {
             for (IngredienteReceta ingrediente : ingredientes) {
                 double ratio = ratioDisponibilidad(ingrediente, productos);
                 if (ratio >= RATIO_INSUFICIENTE && ratio < 1) {
-                    resultado.add(nuevoItem(ingrediente.getNombre(), (float) ingrediente.getCantidad(),
-                            ingrediente.getUnidad(), inferirCategoria(ingrediente.getNombre()), "baja",
+                    resultado.add(nuevoItemDesdeIngrediente(ingrediente, "baja",
                             "Te falta poco " + ingrediente.getNombre() + " para completar " + receta.getTitulo()
                                     + ", que ya tienes casi lista", receta.getId()));
                 }
@@ -497,6 +494,14 @@ public class CarritoInteligenteService {
                 .motivo(motivo)
                 .recetaId(recetaId)
                 .build();
+    }
+
+    private ItemCarrito nuevoItemDesdeIngrediente(IngredienteReceta ingrediente, String prioridad, String motivo,
+                                                    String recetaId) {
+        UnidadConvertidaDTO compra = unidadNormalizadorService
+                .convertirAUnidadDeCompra(ingrediente.getCantidad(), ingrediente.getUnidad());
+        return nuevoItem(ingrediente.getNombre(), (float) compra.cantidadConvertida(), compra.unidadConvertida(),
+                inferirCategoria(ingrediente.getNombre()), prioridad, motivo, recetaId);
     }
 
     private Float reposicion(Producto p) {

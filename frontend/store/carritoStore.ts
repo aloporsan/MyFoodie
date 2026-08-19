@@ -30,6 +30,7 @@ interface CarritoActions {
   recuperarItem: (id: string) => Promise<void>;
   modificarCantidad: (id: string, cantidad: number, unidad?: string) => Promise<void>;
   añadirItemManual: (datos: ItemCarritoInput) => Promise<void>;
+  añadirYAceptarItemManual: (datos: ItemCarritoInput) => Promise<void>;
   eliminarItem: (id: string) => Promise<void>;
   generarListaCompra: (nombre?: string) => Promise<ListaCompra>;
   cargarListas: () => Promise<void>;
@@ -202,6 +203,21 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
       const nuevo = await carritoService.añadirItemManual(datos);
       set((s) => {
         const items = [...s.items, nuevo];
+        return { items, resumen: calcularResumen(items) };
+      });
+    } catch (e) {
+      set({ error: handleApiError(e) });
+      throw e;
+    }
+  },
+
+  añadirYAceptarItemManual: async (datos) => {
+    set({ error: null });
+    try {
+      const creado = await carritoService.añadirItemManual(datos);
+      const aceptado = await carritoService.aceptarItem(creado.id);
+      set((s) => {
+        const items = [...s.items, aceptado];
         return { items, resumen: calcularResumen(items) };
       });
     } catch (e) {

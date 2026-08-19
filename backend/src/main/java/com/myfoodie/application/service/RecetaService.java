@@ -44,6 +44,7 @@ public class RecetaService {
     private final DespensaRepository despensaRepository;
     private final ProductoRepository productoRepository;
     private final DespensaService despensaService;
+    private final CarritoInteligenteService carritoInteligenteService;
     private final UnidadNormalizadorService unidadNormalizadorService;
 
     // -------------------------------------------------------------------------
@@ -267,6 +268,7 @@ public class RecetaService {
 
         List<IngredienteConsumoDTO> descontados = new ArrayList<>();
         List<IngredienteConsumoDTO> noDisponibles = new ArrayList<>();
+        boolean huboDescuento = false;
 
         for (IngredienteReceta ingrediente : ingredienteRepository.findByRecetaId(recetaId)) {
             IngredienteConsumoDTO consumo = calcularConsumo(ingrediente, factor, productos);
@@ -280,9 +282,14 @@ public class RecetaService {
                 Producto producto = buscarProductoPorNombre(productos, ingrediente.getNombre());
                 despensaService.actualizarCantidad(usuarioId, producto.getId(),
                         new ProductoUpdateCantidadDTO(-aDescontar, "usado_en_receta", null,
-                                "Usado en receta: " + receta.getTitulo()));
+                                "Usado en receta: " + receta.getTitulo()), false);
+                huboDescuento = true;
             }
             descontados.add(consumo);
+        }
+
+        if (huboDescuento) {
+            carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
         }
 
         return new DescuentoRecetaResponseDTO(descontados, noDisponibles);

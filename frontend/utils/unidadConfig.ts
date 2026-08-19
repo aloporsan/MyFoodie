@@ -33,3 +33,14 @@ export function equivalenciaMetrica(cantidad: number, unidad: string): string | 
   const total = Math.round(base * conversion.factor * 100) / 100;
   return `${total} ${conversion.destino}`;
 }
+
+// Convierte una unidad subjetiva a litros/kilos (lo que se compra), no a ml/g (trazabilidad interna)
+export function unidadDeCompra(cantidad: number, unidad: string): { cantidad: number; unidad: 'l' | 'kg' } | null {
+  const conversion = CONVERSIONES_SUBJETIVAS[unidad.toLowerCase()];
+  if (!conversion) return null;
+  const base = Number.isFinite(cantidad) && cantidad > 0 ? cantidad : 1;
+  const totalBase = base * conversion.factor;
+  const destino = conversion.destino === 'ml' ? 'l' : 'kg';
+  const cantidadDestino = Math.round((totalBase / 1000) * 100) / 100;
+  return { cantidad: cantidadDestino, unidad: destino };
+}

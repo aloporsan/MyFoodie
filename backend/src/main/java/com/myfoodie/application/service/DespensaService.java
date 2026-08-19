@@ -143,6 +143,12 @@ public class DespensaService {
 
     public ProductoResponseDTO actualizarCantidad(String usuarioId, String productoId,
                                                    ProductoUpdateCantidadDTO dto) {
+        return actualizarCantidad(usuarioId, productoId, dto, true);
+    }
+
+    // actualizarCarrito=false evita disparar N regeneraciones async en paralelo cuando el llamante itera varios productos
+    public ProductoResponseDTO actualizarCantidad(String usuarioId, String productoId,
+                                                   ProductoUpdateCantidadDTO dto, boolean actualizarCarrito) {
         Despensa despensa = getDespensaDeUsuario(usuarioId);
         int globalUmbral = obtenerGlobalUmbral(usuarioId);
         Producto p = getProductoDeUsuario(despensa.getId(), productoId);
@@ -160,7 +166,9 @@ public class DespensaService {
         String descripcion = dto.descripcion() != null ? dto.descripcion() : "Cantidad actualizada";
         registrarMovimiento(saved, usuarioId, "cantidad_actualizada", descripcion,
                 cantidadAnterior, nuevaCantidad, dto.motivo(), dto.motivoDetalle());
-        carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
+        if (actualizarCarrito) {
+            carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
+        }
         return toDTO(saved, null, resolverUmbral(saved, globalUmbral));
     }
 

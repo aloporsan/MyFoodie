@@ -53,6 +53,17 @@ public class UnidadNormalizadorService {
         return new UnidadConvertidaDTO(cantidad, unidad, false);
     }
 
+    // Para listas de la compra: unidades subjetivas van a litros/kilos (lo que se compra), no a ml/g (trazabilidad interna)
+    public UnidadConvertidaDTO convertirAUnidadDeCompra(double cantidad, String unidad) {
+        UnidadConvertidaDTO normalizado = normalizarUnidades(cantidad, unidad);
+        if (!normalizado.fueConvertida()) {
+            return normalizado;
+        }
+        String destino = "ml".equals(normalizado.unidadConvertida()) ? "l" : "kg";
+        double cantidadDestino = Math.round(normalizado.cantidadConvertida() / 10) / 100.0;
+        return new UnidadConvertidaDTO(cantidadDestino, destino, true);
+    }
+
     private String normalizar(String unidad) {
         return unidad == null ? "" : unidad.trim().toLowerCase(Locale.ROOT);
     }
