@@ -1,37 +1,50 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
-import { FeedEmptyState, GestosCard } from '@/components/feed';
+import { FeedEmptyState, FiltroFeedBar, GestosCard, type FiltroFeed } from '@/components/feed';
 import { useToast } from '@/hooks/useToast';
 import { useFeedStore } from '@/store/feedStore';
 import { colors, spacing, typography } from '@/theme';
 
 const CARTAS_A_PRECARGAR = 3;
 const CARTAS_APILADAS = 3;
+const COINCIDENCIA_DESPENSA_MINIMA = 70;
 
 export function FeedScreen() {
   const router = useRouter();
   const { showSuccess, showError } = useToast();
+  const [filtro, setFiltro] = useState<FiltroFeed>('para-ti');
 
   const recetas = useFeedStore((s) => s.recetas);
+  const recetasSeguidos = useFeedStore((s) => s.recetasSeguidos);
   const isLoading = useFeedStore((s) => s.isLoading);
   const isLoadingMas = useFeedStore((s) => s.isLoadingMas);
   const hayMas = useFeedStore((s) => s.hayMas);
   const error = useFeedStore((s) => s.error);
   const cargarFeed = useFeedStore((s) => s.cargarFeed);
   const cargarMas = useFeedStore((s) => s.cargarMas);
+  const cargarPerfilGustos = useFeedStore((s) => s.cargarPerfilGustos);
   const guardarReceta = useFeedStore((s) => s.guardarReceta);
   const descartarReceta = useFeedStore((s) => s.descartarReceta);
   const darLike = useFeedStore((s) => s.darLike);
 
   const indiceActual = 0;
 
+  const recetasMostradas = useMemo(() => {
+    if (filtro === 'seguidos') return recetasSeguidos;
+    if (filtro === 'despensa') {
+      return recetas.filter((r) => r.coincidenciaDespensa >= COINCIDENCIA_DESPENSA_MINIMA);
+    }
+    return recetas;
+  }, [filtro, recetas, recetasSeguidos]);
+
   useEffect(() => {
     cargarFeed();
+    cargarPerfilGustos();
   }, []);
 
   useEffect(() => {
@@ -42,19 +55,19 @@ export function FeedScreen() {
   }, [error]);
 
   useEffect(() => {
-    const siguientes = recetas.slice(indiceActual + 1, indiceActual + 1 + CARTAS_A_PRECARGAR);
+    const siguientes = recetasMostradas.slice(indiceActual + 1, indiceActual + 1 + CARTAS_A_PRECARGAR);
     siguientes.forEach((r) => {
       if (r.imagenUrl) Image.prefetch(r.imagenUrl);
     });
-  }, [indiceActual, recetas]);
+  }, [indiceActual, recetasMostradas]);
 
   useEffect(() => {
-    if (hayMas && !isLoadingMas && indiceActual >= recetas.length - 2) {
+    if (filtro === 'para-ti' && hayMas && !isLoadingMas && indiceActual >= recetasMostradas.length - 2) {
       cargarMas();
     }
-  }, [indiceActual, recetas.length, hayMas, isLoadingMas]);
+  }, [filtro, indiceActual, recetasMostradas.length, hayMas, isLoadingMas]);
 
-  const recetaActual = recetas[indiceActual];
+  const recetaActual = recetasMostradas[indiceActual];
 
   const handleGuardar = () => {
     if (!recetaActual) return;
@@ -83,12 +96,16 @@ export function FeedScreen() {
   if (!recetaActual) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitulo}>Feed</Text>
+        </View>
+        <FiltroFeedBar filtroActivo={filtro} onFiltroChange={setFiltro} />
         <FeedEmptyState />
       </SafeAreaView>
     );
   }
 
-  const cartasVisibles = recetas.slice(indiceActual, indiceActual + CARTAS_APILADAS);
+  const cartasVisibles = recetasMostradas.slice(indiceActual, indiceActual + CARTAS_APILADAS);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -103,6 +120,8 @@ export function FeedScreen() {
           <Ionicons name="search" size={20} color={colors.primary} />
         </Pressable>
       </View>
+
+      <FiltroFeedBar filtroActivo={filtro} onFiltroChange={setFiltro} />
 
       <View style={styles.stack}>
         {cartasVisibles

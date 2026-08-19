@@ -9,12 +9,12 @@ import { typography } from '@/theme/typography';
 
 export function FeedEmptyState() {
   const router = useRouter();
-  const limpiarFeed = useFeedStore((s) => s.limpiarFeed);
-  const cargarFeed = useFeedStore((s) => s.cargarFeed);
+  const limpiarDescartadas = useFeedStore((s) => s.limpiarDescartadas);
 
   const handleVerDeNuevo = () => {
-    limpiarFeed();
-    cargarFeed();
+    limpiarDescartadas().catch(() => {
+      // el error ya queda reflejado en el store y se muestra como toast en FeedScreen
+    });
   };
 
   return (
@@ -30,7 +30,7 @@ export function FeedEmptyState() {
 
       <Pressable style={styles.btnPrimario} onPress={handleVerDeNuevo} hitSlop={4}>
         <Ionicons name="refresh" size={20} color={colors.white} />
-        <Text style={styles.btnPrimarioTexto}>Ver de nuevo</Text>
+        <Text style={styles.btnPrimarioTexto}>Ver recetas de nuevo</Text>
       </Pressable>
 
       <Pressable
