@@ -36,6 +36,7 @@ interface CarritoActions {
   cargarListas: () => Promise<void>;
   cargarLista: (id: string) => Promise<void>;
   cargarListaEnCurso: () => Promise<void>;
+  cancelarListaCompra: (id: string) => Promise<void>;
   alternarComprado: (listaId: string, itemId: string) => Promise<void>;
   añadirCompradosADespensa: (listaId: string, ajustes?: ItemCompradoAjuste[]) => Promise<void>;
   clearError: () => void;
@@ -284,6 +285,23 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
       set({ listaEnCurso });
     } catch (e) {
       set({ error: handleApiError(e) });
+    }
+  },
+
+  cancelarListaCompra: async (id) => {
+    set({ error: null });
+    try {
+      await carritoService.cancelarLista(id);
+      set((s) => ({
+        listas: s.listas.map((l) => (l.id === id ? { ...l, estado: 'archivada' as const } : l)),
+        listaActiva: s.listaActiva && s.listaActiva.id === id
+          ? { ...s.listaActiva, estado: 'archivada' as const }
+          : s.listaActiva,
+        listaEnCurso: s.listaEnCurso && s.listaEnCurso.id === id ? null : s.listaEnCurso,
+      }));
+    } catch (e) {
+      set({ error: handleApiError(e) });
+      throw e;
     }
   },
 

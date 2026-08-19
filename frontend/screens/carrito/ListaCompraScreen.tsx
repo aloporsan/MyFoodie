@@ -21,8 +21,15 @@ export function ListaCompraScreen() {
   const id = Array.isArray(rawId) ? rawId[0] : rawId;
   const { showError } = useToast();
 
-  const { listaActiva, isLoading, cargarLista, alternarComprado, modificarCantidad, eliminarItem } =
-    useCarritoStore();
+  const {
+    listaActiva,
+    isLoading,
+    cargarLista,
+    alternarComprado,
+    modificarCantidad,
+    eliminarItem,
+    cancelarListaCompra,
+  } = useCarritoStore();
 
   const [itemEditando, setItemEditando] = useState<ItemCarrito | null>(null);
   const [modalCantidadVisible, setModalCantidadVisible] = useState(false);
@@ -113,6 +120,30 @@ export function ListaCompraScreen() {
     setItemEditando(null);
   };
 
+  const handleCancelarLista = () => {
+    if (!id) return;
+    showConfirm(
+      'Cancelar lista de la compra',
+      '¿Seguro que quieres cancelar esta lista? Dejará de aparecer como compra en curso.',
+      [
+        { text: 'Volver', style: 'cancel' },
+        {
+          text: 'Cancelar lista',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await cancelarListaCompra(id);
+              goBack();
+            } catch {
+              showError('No se pudo cancelar la lista');
+            }
+          },
+        },
+      ],
+      { icon: 'close-circle-outline', variant: 'warning' }
+    );
+  };
+
   const irAAñadirDespensa = () => {
     if (id) router.push(`/carrito/lista/${id}/anadir-despensa`);
   };
@@ -147,9 +178,16 @@ export function ListaCompraScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </Pressable>
         <Text style={styles.headerTitulo} numberOfLines={1}>{listaActiva.nombre}</Text>
-        <Pressable testID="btn-exportar-pdf" onPress={handleExportarPDF} hitSlop={8}>
-          <Ionicons name="document-text-outline" size={22} color={colors.primary} />
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable testID="btn-exportar-pdf" onPress={handleExportarPDF} hitSlop={8}>
+            <Ionicons name="document-text-outline" size={22} color={colors.primary} />
+          </Pressable>
+          {!esCompletada && (
+            <Pressable testID="btn-cancelar-lista" onPress={handleCancelarLista} hitSlop={8}>
+              <Ionicons name="close-circle-outline" size={22} color={colors.error} />
+            </Pressable>
+          )}
+        </View>
       </View>
 
       <View style={styles.progresoCard}>
@@ -321,6 +359,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.gray,
   },
   headerTitulo: { ...typography.heading3, color: colors.text.primary, flex: 1, textAlign: 'center' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   progresoCard: {
     backgroundColor: colors.white,
     padding: spacing.lg,
