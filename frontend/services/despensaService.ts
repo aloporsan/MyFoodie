@@ -16,6 +16,7 @@ export interface Producto {
   nombre: string;
   cantidad: number;
   unidad: string;
+  unidadOriginal?: string;
   categoria?: string;
   fechaCaducidad?: string;
   fechaCompra?: string;
