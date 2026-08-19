@@ -24,5 +24,6 @@ public record RecetaFeedDTO(
         LocalDateTime createdAt,
         String motivoRecomendacion,
         Boolean publicadaPorSeguido,
-        Integer likesDeSeguidosCount
+        Integer likesDeSeguidosCount,
+        ContextoSocialDTO contextoSocial
 ) {}
