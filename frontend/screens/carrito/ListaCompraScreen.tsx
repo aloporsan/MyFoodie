@@ -3,9 +3,12 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { showConfirm } from '@/hooks/useConfirm';
+import { useToast } from '@/hooks/useToast';
 import { ItemCarrito, UNIDADES_CARRITO } from '@/services/carritoService';
+import { pdfService } from '@/services/pdfService';
 import { useCarritoStore } from '@/store/carritoStore';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
@@ -16,6 +19,7 @@ export function ListaCompraScreen() {
   const router = useRouter();
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const id = Array.isArray(rawId) ? rawId[0] : rawId;
+  const { showError } = useToast();
 
   const { listaActiva, isLoading, cargarLista, alternarComprado, modificarCantidad, eliminarItem } =
     useCarritoStore();
@@ -24,6 +28,20 @@ export function ListaCompraScreen() {
   const [modalCantidadVisible, setModalCantidadVisible] = useState(false);
   const [cantidadTexto, setCantidadTexto] = useState('');
   const [unidadSeleccionada, setUnidadSeleccionada] = useState('');
+  const [exportandoPdf, setExportandoPdf] = useState(false);
+
+  const handleExportarPDF = async () => {
+    if (!listaActiva) return;
+    setExportandoPdf(true);
+    try {
+      const uri = await pdfService.generarPDFListaCompra(listaActiva);
+      await pdfService.compartirPDF(uri, `${listaActiva.nombre}.pdf`);
+    } catch {
+      showError('No se pudo exportar la lista a PDF');
+    } finally {
+      setExportandoPdf(false);
+    }
+  };
 
   useEffect(() => {
     if (id) cargarLista(id);
@@ -123,12 +141,15 @@ export function ListaCompraScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <LoadingOverlay visible={exportandoPdf} mensaje="Generando PDF..." />
       <View style={styles.header}>
         <Pressable onPress={goBack} hitSlop={8}>
           <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </Pressable>
         <Text style={styles.headerTitulo} numberOfLines={1}>{listaActiva.nombre}</Text>
-        <View style={{ width: 24 }} />
+        <Pressable testID="btn-exportar-pdf" onPress={handleExportarPDF} hitSlop={8}>
+          <Ionicons name="document-text-outline" size={22} color={colors.primary} />
+        </Pressable>
       </View>
 
       <View style={styles.progresoCard}>

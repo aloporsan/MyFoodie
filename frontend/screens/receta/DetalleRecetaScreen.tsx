@@ -13,10 +13,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ModalCompartir } from '@/components/compartir/ModalCompartir';
 import { ErrorScreen } from '@/components/common/ErrorScreen';
+import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { showConfirm } from '@/hooks/useConfirm';
 import { useToast } from '@/hooks/useToast';
 import { despensaService } from '@/services/despensaService';
+import { pdfService } from '@/services/pdfService';
 import { IngredienteReceta, PasoReceta } from '@/services/recetaService';
 import { useAuthStore } from '@/store/authStore';
 import { useCarritoStore } from '@/store/carritoStore';
@@ -94,6 +96,20 @@ export function DetalleRecetaScreen() {
   }, [receta?.id, esPropia]);
 
   const [añadiendoCarrito, setAñadiendoCarrito] = useState(false);
+  const [exportandoPdf, setExportandoPdf] = useState(false);
+
+  const handleExportarPDF = async () => {
+    if (!receta) return;
+    setExportandoPdf(true);
+    try {
+      const uri = await pdfService.generarPDFReceta(receta);
+      await pdfService.compartirPDF(uri, `${receta.titulo}.pdf`);
+    } catch {
+      showToastError('No se pudo exportar la receta a PDF');
+    } finally {
+      setExportandoPdf(false);
+    }
+  };
 
   const handleAñadirAlCarrito = async () => {
     setAñadiendoCarrito(true);
@@ -173,6 +189,7 @@ export function DetalleRecetaScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <LoadingOverlay visible={exportandoPdf} mensaje="Generando PDF..." />
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={goBack} hitSlop={8} style={styles.backBtn}>
@@ -183,6 +200,9 @@ export function DetalleRecetaScreen() {
         </Text>
         {esPropia ? (
           <View style={styles.headerActions}>
+            <Pressable testID="btn-exportar-pdf" onPress={handleExportarPDF} hitSlop={8}>
+              <Ionicons name="document-text-outline" size={22} color={colors.primary} />
+            </Pressable>
             <Pressable testID="btn-compartir-receta" onPress={() => setModalCompartirVisible(true)} hitSlop={8}>
               <Ionicons name="share-social-outline" size={22} color={colors.primary} />
             </Pressable>
@@ -199,6 +219,9 @@ export function DetalleRecetaScreen() {
           </View>
         ) : (
           <View style={styles.headerActions}>
+            <Pressable testID="btn-exportar-pdf" onPress={handleExportarPDF} hitSlop={8}>
+              <Ionicons name="document-text-outline" size={22} color={colors.primary} />
+            </Pressable>
             <Pressable testID="btn-compartir-receta" onPress={() => setModalCompartirVisible(true)} hitSlop={8}>
               <Ionicons name="share-social-outline" size={22} color={colors.primary} />
             </Pressable>

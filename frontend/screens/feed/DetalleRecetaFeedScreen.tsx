@@ -6,10 +6,12 @@ import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ModalCompartir } from '@/components/compartir/ModalCompartir';
 import { ErrorScreen } from '@/components/common/ErrorScreen';
+import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { useToast } from '@/hooks/useToast';
 import { despensaService } from '@/services/despensaService';
 import { feedService } from '@/services/feedService';
+import { pdfService } from '@/services/pdfService';
 import { IngredienteReceta, Receta } from '@/services/recetaService';
 import { useCarritoStore } from '@/store/carritoStore';
 import { useFeedStore } from '@/store/feedStore';
@@ -107,6 +109,20 @@ export function DetalleRecetaFeedScreen() {
   };
 
   const [añadiendoCarrito, setAñadiendoCarrito] = useState(false);
+  const [exportandoPdf, setExportandoPdf] = useState(false);
+
+  const handleExportarPDF = async () => {
+    if (!receta) return;
+    setExportandoPdf(true);
+    try {
+      const uri = await pdfService.generarPDFReceta(receta);
+      await pdfService.compartirPDF(uri, `${receta.titulo}.pdf`);
+    } catch {
+      showError('No se pudo exportar la receta a PDF');
+    } finally {
+      setExportandoPdf(false);
+    }
+  };
 
   const handleAñadirAlCarrito = async () => {
     setAñadiendoCarrito(true);
@@ -149,6 +165,7 @@ export function DetalleRecetaFeedScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <LoadingOverlay visible={exportandoPdf} mensaje="Generando PDF..." />
       <View style={styles.header}>
         <Pressable onPress={goBack} hitSlop={8} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
@@ -157,6 +174,9 @@ export function DetalleRecetaFeedScreen() {
           {receta.titulo}
         </Text>
         <View style={styles.headerActions}>
+          <Pressable testID="btn-exportar-pdf" onPress={handleExportarPDF} hitSlop={8}>
+            <Ionicons name="document-text-outline" size={22} color={colors.text.primary} />
+          </Pressable>
           <Pressable testID="btn-compartir-header" onPress={() => setModalCompartirVisible(true)} hitSlop={8}>
             <Ionicons name="share-social-outline" size={22} color={colors.text.primary} />
           </Pressable>
