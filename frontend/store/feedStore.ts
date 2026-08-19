@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { RecetaFeed, feedService } from '@/services/feedService';
+import { PerfilGustos, RecetaFeed, feedService } from '@/services/feedService';
 import { handleApiError } from '@/utils/errorHandler';
 
 const TAMAÑO_PAGINA = 10;
@@ -21,6 +21,10 @@ interface FeedState {
   isLoadingMas: boolean;
   error: string | null;
   ultimaAccion: AccionFeed | null;
+  perfilGustos: PerfilGustos | null;
+  isLoadingPerfilGustos: boolean;
+  recetasSeguidos: RecetaFeed[];
+  isLoadingRecetasSeguidos: boolean;
 }
 
 interface FeedActions {
@@ -32,6 +36,9 @@ interface FeedActions {
   quitarLike: (id: string) => Promise<void>;
   deshacerUltimaAccion: () => Promise<void>;
   limpiarFeed: () => void;
+  cargarPerfilGustos: () => Promise<void>;
+  limpiarDescartadas: () => Promise<void>;
+  cargarRecetasSeguidos: () => Promise<void>;
 }
 
 const ESTADO_INICIAL: FeedState = {
@@ -42,6 +49,10 @@ const ESTADO_INICIAL: FeedState = {
   isLoadingMas: false,
   error: null,
   ultimaAccion: null,
+  perfilGustos: null,
+  isLoadingPerfilGustos: false,
+  recetasSeguidos: [],
+  isLoadingRecetasSeguidos: false,
 };
 
 export const useFeedStore = create<FeedState & FeedActions>()((set, get) => ({
@@ -200,4 +211,35 @@ export const useFeedStore = create<FeedState & FeedActions>()((set, get) => ({
   },
 
   limpiarFeed: () => set({ ...ESTADO_INICIAL }),
+
+  cargarPerfilGustos: async () => {
+    set({ isLoadingPerfilGustos: true, error: null });
+    try {
+      const perfilGustos = await feedService.obtenerPerfilGustos();
+      set({ perfilGustos, isLoadingPerfilGustos: false });
+    } catch (e) {
+      set({ error: handleApiError(e), isLoadingPerfilGustos: false });
+    }
+  },
+
+  limpiarDescartadas: async () => {
+    set({ error: null });
+    try {
+      await feedService.limpiarDescartadas();
+      await get().cargarFeed();
+    } catch (e) {
+      set({ error: handleApiError(e) });
+      throw e;
+    }
+  },
+
+  cargarRecetasSeguidos: async () => {
+    set({ isLoadingRecetasSeguidos: true, error: null });
+    try {
+      const respuesta = await feedService.obtenerRecetasSeguidos(0, TAMAÑO_PAGINA);
+      set({ recetasSeguidos: respuesta.recetas, isLoadingRecetasSeguidos: false });
+    } catch (e) {
+      set({ error: handleApiError(e), isLoadingRecetasSeguidos: false });
+    }
+  },
 }));
