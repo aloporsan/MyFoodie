@@ -19,8 +19,17 @@ export function FeedScreen() {
   const { showSuccess, showError } = useToast();
   const [filtro, setFiltro] = useState<FiltroFeed>('para-ti');
 
+  // Medimos la altura real disponible en vez de confiar en que flex:1 se resuelva
+  // correctamente en toda la cadena de vistas (stack absoluto + reanimated).
+  const [alturaContenedor, setAlturaContenedor] = useState(0);
+  const [alturaCabecera, setAlturaCabecera] = useState(0);
+  const alturaArea =
+    alturaContenedor > 0 && alturaCabecera > 0
+      ? Math.max(0, alturaContenedor - alturaCabecera)
+      : undefined;
+  const estiloArea = alturaArea !== undefined ? { height: alturaArea } : { flex: 1 };
+
   const recetas = useFeedStore((s) => s.recetas);
-  const recetasSeguidos = useFeedStore((s) => s.recetasSeguidos);
   const isLoading = useFeedStore((s) => s.isLoading);
   const isLoadingMas = useFeedStore((s) => s.isLoadingMas);
   const hayMas = useFeedStore((s) => s.hayMas);
@@ -35,12 +44,11 @@ export function FeedScreen() {
   const indiceActual = 0;
 
   const recetasMostradas = useMemo(() => {
-    if (filtro === 'seguidos') return recetasSeguidos;
     if (filtro === 'despensa') {
       return recetas.filter((r) => r.coincidenciaDespensa >= COINCIDENCIA_DESPENSA_MINIMA);
     }
     return recetas;
-  }, [filtro, recetas, recetasSeguidos]);
+  }, [filtro, recetas]);
 
   useEffect(() => {
     cargarFeed();
@@ -62,10 +70,10 @@ export function FeedScreen() {
   }, [indiceActual, recetasMostradas]);
 
   useEffect(() => {
-    if (filtro === 'para-ti' && hayMas && !isLoadingMas && indiceActual >= recetasMostradas.length - 2) {
+    if (hayMas && !isLoadingMas && indiceActual >= recetasMostradas.length - 2) {
       cargarMas();
     }
-  }, [filtro, indiceActual, recetasMostradas.length, hayMas, isLoadingMas]);
+  }, [indiceActual, recetasMostradas.length, hayMas, isLoadingMas]);
 
   const recetaActual = recetasMostradas[indiceActual];
 
@@ -93,56 +101,58 @@ export function FeedScreen() {
     return <LoadingScreen />;
   }
 
-  if (!recetaActual) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitulo}>Feed</Text>
-        </View>
-        <FiltroFeedBar filtroActivo={filtro} onFiltroChange={setFiltro} />
-        <FeedEmptyState />
-      </SafeAreaView>
-    );
-  }
-
-  const cartasVisibles = recetasMostradas.slice(indiceActual, indiceActual + CARTAS_APILADAS);
+  const cartasVisibles = recetaActual
+    ? recetasMostradas.slice(indiceActual, indiceActual + CARTAS_APILADAS)
+    : [];
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitulo}>Feed</Text>
-        <Pressable
-          style={({ pressed }) => [styles.btnBuscar, pressed && styles.btnBuscarPressed]}
-          onPress={() => router.push('/social/buscar')}
-          hitSlop={8}
-          testID="btn-buscar-usuarios"
-        >
-          <Ionicons name="search" size={20} color={colors.primary} />
-        </Pressable>
+    <SafeAreaView
+      style={styles.container}
+      edges={['top']}
+      onLayout={(e) => setAlturaContenedor(e.nativeEvent.layout.height)}
+    >
+      <View onLayout={(e) => setAlturaCabecera(e.nativeEvent.layout.height)}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitulo}>Feed</Text>
+          <Pressable
+            style={({ pressed }) => [styles.btnBuscar, pressed && styles.btnBuscarPressed]}
+            onPress={() => router.push('/social/buscar')}
+            hitSlop={8}
+            testID="btn-buscar-usuarios"
+          >
+            <Ionicons name="search" size={20} color={colors.primary} />
+          </Pressable>
+        </View>
+
+        <FiltroFeedBar filtroActivo={filtro} onFiltroChange={setFiltro} />
       </View>
 
-      <FiltroFeedBar filtroActivo={filtro} onFiltroChange={setFiltro} />
-
-      <View style={styles.stack}>
-        {cartasVisibles
-          .map((receta, posicion) => ({ receta, posicion }))
-          .reverse()
-          .map(({ receta, posicion }) => (
-            <View key={receta.id} style={styles.carta}>
-              <GestosCard
-                receta={receta}
-                posicion={posicion}
-                onGuardar={handleGuardar}
-                onDescartar={handleDescartar}
-                onLike={handleDobleToqueLike}
-                onPress={posicion === 0 ? () => router.push(`/feed/${receta.id}`) : undefined}
-                onAutorPress={
-                  posicion === 0 ? () => router.push(`/social/perfil/${receta.autorId}`) : undefined
-                }
-              />
-            </View>
-          ))}
-      </View>
+      {recetaActual ? (
+        <View style={[styles.stack, estiloArea]}>
+          {cartasVisibles
+            .map((receta, posicion) => ({ receta, posicion }))
+            .reverse()
+            .map(({ receta, posicion }) => (
+              <View key={receta.id} style={styles.carta}>
+                <GestosCard
+                  receta={receta}
+                  posicion={posicion}
+                  onGuardar={handleGuardar}
+                  onDescartar={handleDescartar}
+                  onLike={handleDobleToqueLike}
+                  onPress={posicion === 0 ? () => router.push(`/feed/${receta.id}`) : undefined}
+                  onAutorPress={
+                    posicion === 0 ? () => router.push(`/social/perfil/${receta.autorId}`) : undefined
+                  }
+                />
+              </View>
+            ))}
+        </View>
+      ) : (
+        <View style={[styles.vacioWrapper, estiloArea]}>
+          <FeedEmptyState />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -175,13 +185,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gray,
   },
   stack: {
-    flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
+    width: '100%',
   },
   carta: {
-    ...StyleSheet.absoluteFillObject,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.xl,
+    position: 'absolute',
+    top: spacing.sm,
+    left: spacing.lg,
+    right: spacing.lg,
+    bottom: spacing.xxxl,
+  },
+  vacioWrapper: {
+    width: '100%',
+    justifyContent: 'center',
   },
 });

@@ -27,14 +27,13 @@ interface FiltroFeedBarProps {
 }
 
 export function FiltroFeedBar({ filtroActivo, onFiltroChange }: FiltroFeedBarProps) {
-  const cargarRecetasSeguidos = useFeedStore((s) => s.cargarRecetasSeguidos);
+  const cargarFeed = useFeedStore((s) => s.cargarFeed);
 
   const handlePress = (filtro: FiltroFeed) => {
     if (filtro === filtroActivo) return;
     onFiltroChange(filtro);
-    if (filtro === 'seguidos') {
-      cargarRecetasSeguidos();
-    }
+    // "despensa" es un filtro local sobre el feed "para-ti": comparte la misma fuente/paginación.
+    cargarFeed(filtro === 'seguidos' ? 'seguidos' : 'para-ti');
   };
 
   return (
@@ -95,8 +94,11 @@ function FiltroChip({
 
 const styles = StyleSheet.create({
   content: {
+    flexGrow: 1,
+    justifyContent: 'center',
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
     gap: spacing.sm,
   },
   chip: {

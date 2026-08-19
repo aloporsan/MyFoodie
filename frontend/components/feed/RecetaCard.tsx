@@ -138,12 +138,6 @@ export function RecetaCard({ receta, autorGesture }: RecetaCardProps) {
             {coincidencia.mensaje}
           </Text>
         </View>
-
-        {receta.motivoRecomendacion && (
-          <Text style={styles.motivoTexto} numberOfLines={1}>
-            Recomendado porque: {receta.motivoRecomendacion}
-          </Text>
-        )}
       </View>
     </View>
   );
@@ -327,9 +321,5 @@ const styles = StyleSheet.create({
   coincidenciaMensaje: {
     ...typography.label,
     fontWeight: '700',
-  },
-  motivoTexto: {
-    ...typography.caption,
-    color: 'rgba(255,255,255,0.6)',
   },
 });
