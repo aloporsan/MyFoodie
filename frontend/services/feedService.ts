@@ -89,6 +89,10 @@ export const feedService = {
     return data;
   },
 
+  resetearPerfilGustos: async (): Promise<void> => {
+    await apiClient.delete('/feed/perfil-gustos');
+  },
+
   limpiarDescartadas: async (): Promise<void> => {
     await apiClient.delete('/feed/descartadas');
   },

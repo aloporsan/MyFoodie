@@ -89,6 +89,12 @@ public class FeedController {
         return ResponseEntity.ok(feedService.obtenerPerfilGustos(getUsuarioId(principal)));
     }
 
+    @DeleteMapping("/perfil-gustos")
+    public ResponseEntity<Void> resetearPerfilGustos(Principal principal) {
+        feedService.resetearPerfilGustos(getUsuarioId(principal));
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/recetas-seguidos")
     public ResponseEntity<FeedResponseDTO> obtenerRecetasSeguidos(
             @RequestParam(defaultValue = "0") int pagina,

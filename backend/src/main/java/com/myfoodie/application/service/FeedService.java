@@ -88,6 +88,10 @@ public class FeedService {
         return construirRespuesta(candidatas, usuarioId, pagina, tamaño, seguidosIds, descartes, false);
     }
 
+    public void resetearPerfilGustos(String usuarioId) {
+        perfilGustosRepository.deleteByUsuarioId(usuarioId);
+    }
+
     public PerfilGustosResponseDTO obtenerPerfilGustos(String usuarioId) {
         PerfilGustos perfil = obtenerOPredeterminarPerfil(usuarioId);
         return new PerfilGustosResponseDTO(

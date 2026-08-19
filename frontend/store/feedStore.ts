@@ -37,6 +37,7 @@ interface FeedActions {
   deshacerUltimaAccion: () => Promise<void>;
   limpiarFeed: () => void;
   cargarPerfilGustos: () => Promise<void>;
+  resetearPerfilGustos: () => Promise<void>;
   limpiarDescartadas: () => Promise<void>;
   cargarRecetasSeguidos: () => Promise<void>;
 }
@@ -219,6 +220,17 @@ export const useFeedStore = create<FeedState & FeedActions>()((set, get) => ({
       set({ perfilGustos, isLoadingPerfilGustos: false });
     } catch (e) {
       set({ error: handleApiError(e), isLoadingPerfilGustos: false });
+    }
+  },
+
+  resetearPerfilGustos: async () => {
+    set({ error: null });
+    try {
+      await feedService.resetearPerfilGustos();
+      set({ perfilGustos: null });
+    } catch (e) {
+      set({ error: handleApiError(e) });
+      throw e;
     }
   },
 
