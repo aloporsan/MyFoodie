@@ -4,10 +4,12 @@ import com.myfoodie.application.dto.social.PerfilPublicoResponseDTO;
 import com.myfoodie.application.dto.social.SeguimientoResponseDTO;
 import com.myfoodie.application.dto.social.UsuarioBusquedaResponseDTO;
 import com.myfoodie.domain.model.Bloqueo;
+import com.myfoodie.domain.model.Notificacion;
 import com.myfoodie.domain.model.Privacidad;
 import com.myfoodie.domain.model.Seguimiento;
 import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.BloqueoRepository;
+import com.myfoodie.domain.repository.NotificacionRepository;
 import com.myfoodie.domain.repository.RecetaRepository;
 import com.myfoodie.domain.repository.SeguimientoRepository;
 import com.myfoodie.domain.repository.UsuarioRepository;
@@ -15,6 +17,7 @@ import com.myfoodie.exception.ApiException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -39,6 +42,7 @@ class SocialServiceTest {
     @Mock private BloqueoRepository bloqueoRepository;
     @Mock private UsuarioRepository usuarioRepository;
     @Mock private RecetaRepository recetaRepository;
+    @Mock private NotificacionRepository notificacionRepository;
 
     @InjectMocks
     private SocialService socialService;
@@ -80,6 +84,29 @@ class SocialServiceTest {
     }
 
     @Test
+    void seguirUsuario_crea_notificacion_nuevo_seguidor() {
+        when(usuarioRepository.findById("seguido-1")).thenReturn(Optional.of(usuarioPublico));
+        when(bloqueoRepository.existsByBloqueadorIdAndBloqueadoId(anyString(), anyString())).thenReturn(false);
+        when(seguimientoRepository.findBySeguidorIdAndSeguidoId("seguidor-1", "seguido-1"))
+                .thenReturn(Optional.empty());
+        when(seguimientoRepository.save(any())).thenAnswer(i -> {
+            Seguimiento s = i.getArgument(0);
+            s.setId("seg-1");
+            return s;
+        });
+
+        socialService.seguirUsuario("seguidor-1", "seguido-1");
+
+        ArgumentCaptor<Notificacion> captor = ArgumentCaptor.forClass(Notificacion.class);
+        verify(notificacionRepository).save(captor.capture());
+        Notificacion notificacion = captor.getValue();
+        assertThat(notificacion.getUsuarioId()).isEqualTo("seguido-1");
+        assertThat(notificacion.getTipo()).isEqualTo("nuevo_seguidor");
+        assertThat(notificacion.getEmisorId()).isEqualTo("seguidor-1");
+        assertThat(notificacion.getReferenciaId()).isEqualTo("seg-1");
+    }
+
+    @Test
     void seguirUsuario_crea_seguimiento_pendiente_si_perfil_privado() {
         when(usuarioRepository.findById("privado-1")).thenReturn(Optional.of(usuarioPrivado));
         when(bloqueoRepository.existsByBloqueadorIdAndBloqueadoId(anyString(), anyString())).thenReturn(false);
@@ -90,6 +117,7 @@ class SocialServiceTest {
         SeguimientoResponseDTO result = socialService.seguirUsuario("seguidor-1", "privado-1");
 
         assertThat(result.estado()).isEqualTo("pendiente");
+        verify(notificacionRepository, never()).save(any());
     }
 
     @Test
@@ -218,6 +246,50 @@ class SocialServiceTest {
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).id()).isEqualTo("seguido-1");
+    }
+
+    @Test
+    void buscarUsuarios_soloCompartibles_excluye_privados_no_seguidos() {
+        when(usuarioRepository.findByNombreContainingIgnoreCaseOrNombreUsuarioContainingIgnoreCase("bru", "bru"))
+                .thenReturn(List.of(usuarioPrivado));
+        when(bloqueoRepository.existsByBloqueadorIdAndBloqueadoId(anyString(), anyString())).thenReturn(false);
+        when(seguimientoRepository.findBySeguidorIdAndSeguidoId("buscador-1", "privado-1"))
+                .thenReturn(Optional.empty());
+
+        List<UsuarioBusquedaResponseDTO> result = socialService.buscarUsuarios("bru", "buscador-1", true);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void buscarUsuarios_soloCompartibles_incluye_privados_seguidos_confirmados() {
+        Seguimiento seguimientoAceptado = Seguimiento.builder()
+                .id("seg-1").seguidorId("buscador-1").seguidoId("privado-1").estado("aceptado").build();
+
+        when(usuarioRepository.findByNombreContainingIgnoreCaseOrNombreUsuarioContainingIgnoreCase("bru", "bru"))
+                .thenReturn(List.of(usuarioPrivado));
+        when(bloqueoRepository.existsByBloqueadorIdAndBloqueadoId(anyString(), anyString())).thenReturn(false);
+        when(seguimientoRepository.findBySeguidorIdAndSeguidoId("buscador-1", "privado-1"))
+                .thenReturn(Optional.of(seguimientoAceptado));
+        when(recetaRepository.countByAutorIdAndEstado(anyString(), anyString())).thenReturn(0L);
+
+        List<UsuarioBusquedaResponseDTO> result = socialService.buscarUsuarios("bru", "buscador-1", true);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).id()).isEqualTo("privado-1");
+    }
+
+    @Test
+    void buscarUsuarios_sin_soloCompartibles_incluye_privados_no_seguidos() {
+        when(usuarioRepository.findByNombreContainingIgnoreCaseOrNombreUsuarioContainingIgnoreCase("bru", "bru"))
+                .thenReturn(List.of(usuarioPrivado));
+        when(bloqueoRepository.existsByBloqueadorIdAndBloqueadoId(anyString(), anyString())).thenReturn(false);
+        when(seguimientoRepository.findBySeguidorIdAndSeguidoId(anyString(), anyString())).thenReturn(Optional.empty());
+        when(recetaRepository.countByAutorIdAndEstado(anyString(), anyString())).thenReturn(0L);
+
+        List<UsuarioBusquedaResponseDTO> result = socialService.buscarUsuarios("bru", "buscador-1");
+
+        assertThat(result).hasSize(1);
     }
 
     @Test

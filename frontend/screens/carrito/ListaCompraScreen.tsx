@@ -3,9 +3,12 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { showConfirm } from '@/hooks/useConfirm';
+import { useToast } from '@/hooks/useToast';
 import { ItemCarrito, UNIDADES_CARRITO } from '@/services/carritoService';
+import { pdfService } from '@/services/pdfService';
 import { useCarritoStore } from '@/store/carritoStore';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
@@ -16,14 +19,36 @@ export function ListaCompraScreen() {
   const router = useRouter();
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const id = Array.isArray(rawId) ? rawId[0] : rawId;
+  const { showError } = useToast();
 
-  const { listaActiva, isLoading, cargarLista, alternarComprado, modificarCantidad, eliminarItem } =
-    useCarritoStore();
+  const {
+    listaActiva,
+    isLoading,
+    cargarLista,
+    alternarComprado,
+    modificarCantidad,
+    eliminarItem,
+    cancelarListaCompra,
+  } = useCarritoStore();
 
   const [itemEditando, setItemEditando] = useState<ItemCarrito | null>(null);
   const [modalCantidadVisible, setModalCantidadVisible] = useState(false);
   const [cantidadTexto, setCantidadTexto] = useState('');
   const [unidadSeleccionada, setUnidadSeleccionada] = useState('');
+  const [exportandoPdf, setExportandoPdf] = useState(false);
+
+  const handleExportarPDF = async () => {
+    if (!listaActiva) return;
+    setExportandoPdf(true);
+    try {
+      const uri = await pdfService.generarPDFListaCompra(listaActiva);
+      await pdfService.compartirPDF(uri, `${listaActiva.nombre}.pdf`);
+    } catch {
+      showError('No se pudo exportar la lista a PDF');
+    } finally {
+      setExportandoPdf(false);
+    }
+  };
 
   useEffect(() => {
     if (id) cargarLista(id);
@@ -95,6 +120,30 @@ export function ListaCompraScreen() {
     setItemEditando(null);
   };
 
+  const handleCancelarLista = () => {
+    if (!id) return;
+    showConfirm(
+      'Cancelar lista de la compra',
+      '¿Seguro que quieres cancelar esta lista? Dejará de aparecer como compra en curso.',
+      [
+        { text: 'Volver', style: 'cancel' },
+        {
+          text: 'Cancelar lista',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await cancelarListaCompra(id);
+              goBack();
+            } catch {
+              showError('No se pudo cancelar la lista');
+            }
+          },
+        },
+      ],
+      { icon: 'close-circle-outline', variant: 'warning' }
+    );
+  };
+
   const irAAñadirDespensa = () => {
     if (id) router.push(`/carrito/lista/${id}/anadir-despensa`);
   };
@@ -123,12 +172,22 @@ export function ListaCompraScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <LoadingOverlay visible={exportandoPdf} mensaje="Generando PDF..." />
       <View style={styles.header}>
         <Pressable onPress={goBack} hitSlop={8}>
           <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </Pressable>
         <Text style={styles.headerTitulo} numberOfLines={1}>{listaActiva.nombre}</Text>
-        <View style={{ width: 24 }} />
+        <View style={styles.headerActions}>
+          <Pressable testID="btn-exportar-pdf" onPress={handleExportarPDF} hitSlop={8}>
+            <Ionicons name="document-text-outline" size={22} color={colors.primary} />
+          </Pressable>
+          {!esCompletada && (
+            <Pressable testID="btn-cancelar-lista" onPress={handleCancelarLista} hitSlop={8}>
+              <Ionicons name="close-circle-outline" size={22} color={colors.error} />
+            </Pressable>
+          )}
+        </View>
       </View>
 
       <View style={styles.progresoCard}>
@@ -300,6 +359,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.gray,
   },
   headerTitulo: { ...typography.heading3, color: colors.text.primary, flex: 1, textAlign: 'center' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   progresoCard: {
     backgroundColor: colors.white,
     padding: spacing.lg,

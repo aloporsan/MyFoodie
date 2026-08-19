@@ -19,7 +19,7 @@ export function CarritoResumenCard({ resumen, onPress }: Props) {
     <Pressable style={styles.card} onPress={onPress}>
       <View style={styles.row}>
         <View style={styles.iconWrapper}>
-          <Ionicons name="cart-outline" size={28} color={colors.primaryDark} />
+          <Ionicons name="cart-outline" size={22} color={colors.primaryDark} />
         </View>
         <View style={styles.texto}>
           <Text style={styles.titulo}>Carrito inteligente</Text>
@@ -35,12 +35,7 @@ export function CarritoResumenCard({ resumen, onPress }: Props) {
             </Text>
           )}
         </View>
-        {itemsAlta > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeTexto}>{itemsAlta}</Text>
-          </View>
-        )}
-        <Ionicons name="chevron-forward" size={20} color={colors.grayMid} />
+        <Ionicons name="chevron-forward" size={18} color={colors.grayMid} />
       </View>
     </Pressable>
   );
@@ -48,51 +43,44 @@ export function CarritoResumenCard({ resumen, onPress }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.grayLight,
+    backgroundColor: colors.white,
     borderRadius: borderRadius.lg,
-    padding: spacing.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.gray,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    justifyContent: 'center',
+    gap: spacing.sm,
   },
   iconWrapper: {
-    width: 48,
-    height: 48,
+    width: 40,
+    height: 40,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.white,
+    backgroundColor: '#E8F5D0',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
   texto: {
-    flex: 1,
     gap: 2,
   },
   titulo: {
     ...typography.label,
     color: colors.text.primary,
+    textAlign: 'center',
   },
   descripcion: {
     ...typography.caption,
     color: colors.text.secondary,
+    textAlign: 'center',
   },
   aceptadosTexto: {
     ...typography.caption,
     color: colors.primaryDark,
     fontWeight: '600',
-  },
-  badge: {
-    backgroundColor: colors.error,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderRadius: borderRadius.full,
-  },
-  badgeTexto: {
-    ...typography.caption,
-    color: colors.white,
-    fontWeight: '700',
-    fontSize: 10,
+    textAlign: 'center',
   },
 });

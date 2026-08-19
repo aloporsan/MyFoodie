@@ -30,11 +30,13 @@ interface CarritoActions {
   recuperarItem: (id: string) => Promise<void>;
   modificarCantidad: (id: string, cantidad: number, unidad?: string) => Promise<void>;
   añadirItemManual: (datos: ItemCarritoInput) => Promise<void>;
+  añadirYAceptarItemManual: (datos: ItemCarritoInput) => Promise<void>;
   eliminarItem: (id: string) => Promise<void>;
   generarListaCompra: (nombre?: string) => Promise<ListaCompra>;
   cargarListas: () => Promise<void>;
   cargarLista: (id: string) => Promise<void>;
   cargarListaEnCurso: () => Promise<void>;
+  cancelarListaCompra: (id: string) => Promise<void>;
   alternarComprado: (listaId: string, itemId: string) => Promise<void>;
   añadirCompradosADespensa: (listaId: string, ajustes?: ItemCompradoAjuste[]) => Promise<void>;
   clearError: () => void;
@@ -105,31 +107,51 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
   },
 
   aceptarItem: async (id) => {
-    set({ error: null });
-    try {
-      const actualizado = await carritoService.aceptarItem(id);
-      set((s) => {
-        const items = s.items.map((i) => (i.id === id ? actualizado : i));
-        return { items, resumen: calcularResumen(items) };
+    const snapshotItems = get().items;
+    const itemAnterior = snapshotItems.find((i) => i.id === id);
+    if (!itemAnterior) return;
+
+    // Actualización optimista: refleja el cambio al instante, sin esperar la red.
+    const itemsOptimistas = snapshotItems.map((i) =>
+      i.id === id ? { ...i, estado: 'aceptado' as const } : i
+    );
+    set({ error: null, items: itemsOptimistas, resumen: calcularResumen(itemsOptimistas) });
+
+    carritoService.aceptarItem(id)
+      .then((actualizado) => {
+        set((s) => {
+          const items = s.items.map((i) => (i.id === id ? actualizado : i));
+          return { items, resumen: calcularResumen(items) };
+        });
+      })
+      .catch((e) => {
+        // Revierte la actualización optimista si la petición falla.
+        set({ error: handleApiError(e), items: snapshotItems, resumen: calcularResumen(snapshotItems) });
       });
-    } catch (e) {
-      set({ error: handleApiError(e) });
-      throw e;
-    }
   },
 
   rechazarItem: async (id) => {
-    set({ error: null });
-    try {
-      const actualizado = await carritoService.rechazarItem(id);
-      set((s) => {
-        const items = s.items.map((i) => (i.id === id ? actualizado : i));
-        return { items, resumen: calcularResumen(items) };
+    const snapshotItems = get().items;
+    const itemAnterior = snapshotItems.find((i) => i.id === id);
+    if (!itemAnterior) return;
+
+    // Actualización optimista: refleja el cambio al instante, sin esperar la red.
+    const itemsOptimistas = snapshotItems.map((i) =>
+      i.id === id ? { ...i, estado: 'rechazado' as const } : i
+    );
+    set({ error: null, items: itemsOptimistas, resumen: calcularResumen(itemsOptimistas) });
+
+    carritoService.rechazarItem(id)
+      .then((actualizado) => {
+        set((s) => {
+          const items = s.items.map((i) => (i.id === id ? actualizado : i));
+          return { items, resumen: calcularResumen(items) };
+        });
+      })
+      .catch((e) => {
+        // Revierte la actualización optimista si la petición falla.
+        set({ error: handleApiError(e), items: snapshotItems, resumen: calcularResumen(snapshotItems) });
       });
-    } catch (e) {
-      set({ error: handleApiError(e) });
-      throw e;
-    }
   },
 
   marcarNoVolver: async (id) => {
@@ -182,6 +204,21 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
       const nuevo = await carritoService.añadirItemManual(datos);
       set((s) => {
         const items = [...s.items, nuevo];
+        return { items, resumen: calcularResumen(items) };
+      });
+    } catch (e) {
+      set({ error: handleApiError(e) });
+      throw e;
+    }
+  },
+
+  añadirYAceptarItemManual: async (datos) => {
+    set({ error: null });
+    try {
+      const creado = await carritoService.añadirItemManual(datos);
+      const aceptado = await carritoService.aceptarItem(creado.id);
+      set((s) => {
+        const items = [...s.items, aceptado];
         return { items, resumen: calcularResumen(items) };
       });
     } catch (e) {
@@ -248,6 +285,23 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
       set({ listaEnCurso });
     } catch (e) {
       set({ error: handleApiError(e) });
+    }
+  },
+
+  cancelarListaCompra: async (id) => {
+    set({ error: null });
+    try {
+      await carritoService.cancelarLista(id);
+      set((s) => ({
+        listas: s.listas.map((l) => (l.id === id ? { ...l, estado: 'archivada' as const } : l)),
+        listaActiva: s.listaActiva && s.listaActiva.id === id
+          ? { ...s.listaActiva, estado: 'archivada' as const }
+          : s.listaActiva,
+        listaEnCurso: s.listaEnCurso && s.listaEnCurso.id === id ? null : s.listaEnCurso,
+      }));
+    } catch (e) {
+      set({ error: handleApiError(e) });
+      throw e;
     }
   },
 

@@ -20,6 +20,7 @@ import {
   FiltrosBar,
   ProductoCard,
 } from '@/components/despensa';
+import { useToast } from '@/hooks/useToast';
 import { EstadoProducto, MotivoEliminacion } from '@/services/despensaService';
 import { useDespensaStore } from '@/store/despensaStore';
 import { borderRadius } from '@/theme/borderRadius';
@@ -40,6 +41,7 @@ const MOTIVOS_ELIMINAR: { key: MotivoEliminacion; label: string; icono: string }
 
 export function DespensaScreen() {
   const router = useRouter();
+  const { showError } = useToast();
   const {
     productos,
     isLoading,
@@ -69,6 +71,7 @@ export function DespensaScreen() {
   const [pendingCantidadId, setPendingCantidadId] = useState<string | null>(null);
   const [pendingCantidadUnidad, setPendingCantidadUnidad] = useState('');
   const [pendingCantidadModo, setPendingCantidadModo] = useState<'sumar' | 'restar'>('restar');
+  const [pendingCantidadDisponible, setPendingCantidadDisponible] = useState(0);
 
   const [estadosPresentesBase, setEstadosPresentesBase] = useState<EstadoProducto[]>([]);
   const [categoriasBase, setCategoriasBase] = useState<string[]>([]);
@@ -145,10 +148,11 @@ export function DespensaScreen() {
   };
 
   // Cantidad con motivo
-  const handleDecrementar = useCallback((id: string, unidad: string) => {
+  const handleDecrementar = useCallback((id: string, unidad: string, cantidadDisponible: number) => {
     setPendingCantidadId(id);
     setPendingCantidadUnidad(unidad);
     setPendingCantidadModo('restar');
+    setPendingCantidadDisponible(cantidadDisponible);
   }, []);
 
   const handleIncrementar = useCallback((id: string, unidad: string) => {
@@ -164,8 +168,12 @@ export function DespensaScreen() {
   ) => {
     if (!pendingCantidadId) return;
     const delta = pendingCantidadModo === 'sumar' ? cantidad : -cantidad;
-    await actualizarCantidad(pendingCantidadId, delta, motivo, motivoDetalle);
-    setPendingCantidadId(null);
+    try {
+      await actualizarCantidad(pendingCantidadId, delta, motivo, motivoDetalle);
+      setPendingCantidadId(null);
+    } catch {
+      showError('No puedes quitar más cantidad de la que tienes disponible');
+    }
   };
 
   const estaFiltrandoOBuscando = busquedaActiva.trim() || filtroActivo !== 'todos' || categoriaActiva;
@@ -237,7 +245,7 @@ export function DespensaScreen() {
             onEditar={() => router.push({ pathname: '/despensa/form', params: { id: item.id } })}
             onEliminar={() => handleEliminar(item.id, item.nombre)}
             onIncrementar={() => handleIncrementar(item.id, item.unidad)}
-            onDecrementar={() => handleDecrementar(item.id, item.unidad)}
+            onDecrementar={() => handleDecrementar(item.id, item.unidad, item.cantidad)}
           />
         )}
         ListEmptyComponent={
@@ -362,6 +370,7 @@ export function DespensaScreen() {
         visible={pendingCantidadId !== null}
         unidad={pendingCantidadUnidad}
         modo={pendingCantidadModo}
+        maxCantidad={pendingCantidadModo === 'restar' ? pendingCantidadDisponible : undefined}
         onConfirm={confirmarCantidad}
         onCancelar={() => setPendingCantidadId(null)}
       />

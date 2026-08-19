@@ -27,7 +27,7 @@ interface SocialActions {
   cargarSeguidos: (usuarioId?: string) => Promise<void>;
   cargarSolicitudes: () => Promise<void>;
   cargarPerfilPublico: (usuarioId: string) => Promise<void>;
-  buscarUsuarios: (texto: string) => Promise<void>;
+  buscarUsuarios: (texto: string, soloCompartibles?: boolean) => Promise<void>;
   bloquearUsuario: (usuarioId: string) => Promise<void>;
   desbloquearUsuario: (usuarioId: string) => Promise<void>;
   cargarBloqueados: () => Promise<void>;
@@ -159,14 +159,16 @@ export const useSocialStore = create<SocialState & SocialActions>()((set, get) =
     }
   },
 
-  buscarUsuarios: async (texto) => {
+  buscarUsuarios: async (texto, soloCompartibles) => {
     if (!texto.trim()) {
       set({ resultadosBusqueda: [] });
       return;
     }
     set({ isLoading: true, error: null });
     try {
-      const resultadosBusqueda = await socialService.buscarUsuarios(texto);
+      const resultadosBusqueda = soloCompartibles !== undefined
+        ? await socialService.buscarUsuarios(texto, soloCompartibles)
+        : await socialService.buscarUsuarios(texto);
       set({ resultadosBusqueda, isLoading: false });
     } catch (e) {
       set({ error: handleApiError(e), isLoading: false });

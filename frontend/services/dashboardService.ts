@@ -2,6 +2,7 @@ import { apiClient } from './apiClient';
 
 export interface DashboardResumen {
   totalProductos: number;
+  sinStock: number;
   caducados: number;
   caduca_pronto: number;
   caduca_semana: number;

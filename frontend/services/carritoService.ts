@@ -128,6 +128,10 @@ export const carritoService = {
     return data;
   },
 
+  cancelarLista: async (id: string): Promise<void> => {
+    await apiClient.put(`/carrito/listas/${id}/cancelar`);
+  },
+
   obtenerListaActiva: async (): Promise<ListaCompra | null> => {
     const { data, status } = await apiClient.get<ListaCompra | null>('/carrito/listas/activa', {
       validateStatus: (s) => s === 200 || s === 204,

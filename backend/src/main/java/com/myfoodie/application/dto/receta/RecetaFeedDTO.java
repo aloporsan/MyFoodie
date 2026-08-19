@@ -16,6 +16,7 @@ public record RecetaFeedDTO(
         List<String> etiquetas,
         String imagenUrl,
         String estado,
+        Integer numPersonas,
         long totalLikes,
         boolean likeUsuario,
         List<RecetaResponseDTO.IngredienteResponseDTO> ingredientes,

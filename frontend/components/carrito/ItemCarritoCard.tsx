@@ -1,12 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { ItemCarrito, PrioridadCarrito, UNIDADES_CARRITO } from '@/services/carritoService';
 import { showConfirm } from '@/hooks/useConfirm';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
+
+const UMBRAL_SWIPE = 80;
+const DURACION_SALIDA = 200;
 
 const PRIORIDAD_CONFIG: Record<PrioridadCarrito, { bg: string; text: string; label: string }> = {
   alta: { bg: colors.error, text: colors.white, label: 'Alta' },
@@ -33,6 +44,55 @@ export function ItemCarritoCard({
   const prioridad = PRIORIDAD_CONFIG[item.prioridad];
   const esAceptado = item.estado === 'aceptado';
   const esRechazado = item.estado === 'rechazado';
+
+  const translateX = useSharedValue(0);
+
+  const animarSalida = (direccion: 1 | -1) => {
+    translateX.value = withTiming(direccion * 500, { duration: DURACION_SALIDA }, () => {
+      translateX.value = 0;
+    });
+  };
+
+  const handleAceptar = () => {
+    if (esAceptado) return;
+    animarSalida(1);
+    onAceptar?.();
+  };
+
+  const handleRechazar = () => {
+    if (esRechazado) return;
+    animarSalida(-1);
+    onRechazar?.();
+  };
+
+  // activeOffsetX deja pasar el gesto vertical al ScrollView/FlatList mientras no
+  // haya un desplazamiento horizontal claro (evita robar el scroll de la lista).
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-10, 10])
+    .onUpdate((event) => {
+      translateX.value = event.translationX;
+    })
+    .onEnd((event) => {
+      if (event.translationX > UMBRAL_SWIPE && !esAceptado) {
+        runOnJS(handleAceptar)();
+      } else if (event.translationX < -UMBRAL_SWIPE && !esRechazado) {
+        runOnJS(handleRechazar)();
+      } else {
+        translateX.value = withSpring(0);
+      }
+    });
+
+  const cardAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const overlayAceptarStyle = useAnimatedStyle(() => ({
+    opacity: translateX.value > 0 ? Math.min(translateX.value / UMBRAL_SWIPE, 1) : 0,
+  }));
+
+  const overlayRechazarStyle = useAnimatedStyle(() => ({
+    opacity: translateX.value < 0 ? Math.min(-translateX.value / UMBRAL_SWIPE, 1) : 0,
+  }));
 
   const handleMasOpciones = () => {
     showConfirm('Más opciones', undefined, [
@@ -63,61 +123,81 @@ export function ItemCarritoCard({
   };
 
   return (
-    <View style={[styles.card, esAceptado && styles.cardAceptado, esRechazado && styles.cardRechazado]}>
-      <View style={styles.row}>
-        <View style={styles.info}>
-          <View style={styles.nombreRow}>
-            <Text style={styles.nombre} numberOfLines={1}>{item.nombre}</Text>
-            <View style={[styles.badge, { backgroundColor: prioridad.bg }]}>
-              <Text style={[styles.badgeText, { color: prioridad.text }]}>{prioridad.label}</Text>
+    <GestureDetector gesture={panGesture}>
+      <Animated.View style={[styles.wrapper, cardAnimStyle]}>
+        <View style={[styles.card, esAceptado && styles.cardAceptado, esRechazado && styles.cardRechazado]}>
+          <View style={styles.row}>
+            <View style={styles.info}>
+              <View style={styles.nombreRow}>
+                <Text style={styles.nombre} numberOfLines={1}>{item.nombre}</Text>
+                <View style={[styles.badge, { backgroundColor: prioridad.bg }]}>
+                  <Text style={[styles.badgeText, { color: prioridad.text }]}>{prioridad.label}</Text>
+                </View>
+              </View>
+
+              <Text style={styles.detalle}>
+                {item.cantidad} {item.unidad}
+                {item.categoria ? ` · ${item.categoria}` : ''}
+              </Text>
+
+              {item.motivo && <Text style={styles.motivo} numberOfLines={2}>{item.motivo}</Text>}
+
+              {item.recetaTitulo && (
+                <View style={styles.recetaChip}>
+                  <Ionicons name="restaurant-outline" size={12} color={colors.primaryDark} />
+                  <Text style={styles.recetaChipText} numberOfLines={1}>{item.recetaTitulo}</Text>
+                </View>
+              )}
             </View>
           </View>
 
-          <Text style={styles.detalle}>
-            {item.cantidad} {item.unidad}
-            {item.categoria ? ` · ${item.categoria}` : ''}
-          </Text>
-
-          {item.motivo && <Text style={styles.motivo} numberOfLines={2}>{item.motivo}</Text>}
-
-          {item.recetaTitulo && (
-            <View style={styles.recetaChip}>
-              <Ionicons name="restaurant-outline" size={12} color={colors.primaryDark} />
-              <Text style={styles.recetaChipText} numberOfLines={1}>{item.recetaTitulo}</Text>
+          {esAceptado ? (
+            <View style={styles.actions}>
+              <Pressable style={styles.btnCambiarRechazado} onPress={handleRechazar}>
+                <Ionicons name="close-circle-outline" size={16} color={colors.text.secondary} />
+                <Text style={styles.btnCambiarRechazadoText}>Cambiar a rechazado</Text>
+              </Pressable>
+            </View>
+          ) : esRechazado ? (
+            onRecuperar && (
+              <View style={styles.actions}>
+                <Pressable style={styles.btnRecuperar} onPress={onRecuperar}>
+                  <Ionicons name="refresh" size={16} color={colors.primaryDark} />
+                  <Text style={styles.btnRecuperarText}>Recuperar</Text>
+                </Pressable>
+              </View>
+            )
+          ) : (
+            <View style={styles.actionsPendiente}>
+              <View style={styles.swipeHint}>
+                <Ionicons name="chevron-back" size={14} color={colors.error} />
+                <Text style={styles.swipeHintTextRechazar}>Descartar</Text>
+                <Text style={styles.swipeHintDivider}>·</Text>
+                <Text style={styles.swipeHintTextAceptar}>Aceptar</Text>
+                <Ionicons name="chevron-forward" size={14} color={colors.primaryDark} />
+              </View>
+              <Pressable style={[styles.actionBtn, styles.btnMas]} onPress={handleMasOpciones} hitSlop={4}>
+                <Ionicons name="ellipsis-vertical" size={18} color={colors.text.secondary} />
+              </Pressable>
             </View>
           )}
-        </View>
-      </View>
 
-      {esAceptado ? (
-        <View style={styles.actions}>
-          <Pressable style={styles.btnCambiarRechazado} onPress={onRechazar}>
-            <Ionicons name="close-circle-outline" size={16} color={colors.text.secondary} />
-            <Text style={styles.btnCambiarRechazadoText}>Cambiar a rechazado</Text>
-          </Pressable>
+          <Animated.View
+            testID="overlay-aceptar-carrito"
+            style={[styles.overlay, styles.overlayAceptar, overlayAceptarStyle]}
+            pointerEvents="none"
+          >
+            <Ionicons name="checkmark-circle" size={40} color={colors.white} />
+          </Animated.View>
+
+          <Animated.View
+            testID="overlay-rechazar-carrito"
+            style={[styles.overlay, styles.overlayRechazar, overlayRechazarStyle]}
+            pointerEvents="none"
+          >
+            <Ionicons name="close-circle" size={40} color={colors.white} />
+          </Animated.View>
         </View>
-      ) : esRechazado ? (
-        onRecuperar && (
-          <View style={styles.actions}>
-            <Pressable style={styles.btnRecuperar} onPress={onRecuperar}>
-              <Ionicons name="refresh" size={16} color={colors.primaryDark} />
-              <Text style={styles.btnRecuperarText}>Recuperar</Text>
-            </Pressable>
-          </View>
-        )
-      ) : (
-        <View style={styles.actions}>
-          <Pressable style={[styles.actionBtn, styles.btnAceptar]} onPress={onAceptar} hitSlop={4}>
-            <Ionicons name="checkmark" size={18} color={colors.white} />
-          </Pressable>
-          <Pressable style={[styles.actionBtn, styles.btnRechazar]} onPress={onRechazar} hitSlop={4}>
-            <Ionicons name="close" size={18} color={colors.text.secondary} />
-          </Pressable>
-          <Pressable style={[styles.actionBtn, styles.btnMas]} onPress={handleMasOpciones} hitSlop={4}>
-            <Ionicons name="ellipsis-vertical" size={18} color={colors.text.secondary} />
-          </Pressable>
-        </View>
-      )}
 
       <Modal
         visible={modalCantidadVisible}
@@ -177,11 +257,28 @@ export function ItemCarritoCard({
           </View>
         </View>
       </Modal>
-    </View>
+      </Animated.View>
+    </GestureDetector>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    overflow: 'hidden',
+    borderRadius: borderRadius.lg,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: borderRadius.lg,
+  },
+  overlayAceptar: {
+    backgroundColor: 'rgba(127, 198, 42, 0.75)',
+  },
+  overlayRechazar: {
+    backgroundColor: 'rgba(229, 57, 53, 0.75)',
+  },
   card: {
     backgroundColor: colors.white,
     borderRadius: borderRadius.lg,
@@ -260,18 +357,38 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.sm,
   },
+  actionsPendiente: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+  },
+  swipeHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  swipeHintTextRechazar: {
+    ...typography.caption,
+    color: colors.error,
+    fontWeight: '600',
+  },
+  swipeHintTextAceptar: {
+    ...typography.caption,
+    color: colors.primaryDark,
+    fontWeight: '600',
+  },
+  swipeHintDivider: {
+    ...typography.caption,
+    color: colors.text.secondary,
+    marginHorizontal: 2,
+  },
   actionBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  btnAceptar: {
-    backgroundColor: colors.primary,
-  },
-  btnRechazar: {
-    backgroundColor: colors.grayLight,
   },
   btnMas: {
     backgroundColor: colors.grayLight,

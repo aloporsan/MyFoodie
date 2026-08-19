@@ -5,10 +5,12 @@ import com.myfoodie.application.dto.compartir.IngredienteFaltanteResponseDTO;
 import com.myfoodie.application.dto.compartir.RecetaCompartidaResponseDTO;
 import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.receta.RecetaResponseDTO;
+import com.myfoodie.domain.model.Privacidad;
 import com.myfoodie.domain.model.RecetaCompartida;
 import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.BloqueoRepository;
 import com.myfoodie.domain.repository.RecetaCompartidaRepository;
+import com.myfoodie.domain.repository.SeguimientoRepository;
 import com.myfoodie.domain.repository.UsuarioRepository;
 import com.myfoodie.exception.ApiException;
 import lombok.RequiredArgsConstructor;
@@ -24,11 +26,13 @@ import java.util.stream.Collectors;
 public class CompartirService {
 
     private static final String ESTADO_PUBLICADA = "publicada";
+    private static final String ESTADO_ACEPTADO = "aceptado";
     private static final int MAX_RECEPTORES = 10;
     private static final int MENSAJE_MAX_LENGTH = 200;
 
     private final RecetaCompartidaRepository recetaCompartidaRepository;
     private final BloqueoRepository bloqueoRepository;
+    private final SeguimientoRepository seguimientoRepository;
     private final UsuarioRepository usuarioRepository;
     private final RecetaService recetaService;
     private final DespensaService despensaService;
@@ -56,9 +60,7 @@ public class CompartirService {
             if (receptorId.equals(emisorId)) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "No puedes compartir una receta contigo mismo");
             }
-            if (hayBloqueoEntre(emisorId, receptorId)) {
-                throw new ApiException(HttpStatus.FORBIDDEN, "No puedes compartir con este usuario");
-            }
+            validarPuedeCompartirCon(emisorId, receptorId);
         }
 
         List<RecetaCompartida> creadas = dto.receptorIds().stream()
@@ -122,6 +124,24 @@ public class CompartirService {
             throw new ApiException(HttpStatus.FORBIDDEN, "No tienes permiso sobre esta receta compartida");
         }
         return compartida;
+    }
+
+    private void validarPuedeCompartirCon(String emisorId, String receptorId) {
+        if (hayBloqueoEntre(emisorId, receptorId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "No puedes interactuar con este usuario");
+        }
+
+        Usuario receptor = obtenerUsuario(receptorId);
+        if (receptor.getPrivacidad() == Privacidad.PRIVADA) {
+            boolean esSeguidorConfirmado = seguimientoRepository
+                    .findBySeguidorIdAndSeguidoId(emisorId, receptorId)
+                    .filter(s -> ESTADO_ACEPTADO.equals(s.getEstado()))
+                    .isPresent();
+            if (!esSeguidorConfirmado) {
+                throw new ApiException(HttpStatus.FORBIDDEN,
+                        "No puedes enviar recetas a este usuario porque su perfil es privado");
+            }
+        }
     }
 
     private boolean hayBloqueoEntre(String usuarioAId, String usuarioBId) {

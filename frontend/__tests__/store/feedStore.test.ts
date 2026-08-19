@@ -15,6 +15,7 @@ const mockReceta = (overrides: Partial<RecetaFeed> = {}): RecetaFeed => ({
   autorId: 'autor-1',
   tiempoEstimado: 40,
   dificultad: 'Media',
+  numPersonas: 2,
   etiquetas: ['vegetariano'],
   likes: 3,
   yaLike: false,

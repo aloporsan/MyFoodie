@@ -3,6 +3,7 @@ import { apiClient } from './apiClient';
 export type EstadoProducto =
   | 'normal'
   | 'bajoStock'
+  | 'sin_stock'
   | 'caducado'
   | 'caduca_hoy'
   | 'caduca_pronto'
@@ -15,6 +16,7 @@ export interface Producto {
   nombre: string;
   cantidad: number;
   unidad: string;
+  unidadOriginal?: string;
   categoria?: string;
   fechaCaducidad?: string;
   fechaCompra?: string;

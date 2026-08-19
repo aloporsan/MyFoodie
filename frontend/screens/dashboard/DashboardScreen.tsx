@@ -94,8 +94,8 @@ export function DashboardScreen() {
             />
           )}
           {resumen && <ResumenDespensaCard resumen={resumen} />}
-          {recetasRecomendadas && <RecetasRecomendadasCard />}
           <CarritoResumenCard resumen={carritoResumen} onPress={() => router.push('/carrito')} />
+          {recetasRecomendadas && <RecetasRecomendadasCard />}
           {estadisticas && <EstadisticasCard estadisticas={estadisticas} />}
         </ScrollView>
       )}

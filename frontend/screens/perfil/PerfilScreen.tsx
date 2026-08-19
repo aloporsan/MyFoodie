@@ -17,6 +17,7 @@ import { EstadisticaItem } from '@/components/perfil/EstadisticaItem';
 import { MenuPerfil } from '@/components/perfil/MenuPerfil';
 import { PerfilHeader } from '@/components/perfil/PerfilHeader';
 import { useCompartirStore } from '@/store/compartirStore';
+import { useNotificacionStore } from '@/store/notificacionStore';
 import { usePerfilStore } from '@/store/perfilStore';
 import { useSocialStore } from '@/store/socialStore';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
@@ -33,8 +34,11 @@ export function PerfilScreen() {
   const cargarSolicitudes = useSocialStore((s) => s.cargarSolicitudes);
   const contadorNoLeidas = useCompartirStore((s) => s.contadorNoLeidas);
   const cargarContador = useCompartirStore((s) => s.cargarContador);
+  const contadorNotificaciones = useNotificacionStore((s) => s.contadorNoLeidas);
+  const cargarContadorNotificaciones = useNotificacionStore((s) => s.cargarContador);
 
-  const totalNotificacionesSocial = solicitudesPendientes.length + contadorNoLeidas;
+  const totalNotificacionesSocial =
+    solicitudesPendientes.length + contadorNoLeidas + contadorNotificaciones;
 
   useEffect(() => {
     cargarPerfil();
@@ -43,6 +47,7 @@ export function PerfilScreen() {
     cargarSeguidos();
     cargarSolicitudes();
     cargarContador();
+    cargarContadorNotificaciones();
   }, []);
 
   const onRefresh = () => {

@@ -6,6 +6,7 @@ import com.myfoodie.application.dto.carrito.ItemCarritoRequestDTO;
 import com.myfoodie.application.dto.carrito.ItemCompradoAjusteDTO;
 import com.myfoodie.application.dto.carrito.ItemCarritoResponseDTO;
 import com.myfoodie.application.dto.carrito.ListaCompraResponseDTO;
+import com.myfoodie.application.dto.unidad.UnidadConvertidaDTO;
 import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.IngredienteReceta;
 import com.myfoodie.domain.model.ItemCarrito;
@@ -29,6 +30,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Async;
 
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -56,6 +58,37 @@ public class CarritoInteligenteService {
     private static final DateTimeFormatter FORMATO_FECHA_LISTA =
             DateTimeFormatter.ofPattern("d 'de' MMMM", new Locale("es", "ES"));
 
+    private static final Map<String, String> CATEGORIAS_INGREDIENTES = Map.ofEntries(
+            // Lácteos
+            Map.entry("leche", "lácteos"), Map.entry("queso", "lácteos"),
+            Map.entry("yogur", "lácteos"), Map.entry("mantequilla", "lácteos"),
+            // Verduras
+            Map.entry("tomate", "verduras"), Map.entry("cebolla", "verduras"),
+            Map.entry("ajo", "verduras"), Map.entry("pimiento", "verduras"),
+            Map.entry("zanahoria", "verduras"), Map.entry("lechuga", "verduras"),
+            Map.entry("patata", "verduras"),
+            // Frutas
+            Map.entry("manzana", "frutas"), Map.entry("naranja", "frutas"),
+            Map.entry("limon", "frutas"), Map.entry("platano", "frutas"),
+            // Carnes
+            Map.entry("pollo", "carnes"), Map.entry("ternera", "carnes"),
+            Map.entry("cerdo", "carnes"), Map.entry("jamon", "carnes"),
+            // Pescados
+            Map.entry("salmon", "pescados"), Map.entry("atun", "pescados"),
+            Map.entry("merluza", "pescados"),
+            // Huevos
+            Map.entry("huevo", "huevos"),
+            // Legumbres
+            Map.entry("lenteja", "legumbres"), Map.entry("garbanzo", "legumbres"),
+            Map.entry("judia", "legumbres"),
+            // Cereales
+            Map.entry("arroz", "cereales"), Map.entry("pasta", "cereales"),
+            Map.entry("harina", "cereales"), Map.entry("pan", "cereales"),
+            // Aceites y condimentos
+            Map.entry("aceite", "aceites"), Map.entry("vinagre", "condimentos"),
+            Map.entry("sal", "condimentos"), Map.entry("azucar", "condimentos")
+    );
+
     private final ItemCarritoRepository itemCarritoRepository;
     private final ListaCompraRepository listaCompraRepository;
     private final DespensaRepository despensaRepository;
@@ -65,6 +98,7 @@ public class CarritoInteligenteService {
     private final RecetaGuardadaRepository recetaGuardadaRepository;
     private final IngredienteRecetaRepository ingredienteRecetaRepository;
     private final RecetaRepository recetaRepository;
+    private final UnidadNormalizadorService unidadNormalizadorService;
 
     // -------------------------------------------------------------------------
     // Generación de recomendaciones
@@ -177,12 +211,15 @@ public class CarritoInteligenteService {
     }
 
     public ItemCarritoResponseDTO añadirItemManual(String usuarioId, ItemCarritoRequestDTO dto) {
+        String categoria = (dto.categoria() != null && !dto.categoria().isBlank())
+                ? dto.categoria()
+                : inferirCategoria(dto.nombre());
         ItemCarrito item = ItemCarrito.builder()
                 .usuarioId(usuarioId)
                 .nombre(dto.nombre())
                 .cantidad(dto.cantidad())
                 .unidad(dto.unidad())
-                .categoria(dto.categoria())
+                .categoria(categoria)
                 .prioridad("media")
                 .estado("pendiente")
                 .build();
@@ -248,6 +285,16 @@ public class CarritoInteligenteService {
 
     public ListaCompraResponseDTO obtenerListaCompra(String usuarioId, String listaId) {
         return toListaDTO(getListaDeUsuario(usuarioId, listaId), usuarioId);
+    }
+
+    public void cancelarListaCompra(String usuarioId, String listaId) {
+        ListaCompra lista = getListaDeUsuario(usuarioId, listaId);
+        if (!"activa".equals(lista.getEstado())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Solo se puede cancelar una lista activa");
+        }
+        lista.setEstado("archivada");
+        lista.setUpdatedAt(LocalDateTime.now());
+        listaCompraRepository.save(lista);
     }
 
     public ItemCarritoResponseDTO marcarItemComoComprado(String usuarioId, String itemId) {
@@ -322,8 +369,7 @@ public class CarritoInteligenteService {
             for (IngredienteReceta ingrediente : ingredientes) {
                 double ratio = ratioDisponibilidad(ingrediente, productos);
                 if (ratio == 0) {
-                    resultado.add(nuevoItem(ingrediente.getNombre(), (float) ingrediente.getCantidad(),
-                            ingrediente.getUnidad(), null, "alta",
+                    resultado.add(nuevoItemDesdeIngrediente(ingrediente, "alta",
                             "Necesitas " + ingrediente.getNombre() + " para preparar " + receta.getTitulo(),
                             receta.getId()));
                 }
@@ -369,8 +415,7 @@ public class CarritoInteligenteService {
             for (IngredienteReceta ingrediente : ingredientes) {
                 double ratio = ratioDisponibilidad(ingrediente, productos);
                 if (ratio > 0 && ratio < RATIO_INSUFICIENTE) {
-                    resultado.add(nuevoItem(ingrediente.getNombre(), (float) ingrediente.getCantidad(),
-                            ingrediente.getUnidad(), null, "media",
+                    resultado.add(nuevoItemDesdeIngrediente(ingrediente, "media",
                             "Tienes poco " + ingrediente.getNombre() + " para preparar " + receta.getTitulo(),
                             receta.getId()));
                 }
@@ -431,8 +476,7 @@ public class CarritoInteligenteService {
             for (IngredienteReceta ingrediente : ingredientes) {
                 double ratio = ratioDisponibilidad(ingrediente, productos);
                 if (ratio >= RATIO_INSUFICIENTE && ratio < 1) {
-                    resultado.add(nuevoItem(ingrediente.getNombre(), (float) ingrediente.getCantidad(),
-                            ingrediente.getUnidad(), null, "baja",
+                    resultado.add(nuevoItemDesdeIngrediente(ingrediente, "baja",
                             "Te falta poco " + ingrediente.getNombre() + " para completar " + receta.getTitulo()
                                     + ", que ya tienes casi lista", receta.getId()));
                 }
@@ -462,17 +506,32 @@ public class CarritoInteligenteService {
                 .build();
     }
 
+    private ItemCarrito nuevoItemDesdeIngrediente(IngredienteReceta ingrediente, String prioridad, String motivo,
+                                                    String recetaId) {
+        UnidadConvertidaDTO compra = unidadNormalizadorService
+                .convertirAUnidadDeCompra(ingrediente.getCantidad(), ingrediente.getUnidad());
+        return nuevoItem(ingrediente.getNombre(), (float) compra.cantidadConvertida(), compra.unidadConvertida(),
+                inferirCategoria(ingrediente.getNombre()), prioridad, motivo, recetaId);
+    }
+
     private Float reposicion(Producto p) {
         return p.getStockMinimo() != null ? Math.max(1f, p.getStockMinimo()) : 1f;
     }
 
     private double ratioDisponibilidad(IngredienteReceta ingrediente, List<Producto> productos) {
+        UnidadConvertidaDTO normalizado = unidadNormalizadorService
+                .normalizarUnidades(ingrediente.getCantidad(), ingrediente.getUnidad());
         double disponible = productos.stream()
                 .filter(p -> normalizar(p.getNombre()).equals(normalizar(ingrediente.getNombre())))
+                .filter(p -> unidadesCompatibles(normalizado.unidadConvertida(), p.getUnidad()))
                 .mapToDouble(Producto::getCantidad)
                 .sum();
-        if (ingrediente.getCantidad() <= 0) return disponible > 0 ? 1 : 0;
-        return disponible / ingrediente.getCantidad();
+        if (normalizado.cantidadConvertida() <= 0) return disponible > 0 ? 1 : 0;
+        return disponible / normalizado.cantidadConvertida();
+    }
+
+    private boolean unidadesCompatibles(String unidadIngrediente, String unidadProducto) {
+        return normalizar(unidadIngrediente).equals(normalizar(unidadProducto));
     }
 
     private boolean enDespensaConStockSuficiente(String nombre, List<Producto> productos, int umbral) {
@@ -494,6 +553,21 @@ public class CarritoInteligenteService {
 
     private String normalizar(String texto) {
         return texto == null ? "" : texto.trim().toLowerCase(Locale.ROOT);
+    }
+
+    String inferirCategoria(String nombreIngrediente) {
+        String normalizado = sinAcentos(nombreIngrediente);
+        return CATEGORIAS_INGREDIENTES.entrySet().stream()
+                .filter(e -> normalizado.contains(e.getKey()))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse("otros");
+    }
+
+    private String sinAcentos(String texto) {
+        if (texto == null) return "";
+        String normalizado = Normalizer.normalize(texto.trim().toLowerCase(Locale.ROOT), Normalizer.Form.NFD);
+        return normalizado.replaceAll("\\p{M}", "");
     }
 
     private int ordenPrioridad(String prioridad) {

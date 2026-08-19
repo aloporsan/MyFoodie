@@ -2,19 +2,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ModalCompartir } from '@/components/compartir/ModalCompartir';
 import { ErrorScreen } from '@/components/common/ErrorScreen';
+import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { useToast } from '@/hooks/useToast';
 import { despensaService } from '@/services/despensaService';
 import { feedService } from '@/services/feedService';
+import { pdfService } from '@/services/pdfService';
 import { IngredienteReceta, Receta } from '@/services/recetaService';
 import { useCarritoStore } from '@/store/carritoStore';
 import { useFeedStore } from '@/store/feedStore';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
 import { resolveImagenUrl } from '@/utils/media';
+import { unidadDeCompra } from '@/utils/unidadConfig';
 
 const DIFICULTAD_COLOR: Record<string, string> = {
   'fácil': colors.primary,
@@ -32,7 +35,7 @@ export function DetalleRecetaFeedScreen() {
   const darLike = useFeedStore((s) => s.darLike);
   const quitarLike = useFeedStore((s) => s.quitarLike);
   const guardarReceta = useFeedStore((s) => s.guardarReceta);
-  const añadirItemManual = useCarritoStore((s) => s.añadirItemManual);
+  const añadirYAceptarItemManual = useCarritoStore((s) => s.añadirYAceptarItemManual);
 
   const recetaFeed = recetas.find((r) => r.id === id);
 
@@ -105,13 +108,31 @@ export function DetalleRecetaFeedScreen() {
     }
   };
 
+  const [añadiendoCarrito, setAñadiendoCarrito] = useState(false);
+  const [exportandoPdf, setExportandoPdf] = useState(false);
+
+  const handleExportarPDF = async () => {
+    if (!receta) return;
+    setExportandoPdf(true);
+    try {
+      const uri = await pdfService.generarPDFReceta(receta);
+      await pdfService.compartirPDF(uri, `${receta.titulo}.pdf`);
+    } catch {
+      showError('No se pudo exportar la receta a PDF');
+    } finally {
+      setExportandoPdf(false);
+    }
+  };
+
   const handleAñadirAlCarrito = async () => {
+    setAñadiendoCarrito(true);
     try {
       for (const ingrediente of faltantes) {
-        await añadirItemManual({
+        const compra = unidadDeCompra(ingrediente.cantidad, ingrediente.unidad);
+        await añadirYAceptarItemManual({
           nombre: ingrediente.nombre,
-          cantidad: ingrediente.cantidad,
-          unidad: ingrediente.unidad,
+          cantidad: compra?.cantidad ?? ingrediente.cantidad,
+          unidad: compra?.unidad ?? ingrediente.unidad,
         });
       }
       showSuccess(
@@ -119,6 +140,8 @@ export function DetalleRecetaFeedScreen() {
       );
     } catch {
       showError('No se pudieron añadir los ingredientes al carrito');
+    } finally {
+      setAñadiendoCarrito(false);
     }
   };
 
@@ -142,6 +165,7 @@ export function DetalleRecetaFeedScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <LoadingOverlay visible={exportandoPdf} mensaje="Generando PDF..." />
       <View style={styles.header}>
         <Pressable onPress={goBack} hitSlop={8} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
@@ -150,6 +174,9 @@ export function DetalleRecetaFeedScreen() {
           {receta.titulo}
         </Text>
         <View style={styles.headerActions}>
+          <Pressable testID="btn-exportar-pdf" onPress={handleExportarPDF} hitSlop={8}>
+            <Ionicons name="document-text-outline" size={22} color={colors.text.primary} />
+          </Pressable>
           <Pressable testID="btn-compartir-header" onPress={() => setModalCompartirVisible(true)} hitSlop={8}>
             <Ionicons name="share-social-outline" size={22} color={colors.text.primary} />
           </Pressable>
@@ -203,6 +230,10 @@ export function DetalleRecetaFeedScreen() {
                 <Ionicons name="heart-outline" size={14} color={colors.grayDark} />
                 <Text style={styles.metaText}>{recetaFeed?.likes ?? receta.totalLikes ?? 0}</Text>
               </View>
+              <View style={styles.metaChip}>
+                <Ionicons name="people-outline" size={14} color={colors.grayDark} />
+                <Text style={styles.metaText}>Para {receta.numPersonas} personas</Text>
+              </View>
             </View>
 
             {receta.etiquetas.length > 0 && (
@@ -250,9 +281,19 @@ export function DetalleRecetaFeedScreen() {
                     <IngredienteRow key={ing.id} ingrediente={ing} icono="close-circle" color={colors.error} />
                   ))}
                 </View>
-                <Pressable style={styles.carritoBtn} onPress={handleAñadirAlCarrito}>
-                  <Ionicons name="cart-outline" size={18} color={colors.white} />
-                  <Text style={styles.carritoBtnTexto}>Añadir faltantes al carrito</Text>
+                <Pressable
+                  style={[styles.carritoBtn, añadiendoCarrito && styles.carritoBtnPresionado]}
+                  onPress={handleAñadirAlCarrito}
+                  disabled={añadiendoCarrito}
+                >
+                  {añadiendoCarrito ? (
+                    <ActivityIndicator size="small" color={colors.white} />
+                  ) : (
+                    <>
+                      <Ionicons name="cart-outline" size={18} color={colors.white} />
+                      <Text style={styles.carritoBtnTexto}>Añadir faltantes al carrito</Text>
+                    </>
+                  )}
                 </Pressable>
               </>
             )}
@@ -416,6 +457,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     minHeight: 44,
   },
+  carritoBtnPresionado: { backgroundColor: '#C98400' },
   carritoBtnTexto: { ...typography.button, color: colors.white },
 
   pasosList: { gap: spacing.md },

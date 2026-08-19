@@ -14,11 +14,12 @@ interface Props {
 
 const CONTADORES = [
   { key: 'totalProductos' as const, label: 'Total',         icon: 'basket-outline',    color: colors.primary,     bg: '#E8F5D0', filtro: null },
+  { key: 'sinStock'       as const, label: 'Sin stock',     icon: 'close-circle-outline', color: '#616161',       bg: '#EEEEEE', filtro: 'sin_stock' },
   { key: 'caducados'      as const, label: 'Caducados',     icon: 'warning-outline',   color: colors.error,       bg: '#FFEBEE', filtro: 'caducado' },
   { key: 'caduca_pronto'  as const, label: 'Caduca pronto', icon: 'time-outline',      color: '#FF6D00',          bg: '#FBE9E7', filtro: 'caduca_pronto' },
+  { key: 'bajoStock'      as const, label: 'Bajo stock',    icon: 'arrow-down-outline', color: '#C79100',         bg: '#FFF8E1', filtro: 'bajoStock' },
   { key: 'caduca_semana'  as const, label: 'Caduca esta semana', icon: 'calendar-outline',  color: colors.secondary,   bg: '#FFF3E0', filtro: 'caduca_semana' },
   { key: 'caduca_mes'     as const, label: 'Caduca este mes',   icon: 'leaf-outline',      color: colors.primaryDark, bg: '#F1F8E9', filtro: 'caduca_mes' },
-  { key: 'bajoStock'      as const, label: 'Bajo stock',    icon: 'arrow-down-outline', color: '#C79100',         bg: '#FFF8E1', filtro: 'bajoStock' },
 ];
 
 export function ResumenDespensaCard({ resumen }: Props) {
@@ -36,19 +37,30 @@ export function ResumenDespensaCard({ resumen }: Props) {
     <View style={styles.card}>
       <Text style={styles.titulo}>Mi despensa</Text>
       <View style={styles.grid}>
-        {CONTADORES.map(({ key, label, icon, color, bg, filtro }) => (
-          <Pressable
-            key={key}
-            style={[styles.celda, { backgroundColor: bg }]}
-            onPress={() => handlePress(filtro)}
-          >
-            <View style={styles.celdaTop}>
-              <Ionicons name={icon as any} size={16} color={color} />
-              <Text style={[styles.numero, { color }]}>{resumen[key]}</Text>
-            </View>
-            <Text style={styles.celdaLabel}>{label}</Text>
-          </Pressable>
-        ))}
+        {CONTADORES.map(({ key, label, icon, color, bg, filtro }) => {
+          const esTotal = key === 'totalProductos';
+          return (
+            <Pressable
+              key={key}
+              style={[
+                styles.celda,
+                { backgroundColor: bg },
+                esTotal && styles.celdaTotal,
+              ]}
+              onPress={() => handlePress(filtro)}
+            >
+              <View style={esTotal ? styles.celdaTopTotal : styles.celdaTop}>
+                <Ionicons name={icon as any} size={esTotal ? 22 : 16} color={color} />
+                <Text style={[styles.numero, esTotal && styles.numeroTotal, { color }]}>
+                  {resumen[key]}
+                </Text>
+              </View>
+              <Text style={[styles.celdaLabel, esTotal && styles.celdaLabelTotal]}>
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
@@ -85,20 +97,37 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     alignItems: 'center',
   },
+  celdaTotal: {
+    width: '100%',
+    flexBasis: '100%',
+  },
   celdaTop: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+  },
+  celdaTopTotal: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   numero: {
     ...typography.heading1,
     fontSize: 36,
     lineHeight: 40,
   },
+  numeroTotal: {
+    fontSize: 44,
+    lineHeight: 48,
+  },
   celdaLabel: {
     ...typography.body,
     color: colors.text.secondary,
     fontSize: 14,
     textAlign: 'center',
+  },
+  celdaLabelTotal: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

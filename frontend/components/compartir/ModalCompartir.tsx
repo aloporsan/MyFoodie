@@ -8,6 +8,7 @@ import type { UsuarioBusqueda } from '@/services/socialService';
 import { useCompartirStore } from '@/store/compartirStore';
 import { useSocialStore } from '@/store/socialStore';
 import { borderRadius, colors, spacing, typography } from '@/theme';
+import { handleApiError } from '@/utils/errorHandler';
 
 const MAX_RECEPTORES = 10;
 const MENSAJE_MAX_LENGTH = 200;
@@ -44,12 +45,12 @@ export function ModalCompartir({ visible, recetaId, onClose }: Props) {
 
   const handleBuscar = (t: string) => {
     setTexto(t);
-    buscarUsuarios(t);
+    buscarUsuarios(t, true);
   };
 
   const handleLimpiar = () => {
     setTexto('');
-    buscarUsuarios('');
+    buscarUsuarios('', true);
   };
 
   const handleSeleccionar = (usuario: UsuarioBusqueda) => {
@@ -76,8 +77,8 @@ export function ModalCompartir({ visible, recetaId, onClose }: Props) {
       showSuccess(`Receta compartida con ${seleccionados.length} usuarios`);
       reset();
       onClose();
-    } catch {
-      showError('No se pudo compartir la receta');
+    } catch (e) {
+      showError(handleApiError(e));
     }
   };
 

@@ -12,6 +12,7 @@ public record RecetaFeedDTO(
         String autorFoto,
         int tiempoEstimado,
         String dificultad,
+        Integer numPersonas,
         List<String> etiquetas,
         String imagenUrl,
         long likes,

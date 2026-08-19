@@ -10,6 +10,7 @@ export interface RecetaFeed {
   autorFoto?: string;
   tiempoEstimado: number;
   dificultad: string;
+  numPersonas: number;
   etiquetas: string[];
   imagenUrl?: string;
   likes: number;

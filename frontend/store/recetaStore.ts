@@ -41,7 +41,7 @@ interface RecetaActions {
   reset: () => void;
 }
 
-export const useRecetaStore = create<RecetaState & RecetaActions>()((set) => ({
+export const useRecetaStore = create<RecetaState & RecetaActions>()((set, get) => ({
   recetas: [],
   borradores: [],
   recetasGuardadas: [],
@@ -183,17 +183,15 @@ export const useRecetaStore = create<RecetaState & RecetaActions>()((set) => ({
   },
 
   eliminarGuardado: async (id) => {
-    set({ isLoading: true, error: null });
-    try {
-      await recetaService.eliminarGuardado(id);
-      set((s) => ({
-        recetasGuardadas: s.recetasGuardadas.filter((r) => r.id !== id),
-        isLoading: false,
-      }));
-    } catch (e) {
-      set({ error: handleApiError(e), isLoading: false });
-      throw e;
-    }
+    const snapshot = get().recetasGuardadas;
+
+    // Actualización optimista: refleja el cambio al instante, sin esperar la red.
+    set({ error: null, recetasGuardadas: snapshot.filter((r) => r.id !== id) });
+
+    recetaService.eliminarGuardado(id).catch((e) => {
+      // Revierte la actualización optimista si la petición falla.
+      set({ error: handleApiError(e), recetasGuardadas: snapshot });
+    });
   },
 
   actualizarImagen: async (id, imagenUrl) => {

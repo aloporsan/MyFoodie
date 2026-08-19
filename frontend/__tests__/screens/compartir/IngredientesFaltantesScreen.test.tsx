@@ -34,6 +34,7 @@ function recetaCompartida(overrides: Partial<RecetaCompartida> = {}): RecetaComp
       tiempoEstimado: 10,
       dificultad: 'facil',
       categoria: 'entrante',
+      numPersonas: 2,
       etiquetas: [],
       estado: 'publicada',
       ingredientes: [
@@ -92,6 +93,12 @@ it('boton_añadir_al_carrito_añade_los_ingredientes_faltantes_y_muestra_toast_d
     recetaId: null, recetaTitulo: null, productoEnDespensa: false,
     createdAt: '2026-01-15T00:00:00.000Z', updatedAt: '2026-01-15T00:00:00.000Z',
   });
+  mockCarritoService.aceptarItem.mockResolvedValue({
+    id: 'item-1', usuarioId: 'user-1', nombre: 'Pasta', cantidad: 200, unidad: 'g',
+    categoria: null, prioridad: 'media', motivo: null, estado: 'aceptado', noVolver: false,
+    recetaId: null, recetaTitulo: null, productoEnDespensa: false,
+    createdAt: '2026-01-15T00:00:00.000Z', updatedAt: '2026-01-15T00:00:00.000Z',
+  });
 
   const { findByTestId } = render(<IngredientesFaltantesScreen />);
 
@@ -104,8 +111,11 @@ it('boton_añadir_al_carrito_añade_los_ingredientes_faltantes_y_muestra_toast_d
     expect(mockCarritoService.añadirItemManual).toHaveBeenCalledWith({
       nombre: 'Pasta', cantidad: 200, unidad: 'g',
     });
+    expect(mockCarritoService.aceptarItem).toHaveBeenCalledWith('item-1');
     expect(useToastStore.getState().mensaje).toBe('1 ingrediente añadido al carrito');
   });
+
+  expect(useCarritoStore.getState().items.find((i) => i.id === 'item-1')?.estado).toBe('aceptado');
 });
 
 it('boton_añadir_al_carrito_muestra_toast_de_error_si_falla_la_peticion', async () => {

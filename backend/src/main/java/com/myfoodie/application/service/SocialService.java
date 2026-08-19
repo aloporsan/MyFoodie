@@ -4,10 +4,12 @@ import com.myfoodie.application.dto.social.PerfilPublicoResponseDTO;
 import com.myfoodie.application.dto.social.SeguimientoResponseDTO;
 import com.myfoodie.application.dto.social.UsuarioBusquedaResponseDTO;
 import com.myfoodie.domain.model.Bloqueo;
+import com.myfoodie.domain.model.Notificacion;
 import com.myfoodie.domain.model.Privacidad;
 import com.myfoodie.domain.model.Seguimiento;
 import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.BloqueoRepository;
+import com.myfoodie.domain.repository.NotificacionRepository;
 import com.myfoodie.domain.repository.RecetaRepository;
 import com.myfoodie.domain.repository.SeguimientoRepository;
 import com.myfoodie.domain.repository.UsuarioRepository;
@@ -25,11 +27,13 @@ public class SocialService {
     private static final String ESTADO_ACEPTADO = "aceptado";
     private static final String ESTADO_PENDIENTE = "pendiente";
     private static final String ESTADO_PUBLICADA = "publicada";
+    private static final String TIPO_NUEVO_SEGUIDOR = "nuevo_seguidor";
 
     private final SeguimientoRepository seguimientoRepository;
     private final BloqueoRepository bloqueoRepository;
     private final UsuarioRepository usuarioRepository;
     private final RecetaRepository recetaRepository;
+    private final NotificacionRepository notificacionRepository;
 
     // ---------- Seguimientos ----------
 
@@ -56,6 +60,15 @@ public class SocialService {
                 .seguidoId(seguidoId)
                 .estado(estado)
                 .build());
+
+        if (ESTADO_ACEPTADO.equals(estado)) {
+            notificacionRepository.save(Notificacion.builder()
+                    .usuarioId(seguidoId)
+                    .tipo(TIPO_NUEVO_SEGUIDOR)
+                    .emisorId(seguidorId)
+                    .referenciaId(seguimiento.getId())
+                    .build());
+        }
 
         return toSeguimientoResponse(seguimiento, seguido);
     }
@@ -164,10 +177,15 @@ public class SocialService {
     }
 
     public List<UsuarioBusquedaResponseDTO> buscarUsuarios(String texto, String usuarioId) {
+        return buscarUsuarios(texto, usuarioId, false);
+    }
+
+    public List<UsuarioBusquedaResponseDTO> buscarUsuarios(String texto, String usuarioId, boolean soloCompartibles) {
         return usuarioRepository
                 .findByNombreContainingIgnoreCaseOrNombreUsuarioContainingIgnoreCase(texto, texto).stream()
                 .filter(u -> !u.getId().equals(usuarioId))
                 .filter(u -> !hayBloqueoEntre(usuarioId, u.getId()))
+                .filter(u -> !soloCompartibles || puedeCompartirseCon(u, usuarioId))
                 .map(u -> toUsuarioBusquedaResponse(u, usuarioId))
                 .toList();
     }
@@ -211,6 +229,15 @@ public class SocialService {
     }
 
     // ---------- Helpers ----------
+
+    private boolean puedeCompartirseCon(Usuario receptor, String visitanteId) {
+        if (receptor.getPrivacidad() != Privacidad.PRIVADA) {
+            return true;
+        }
+        return seguimientoRepository.findBySeguidorIdAndSeguidoId(visitanteId, receptor.getId())
+                .filter(s -> ESTADO_ACEPTADO.equals(s.getEstado()))
+                .isPresent();
+    }
 
     private boolean hayBloqueoEntre(String usuarioAId, String usuarioBId) {
         return bloqueoRepository.existsByBloqueadorIdAndBloqueadoId(usuarioAId, usuarioBId)
