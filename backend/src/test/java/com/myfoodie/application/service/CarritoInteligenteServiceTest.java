@@ -713,6 +713,38 @@ class CarritoInteligenteServiceTest {
     }
 
     // -------------------------------------------------------------------------
+    // cancelarListaCompra
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("cancelarListaCompra archiva una lista activa")
+    void cancelarListaCompra_archivaListaActiva() {
+        ListaCompra lista = lista("lista-1", "user-1", "activa", List.of("i-1"));
+        when(listaCompraRepository.findById("lista-1")).thenReturn(Optional.of(lista));
+        when(listaCompraRepository.save(any(ListaCompra.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        carritoInteligenteService.cancelarListaCompra("user-1", "lista-1");
+
+        ArgumentCaptor<ListaCompra> captor = ArgumentCaptor.forClass(ListaCompra.class);
+        verify(listaCompraRepository).save(captor.capture());
+        assertThat(captor.getValue().getEstado()).isEqualTo("archivada");
+    }
+
+    @Test
+    @DisplayName("cancelarListaCompra lanza 400 si la lista no está activa")
+    void cancelarListaCompra_lanza400_siNoEstaActiva() {
+        ListaCompra lista = lista("lista-1", "user-1", "completada", List.of("i-1"));
+        when(listaCompraRepository.findById("lista-1")).thenReturn(Optional.of(lista));
+
+        assertThatThrownBy(() -> carritoInteligenteService.cancelarListaCompra("user-1", "lista-1"))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("Solo se puede cancelar una lista activa")
+                .satisfies(ex -> assertThat(((ApiException) ex).getStatus()).isEqualTo(HttpStatus.BAD_REQUEST));
+
+        verify(listaCompraRepository, never()).save(any());
+    }
+
+    // -------------------------------------------------------------------------
     // Permisos — items y listas de otros usuarios
     // -------------------------------------------------------------------------
 

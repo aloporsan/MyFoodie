@@ -20,6 +20,12 @@ jest.mock('@/services/recetaService', () => ({
   },
 }));
 jest.mock('@/store/authStore', () => ({ useAuthStore: jest.fn() }));
+jest.mock('@/services/pdfService', () => ({
+  pdfService: {
+    generarPDFReceta: jest.fn(),
+    compartirPDF: jest.fn(),
+  },
+}));
 
 const mockReceta = {
   id: 'r1', autorId: 'u1', titulo: 'Paella valenciana',
@@ -44,6 +50,7 @@ const mockRecetaConDatos = {
 const { useRouter, useLocalSearchParams } = require('expo-router');
 const { recetaService } = require('@/services/recetaService');
 const { useAuthStore } = require('@/store/authStore');
+const { pdfService } = require('@/services/pdfService');
 
 const mockPush = jest.fn();
 
@@ -56,6 +63,8 @@ beforeEach(() => {
   recetaService.recetasGuardadas.mockResolvedValue([]);
   recetaService.guardarReceta.mockResolvedValue(undefined);
   useAuthStore.mockReturnValue('u1');
+  pdfService.generarPDFReceta.mockResolvedValue('file:///receta.pdf');
+  pdfService.compartirPDF.mockResolvedValue(undefined);
 });
 
 it('muestra_indicador_de_carga_al_inicio', () => {
@@ -155,5 +164,44 @@ it('datos_actualizados_automaticamente_al_volver_de_editar', async () => {
   await waitFor(() => {
     expect(queryAllByText('Paella valenciana').length).toBe(0);
     expect(getAllByText('Paella actualizada').length).toBeGreaterThan(0);
+  });
+});
+
+it('boton_exportar_pdf_visible_en_header', async () => {
+  const { getByTestId, getAllByText } = render(<DetalleRecetaScreen />);
+  await waitFor(() => expect(getAllByText('Paella valenciana').length).toBeGreaterThan(0));
+  expect(getByTestId('btn-exportar-pdf')).toBeTruthy();
+});
+
+it('pulsar_exportar_muestra_loading_overlay_mientras_genera_el_pdf', async () => {
+  let resolverPdf: (uri: string) => void = () => {};
+  pdfService.generarPDFReceta.mockImplementation(
+    () => new Promise((resolve) => { resolverPdf = resolve; })
+  );
+
+  const { getByTestId, getAllByText, queryByTestId } = render(<DetalleRecetaScreen />);
+  await waitFor(() => expect(getAllByText('Paella valenciana').length).toBeGreaterThan(0));
+  expect(queryByTestId('loading-overlay')).toBeNull();
+
+  fireEvent.press(getByTestId('btn-exportar-pdf'));
+  await waitFor(() => expect(getByTestId('loading-overlay')).toBeTruthy());
+
+  await act(async () => {
+    resolverPdf('file:///receta.pdf');
+  });
+  await waitFor(() => expect(queryByTestId('loading-overlay')).toBeNull());
+});
+
+it('tras_generar_el_pdf_abre_el_dialogo_de_compartir', async () => {
+  const { getByTestId, getAllByText } = render(<DetalleRecetaScreen />);
+  await waitFor(() => expect(getAllByText('Paella valenciana').length).toBeGreaterThan(0));
+
+  await act(async () => {
+    fireEvent.press(getByTestId('btn-exportar-pdf'));
+  });
+
+  await waitFor(() => {
+    expect(pdfService.generarPDFReceta).toHaveBeenCalledWith(mockReceta);
+    expect(pdfService.compartirPDF).toHaveBeenCalledWith('file:///receta.pdf', 'Paella valenciana.pdf');
   });
 });
