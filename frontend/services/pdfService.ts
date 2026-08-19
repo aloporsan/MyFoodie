@@ -2,6 +2,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { ItemCarrito, ListaCompra } from '@/services/carritoService';
 import { Receta } from '@/services/recetaService';
+import { resolveImagenUrl } from '@/utils/media';
 
 const COLOR_PRIMARY = '#7FC62A';
 const COLOR_PRIMARY_DARK = '#5CA61E';
@@ -22,13 +23,13 @@ function formatCantidad(cantidad: number): string {
 
 function baseStyles(): string {
   return `
-    body { font-family: -apple-system, Helvetica, Arial, sans-serif; color: ${COLOR_TEXT_PRIMARY}; padding: 32px; }
-    .logo { color: ${COLOR_PRIMARY_DARK}; font-size: 18px; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px; }
-    .titulo { font-size: 28px; font-weight: 700; margin: 0 0 16px 0; }
-    .footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid ${COLOR_GRAY_LIGHT};
-              color: ${COLOR_TEXT_SECONDARY}; font-size: 12px; text-align: center; }
-    h2 { font-size: 18px; color: ${COLOR_PRIMARY_DARK}; border-bottom: 2px solid ${COLOR_GRAY_LIGHT};
-         padding-bottom: 6px; margin-top: 28px; }
+    body { font-family: -apple-system, Helvetica, Arial, sans-serif; color: ${COLOR_TEXT_PRIMARY}; padding: 24px; font-size: 13px; }
+    .logo { color: ${COLOR_PRIMARY_DARK}; font-size: 16px; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .titulo { font-size: 22px; font-weight: 700; margin: 0 0 10px 0; }
+    .footer { margin-top: 24px; padding-top: 10px; border-top: 1px solid ${COLOR_GRAY_LIGHT};
+              color: ${COLOR_TEXT_SECONDARY}; font-size: 11px; text-align: center; }
+    h2 { font-size: 15px; color: ${COLOR_PRIMARY_DARK}; border-bottom: 2px solid ${COLOR_GRAY_LIGHT};
+         padding-bottom: 4px; margin: 16px 0 8px 0; }
   `;
 }
 
@@ -55,6 +56,8 @@ function htmlReceta(receta: Receta): string {
     .map((e) => `<span class="chip">${escapeHtml(e)}</span>`)
     .join('');
 
+  const imagenPortada = resolveImagenUrl(receta.imagenUrl);
+
   const ingredientes = receta.ingredientes
     .map(
       (i) =>
@@ -66,7 +69,14 @@ function htmlReceta(receta: Receta): string {
 
   const pasos = [...receta.pasos]
     .sort((a, b) => a.orden - b.orden)
-    .map((p) => `<li>${escapeHtml(p.descripcion)}</li>`)
+    .map((p) => {
+      const imagenPaso = resolveImagenUrl(p.imagenUrl);
+      return `
+        <li>
+          <span class="paso-texto">${escapeHtml(p.descripcion)}</span>
+          ${imagenPaso ? `<img class="paso-imagen" src="${imagenPaso}" />` : ''}
+        </li>`;
+    })
     .join('');
 
   return `
@@ -75,25 +85,31 @@ function htmlReceta(receta: Receta): string {
         <meta charset="utf-8" />
         <style>
           ${baseStyles()}
-          .datos { color: ${COLOR_TEXT_SECONDARY}; font-size: 14px; margin-bottom: 16px; }
+          .datos { color: ${COLOR_TEXT_SECONDARY}; font-size: 12px; margin-bottom: 10px; }
           .chip { display: inline-block; background: #E8F5D0; color: ${COLOR_PRIMARY_DARK};
-                  border-radius: 999px; padding: 4px 12px; margin: 0 6px 6px 0; font-size: 12px; }
-          ol { padding-left: 20px; }
-          li { margin-bottom: 8px; line-height: 1.5; }
-          .obs { color: ${COLOR_TEXT_SECONDARY}; font-size: 13px; }
+                  border-radius: 999px; padding: 3px 10px; margin: 0 5px 5px 0; font-size: 11px; }
+          .imagen-portada { width: 100%; max-height: 200px; object-fit: cover; border-radius: 10px; margin-bottom: 12px; }
+          ol.dos-columnas { display: grid; grid-template-columns: 1fr 1fr; column-gap: 20px; padding-left: 18px; margin: 0; }
+          ol.pasos { padding-left: 18px; margin: 0; }
+          li { margin-bottom: 6px; line-height: 1.4; }
+          .obs { color: ${COLOR_TEXT_SECONDARY}; font-size: 11px; }
+          .paso-texto { display: block; }
+          .paso-imagen { display: block; width: 100%; max-height: 150px; object-fit: cover;
+                         border-radius: 8px; margin: 6px 0 10px 0; }
         </style>
       </head>
       <body>
         <div class="logo">MyFoodie</div>
+        ${imagenPortada ? `<img class="imagen-portada" src="${imagenPortada}" />` : ''}
         <div class="titulo">${escapeHtml(receta.titulo)}</div>
         <div class="datos">${datos}</div>
         <div>${etiquetas}</div>
 
         <h2>Ingredientes</h2>
-        <ol>${ingredientes}</ol>
+        <ol class="dos-columnas">${ingredientes}</ol>
 
         <h2>Pasos</h2>
-        <ol>${pasos}</ol>
+        <ol class="pasos">${pasos}</ol>
 
         ${pieDePagina()}
       </body>
@@ -145,14 +161,14 @@ function htmlListaCompra(lista: ListaCompra): string {
         <meta charset="utf-8" />
         <style>
           ${baseStyles()}
-          .fecha { color: ${COLOR_TEXT_SECONDARY}; font-size: 14px; margin-bottom: 16px; }
-          .items { display: flex; flex-direction: column; }
-          .item { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid ${COLOR_GRAY_LIGHT}; }
-          .checkbox { width: 16px; height: 16px; border: 2px solid ${COLOR_TEXT_SECONDARY};
-                      border-radius: 3px; margin-right: 12px; flex-shrink: 0; }
-          .nombre { flex: 1; font-size: 15px; }
-          .cantidad { color: ${COLOR_TEXT_SECONDARY}; font-size: 14px; }
-          .total { margin-top: 20px; font-weight: 700; color: ${COLOR_PRIMARY_DARK}; }
+          .fecha { color: ${COLOR_TEXT_SECONDARY}; font-size: 12px; margin-bottom: 10px; }
+          .items { display: grid; grid-template-columns: 1fr 1fr; column-gap: 20px; }
+          .item { display: flex; align-items: center; padding: 5px 0; border-bottom: 1px solid ${COLOR_GRAY_LIGHT}; }
+          .checkbox { width: 13px; height: 13px; border: 2px solid ${COLOR_TEXT_SECONDARY};
+                      border-radius: 3px; margin-right: 8px; flex-shrink: 0; }
+          .nombre { flex: 1; font-size: 13px; }
+          .cantidad { color: ${COLOR_TEXT_SECONDARY}; font-size: 12px; }
+          .total { margin-top: 14px; font-weight: 700; color: ${COLOR_PRIMARY_DARK}; }
         </style>
       </head>
       <body>
