@@ -166,7 +166,9 @@ export const useSocialStore = create<SocialState & SocialActions>()((set, get) =
     }
     set({ isLoading: true, error: null });
     try {
-      const resultadosBusqueda = await socialService.buscarUsuarios(texto, soloCompartibles);
+      const resultadosBusqueda = soloCompartibles !== undefined
+        ? await socialService.buscarUsuarios(texto, soloCompartibles)
+        : await socialService.buscarUsuarios(texto);
       set({ resultadosBusqueda, isLoading: false });
     } catch (e) {
       set({ error: handleApiError(e), isLoading: false });

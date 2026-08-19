@@ -46,7 +46,7 @@ it('badge_gris_oscuro_si_sin_stock', () => {
   const estiloTexto = Object.assign({}, ...[texto.props.style].flat());
   expect(estiloTexto.color).toBe(colors.white);
 
-  const estiloBadge = Object.assign({}, ...[texto.parent?.props.style].flat());
+  const estiloBadge = Object.assign({}, ...[texto.parent?.parent?.props.style].flat());
   expect(estiloBadge.backgroundColor).toBe('#616161');
 });
 

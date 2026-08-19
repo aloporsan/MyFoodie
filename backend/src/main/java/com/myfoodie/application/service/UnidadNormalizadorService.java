@@ -21,8 +21,6 @@ public class UnidadNormalizadorService {
             Map.entry("tazas", new Conversion(250, "ml")),
             Map.entry("vaso", new Conversion(200, "ml")),
             Map.entry("vasos", new Conversion(200, "ml")),
-            Map.entry("litro", new Conversion(1000, "ml")),
-            Map.entry("litros", new Conversion(1000, "ml")),
             Map.entry("dl", new Conversion(100, "ml")),
             Map.entry("cl", new Conversion(10, "ml")),
             // Peso -> g
