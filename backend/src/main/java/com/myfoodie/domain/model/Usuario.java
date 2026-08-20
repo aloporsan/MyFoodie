@@ -34,6 +34,8 @@ public class Usuario {
 
     private String biografia;
 
+    private String expoPushToken;
+
     @Builder.Default
     private Privacidad privacidad = Privacidad.PUBLICA;
 

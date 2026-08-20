@@ -13,10 +13,13 @@ import com.myfoodie.domain.repository.ProductoRepository;
 import com.myfoodie.domain.repository.UsuarioRepository;
 import com.myfoodie.exception.ApiException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -24,10 +27,12 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class NotificacionService {
 
+    private static final String EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
     private static final String TIPO_NUEVO_SEGUIDOR = "nuevo_seguidor";
     private static final String TIPO_SOLICITUD_SEGUIMIENTO = "solicitud_seguimiento";
     private static final String TIPO_SOLICITUD_ACEPTADA = "solicitud_aceptada";
@@ -60,6 +65,8 @@ public class NotificacionService {
     private final DespensaRepository despensaRepository;
     private final ProductoRepository productoRepository;
 
+    private final RestClient restClient = RestClient.create();
+
     public void crearNotificacion(String usuarioId, String tipo, String emisorId,
                                    String referenciaId, String referenciaType) {
         if (emisorId != null && bloqueoRepository.existsByBloqueadorIdAndBloqueadoId(usuarioId, emisorId)) {
@@ -84,7 +91,43 @@ public class NotificacionService {
 
     @Async
     public void enviarPushSiProcede(Notificacion notificacion) {
-        // Placeholder: la integración real con Expo Push llega en el commit B3.
+        Usuario receptor = usuarioRepository.findById(notificacion.getUsuarioId()).orElse(null);
+        if (receptor == null || receptor.getExpoPushToken() == null || receptor.getExpoPushToken().isBlank()) {
+            return;
+        }
+
+        Map<String, Object> payload = Map.of(
+                "to", receptor.getExpoPushToken(),
+                "title", notificacion.getTitulo(),
+                "body", notificacion.getCuerpo(),
+                "data", Map.of(
+                        "tipo", notificacion.getTipo(),
+                        "referenciaId", notificacion.getReferenciaId(),
+                        "referenciaType", notificacion.getReferenciaType()
+                ),
+                "sound", "default",
+                "badge", 1
+        );
+
+        try {
+            restClient.post()
+                    .uri(EXPO_PUSH_URL)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .toBodilessEntity();
+            notificacion.setPushEnviada(true);
+            notificacionRepository.save(notificacion);
+        } catch (Exception e) {
+            log.error("Error al enviar push notification a usuario {}: {}", notificacion.getUsuarioId(), e.getMessage());
+        }
+    }
+
+    public void registrarPushToken(String usuarioId, String token) {
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+        usuario.setExpoPushToken(token);
+        usuarioRepository.save(usuario);
     }
 
     public List<NotificacionResponseDTO> obtenerNotificaciones(String usuarioId, int pagina, int tamaño) {
