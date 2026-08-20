@@ -4,12 +4,10 @@ import com.myfoodie.application.dto.social.PerfilPublicoResponseDTO;
 import com.myfoodie.application.dto.social.SeguimientoResponseDTO;
 import com.myfoodie.application.dto.social.UsuarioBusquedaResponseDTO;
 import com.myfoodie.domain.model.Bloqueo;
-import com.myfoodie.domain.model.Notificacion;
 import com.myfoodie.domain.model.Privacidad;
 import com.myfoodie.domain.model.Seguimiento;
 import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.BloqueoRepository;
-import com.myfoodie.domain.repository.NotificacionRepository;
 import com.myfoodie.domain.repository.RecetaRepository;
 import com.myfoodie.domain.repository.SeguimientoRepository;
 import com.myfoodie.domain.repository.UsuarioRepository;
@@ -28,12 +26,15 @@ public class SocialService {
     private static final String ESTADO_PENDIENTE = "pendiente";
     private static final String ESTADO_PUBLICADA = "publicada";
     private static final String TIPO_NUEVO_SEGUIDOR = "nuevo_seguidor";
+    private static final String TIPO_SOLICITUD_SEGUIMIENTO = "solicitud_seguimiento";
+    private static final String TIPO_SOLICITUD_ACEPTADA = "solicitud_aceptada";
+    private static final String REFERENCIA_SEGUIMIENTO = "seguimiento";
 
     private final SeguimientoRepository seguimientoRepository;
     private final BloqueoRepository bloqueoRepository;
     private final UsuarioRepository usuarioRepository;
     private final RecetaRepository recetaRepository;
-    private final NotificacionRepository notificacionRepository;
+    private final NotificacionService notificacionService;
 
     // ---------- Seguimientos ----------
 
@@ -62,12 +63,11 @@ public class SocialService {
                 .build());
 
         if (ESTADO_ACEPTADO.equals(estado)) {
-            notificacionRepository.save(Notificacion.builder()
-                    .usuarioId(seguidoId)
-                    .tipo(TIPO_NUEVO_SEGUIDOR)
-                    .emisorId(seguidorId)
-                    .referenciaId(seguimiento.getId())
-                    .build());
+            notificacionService.crearNotificacion(seguidoId, TIPO_NUEVO_SEGUIDOR, seguidorId,
+                    seguimiento.getId(), REFERENCIA_SEGUIMIENTO);
+        } else {
+            notificacionService.crearNotificacion(seguidoId, TIPO_SOLICITUD_SEGUIMIENTO, seguidorId,
+                    seguimiento.getId(), REFERENCIA_SEGUIMIENTO);
         }
 
         return toSeguimientoResponse(seguimiento, seguido);
@@ -89,6 +89,9 @@ public class SocialService {
 
         Usuario seguidor = usuarioRepository.findById(seguidorId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        notificacionService.crearNotificacion(seguidorId, TIPO_SOLICITUD_ACEPTADA, usuarioId,
+                seguimiento.getId(), REFERENCIA_SEGUIMIENTO);
 
         return toSeguimientoResponse(seguimiento, seguidor);
     }

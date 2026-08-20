@@ -159,6 +159,7 @@ public class NotificacionService {
         notificacionRepository.delete(notificacion);
     }
 
+    @Async
     public void generarNotificacionesCaducidad(String usuarioId) {
         despensaRepository.findByUsuarioId(usuarioId).ifPresent(despensa ->
                 productoRepository.findByDespensaId(despensa.getId())

@@ -8,6 +8,7 @@ import com.myfoodie.domain.repository.AccionFeedRepository;
 import com.myfoodie.domain.repository.LikeRepository;
 import com.myfoodie.domain.repository.RecetaDescartadaRepository;
 import com.myfoodie.domain.repository.RecetaGuardadaRepository;
+import com.myfoodie.domain.repository.RecetaRepository;
 import com.myfoodie.exception.ApiException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,12 +22,16 @@ public class FeedAccionService {
     private static final String TIPO_DESCARTADA = "descartada";
     private static final String TIPO_LIKE = "like";
     private static final String TIPO_LIKE_QUITADO = "like_quitado";
+    private static final String TIPO_NOTIFICACION_LIKE = "nuevo_like";
+    private static final String REFERENCIA_RECETA = "receta";
 
     private final RecetaGuardadaRepository recetaGuardadaRepository;
     private final RecetaDescartadaRepository recetaDescartadaRepository;
     private final LikeRepository likeRepository;
     private final AccionFeedRepository accionFeedRepository;
     private final InteraccionUsuarioService interaccionUsuarioService;
+    private final RecetaRepository recetaRepository;
+    private final NotificacionService notificacionService;
 
     public void guardarReceta(String usuarioId, String recetaId) {
         if (!recetaGuardadaRepository.existsByUsuarioIdAndRecetaId(usuarioId, recetaId)) {
@@ -61,6 +66,13 @@ public class FeedAccionService {
                 .build());
         registrarAccion(usuarioId, TIPO_LIKE, recetaId);
         interaccionUsuarioService.actualizarPerfilGustos(usuarioId, recetaId, TIPO_LIKE);
+
+        recetaRepository.findById(recetaId).ifPresent(receta -> {
+            if (!receta.getAutorId().equals(usuarioId)) {
+                notificacionService.crearNotificacion(receta.getAutorId(), TIPO_NOTIFICACION_LIKE,
+                        usuarioId, recetaId, REFERENCIA_RECETA);
+            }
+        });
     }
 
     public void quitarLike(String usuarioId, String recetaId) {
