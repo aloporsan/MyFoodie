@@ -26,9 +26,15 @@ public class Notificacion {
     private String tipo;
     private String emisorId;
     private String referenciaId;
+    private String referenciaType;
+    private String titulo;
+    private String cuerpo;
 
     @Builder.Default
     private Boolean leida = false;
+
+    @Builder.Default
+    private Boolean pushEnviada = false;
 
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
