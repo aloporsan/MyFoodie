@@ -33,7 +33,7 @@ public class NotificacionController {
     public ResponseEntity<List<NotificacionResponseDTO>> listar(
             Principal principal,
             @RequestParam(defaultValue = "0") int pagina,
-            @RequestParam(defaultValue = "" + TAMAÑO_PAGINA_POR_DEFECTO) int tamaño) {
+            @RequestParam(name = "tamaño", defaultValue = "" + TAMAÑO_PAGINA_POR_DEFECTO) int tamaño) {
         return ResponseEntity.ok(
                 notificacionService.obtenerNotificaciones(getUsuarioId(principal), pagina, tamaño));
     }
