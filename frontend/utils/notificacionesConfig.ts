@@ -41,14 +41,14 @@ export async function solicitarPermisosYRegistrarToken(): Promise<void> {
   }
 }
 
-type DatosNotificacion = {
+export type DatosNotificacion = {
   tipo?: string;
   emisorId?: string;
   referenciaId?: string;
   referenciaType?: string;
 };
 
-function navegarSegunNotificacion(datos: DatosNotificacion): void {
+export function navegarSegunNotificacion(datos: DatosNotificacion): void {
   const { tipo, emisorId, referenciaId } = datos;
 
   switch (tipo) {
