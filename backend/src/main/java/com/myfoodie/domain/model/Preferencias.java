@@ -50,4 +50,7 @@ public class Preferencias {
     @Builder.Default
     private Integer stockMinimoGlobal = 1;
 
+    @Builder.Default
+    private PreferenciasNotificacion preferenciasNotificacion = PreferenciasNotificacion.builder().build();
+
 }

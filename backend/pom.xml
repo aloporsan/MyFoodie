@@ -156,6 +156,36 @@
 					</execution>
 				</executions>
 			</plugin>
+			<plugin>
+				<!--
+					mockito-core es una dependencia transitiva (via spring-boot-starter-test),
+					así que necesitamos este plugin para que Maven genere la propiedad
+					${org.mockito:mockito-core:jar} usada por el surefire-plugin más abajo.
+				-->
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>properties</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<!--
+						Mockito usa un mock maker "inline" (byte-buddy) que por defecto intenta
+						auto-adjuntarse a la JVM en tiempo de ejecución. Eso falla con
+						"Could not self-attach to current VM" en entornos donde el proceso no
+						tiene permiso para auto-adjuntarse (y el propio JDK lo está deprecando).
+						Cargándolo como javaagent real desde el arranque evita el auto-adjunto.
+					-->
+					<argLine>-javaagent:${org.mockito:mockito-core:jar} -XX:+EnableDynamicAgentLoading</argLine>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 

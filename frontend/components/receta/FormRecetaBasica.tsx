@@ -1,5 +1,6 @@
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -10,6 +11,8 @@ const CATEGORIAS = [
   'Desayuno', 'Almuerzo', 'Cena', 'Entrante',
   'Postre', 'Snack', 'Bebida', 'Otro',
 ];
+const NUM_PERSONAS_MIN = 1;
+const NUM_PERSONAS_MAX = 20;
 
 interface Props {
   titulo: string;
@@ -17,13 +20,21 @@ interface Props {
   tiempoEstimado: string;
   dificultad: string;
   categoria: string;
+  numPersonas: string;
   onChange: (campo: string, valor: string) => void;
   errores?: Record<string, string>;
 }
 
 export function FormRecetaBasica({
-  titulo, descripcion, tiempoEstimado, dificultad, categoria, onChange, errores = {},
+  titulo, descripcion, tiempoEstimado, dificultad, categoria, numPersonas, onChange, errores = {},
 }: Props) {
+  const numPersonasValor = parseInt(numPersonas) || 2;
+
+  const ajustarNumPersonas = (delta: number) => {
+    const nuevo = Math.min(NUM_PERSONAS_MAX, Math.max(NUM_PERSONAS_MIN, numPersonasValor + delta));
+    onChange('numPersonas', String(nuevo));
+  };
+
   return (
     <View style={styles.container}>
       <Campo label="Título *" error={errores.titulo}>
@@ -57,6 +68,32 @@ export function FormRecetaBasica({
           placeholderTextColor={colors.grayMid}
           keyboardType="number-pad"
         />
+      </Campo>
+
+      <Campo label="Número de personas *" error={errores.numPersonas}>
+        <View style={styles.stepperRow} testID="stepper-num-personas">
+          <Pressable
+            style={[styles.stepperBtn, numPersonasValor <= NUM_PERSONAS_MIN && styles.stepperBtnDisabled]}
+            onPress={() => ajustarNumPersonas(-1)}
+            disabled={numPersonasValor <= NUM_PERSONAS_MIN}
+            hitSlop={8}
+            testID="btn-restar-num-personas"
+          >
+            <Ionicons name="remove" size={18} color={colors.primary} />
+          </Pressable>
+          <Text style={styles.stepperValor} testID="valor-num-personas">
+            {numPersonasValor}
+          </Text>
+          <Pressable
+            style={[styles.stepperBtn, numPersonasValor >= NUM_PERSONAS_MAX && styles.stepperBtnDisabled]}
+            onPress={() => ajustarNumPersonas(1)}
+            disabled={numPersonasValor >= NUM_PERSONAS_MAX}
+            hitSlop={8}
+            testID="btn-sumar-num-personas"
+          >
+            <Ionicons name="add" size={18} color={colors.primary} />
+          </Pressable>
+        </View>
       </Campo>
 
       <Campo label="Dificultad *" error={errores.dificultad}>
@@ -145,6 +182,26 @@ const styles = StyleSheet.create({
   chipActivo: { backgroundColor: '#E8F5D0', borderColor: colors.primary },
   chipText: { ...typography.caption, color: colors.text.secondary, fontWeight: '500' },
   chipTextActivo: { color: colors.primaryDark, fontWeight: '700' },
+  stepperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.lg,
+  },
+  stepperBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: borderRadius.full,
+    backgroundColor: '#E8F5D0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperBtnDisabled: { opacity: 0.4 },
+  stepperValor: {
+    ...typography.heading3,
+    color: colors.text.primary,
+    minWidth: 28,
+    textAlign: 'center',
+  },
 });
 
 const campoStyles = StyleSheet.create({

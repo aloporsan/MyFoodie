@@ -159,6 +159,24 @@ public class RecetaController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/{id}/realizada")
+    public ResponseEntity<List<IngredienteConsumoDTO>> marcarRealizada(
+            @PathVariable String id,
+            @Valid @RequestBody RacionesElaboradasDTO dto,
+            Principal principal) {
+        return ResponseEntity.ok(
+                recetaService.marcarRecetaComoRealizada(getUsuarioId(principal), id, dto.racionesElaboradas()));
+    }
+
+    @PostMapping("/{id}/descontar-stock")
+    public ResponseEntity<DescuentoRecetaResponseDTO> descontarStock(
+            @PathVariable String id,
+            @Valid @RequestBody RacionesElaboradasDTO dto,
+            Principal principal) {
+        return ResponseEntity.ok(
+                recetaService.descontarIngredientesReceta(getUsuarioId(principal), id, dto.racionesElaboradas()));
+    }
+
     private String getUsuarioId(Principal principal) {
         return usuarioRepository.findByEmail(principal.getName())
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "Usuario no encontrado"))

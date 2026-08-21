@@ -27,6 +27,7 @@ public class Producto {
     private String nombre;
     private double cantidad;
     private String unidad;
+    private String unidadOriginal;
     private String categoria;
     private LocalDate fechaCaducidad;
     private LocalDate fechaCompra;

@@ -1,0 +1,663 @@
+{
+  "info": {
+    "name": "MyFoodie — Recomendaciones API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",           "value": "http://localhost:8080" },
+    { "key": "tokenAutor",        "value": "" },
+    { "key": "token",             "value": "" },
+    { "key": "autorId",           "value": "" },
+    { "key": "recetaId",          "value": "" },
+    { "key": "recetaIdDescartar", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "🔧 Setup",
+      "item": [
+        {
+          "name": "Registrar autor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 o 409 (ya existe)', () => pm.expect([201, 409]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Autor Recomendaciones\",\n  \"nombreUsuario\": \"testautor_recom\",\n  \"email\": \"recom_autor@test.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Registrar seguidor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 o 409 (ya existe)', () => pm.expect([201, 409]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Seguidor Recomendaciones\",\n  \"nombreUsuario\": \"testseguidor_recom\",\n  \"email\": \"recom_seguidor@test.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Login autor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.collectionVariables.set('tokenAutor', json.token);",
+                  "if (json.userId) pm.collectionVariables.set('autorId', json.userId);",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiene token y userId', () => {",
+                  "  pm.expect(json.token).to.not.be.empty;",
+                  "  pm.expect(json.userId).to.not.be.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"recom_autor@test.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Login seguidor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.collectionVariables.set('token', json.token);",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Tiene token', () => pm.expect(json.token).to.not.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"recom_seguidor@test.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Seguidor sigue al autor",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Seguimiento aceptado (perfil público por defecto)', () => {",
+                  "  pm.expect(json.estado).to.eql('aceptado');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/seguir/{{autorId}}", "host": ["{{baseUrl}}"], "path": ["api", "social", "seguir", "{{autorId}}"] }
+          }
+        },
+        {
+          "name": "Autor: crear receta principal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('recetaId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenAutor}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Ensalada de tomate y pepino\",\n  \"descripcion\": \"Receta usada en los tests de recomendaciones\",\n  \"tiempoEstimado\": 15,\n  \"dificultad\": \"fácil\",\n  \"categoria\": \"entrante\",\n  \"etiquetas\": [\"Rápida\", \"Vegetariana\"]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/recetas", "host": ["{{baseUrl}}"], "path": ["api", "recetas"] }
+          }
+        },
+        {
+          "name": "Autor: añadir ingrediente a receta principal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenAutor}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Tomate\",\n  \"cantidad\": 2,\n  \"unidad\": \"unidades\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaId}}/ingredientes", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaId}}", "ingredientes"] }
+          }
+        },
+        {
+          "name": "Autor: añadir paso a receta principal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenAutor}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descripcion\": \"Cortar el tomate y el pepino\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaId}}/pasos", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaId}}", "pasos"] }
+          }
+        },
+        {
+          "name": "Autor: publicar receta principal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenAutor}}" }],
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaId}}/publicar", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaId}}", "publicar"] }
+          }
+        },
+        {
+          "name": "Autor: crear receta secundaria (para descartar)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('recetaIdDescartar', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenAutor}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Receta secundaria para descartar\",\n  \"descripcion\": \"Receta usada en los tests de limpieza de descartadas\",\n  \"tiempoEstimado\": 20,\n  \"dificultad\": \"medio\",\n  \"categoria\": \"principal\",\n  \"etiquetas\": [\"Económica\"]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/recetas", "host": ["{{baseUrl}}"], "path": ["api", "recetas"] }
+          }
+        },
+        {
+          "name": "Autor: añadir ingrediente a receta secundaria",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenAutor}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Lentejas\",\n  \"cantidad\": 1,\n  \"unidad\": \"kg\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaIdDescartar}}/ingredientes", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaIdDescartar}}", "ingredientes"] }
+          }
+        },
+        {
+          "name": "Autor: añadir paso a receta secundaria",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenAutor}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descripcion\": \"Cocer las lentejas\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaIdDescartar}}/pasos", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaIdDescartar}}", "pasos"] }
+          }
+        },
+        {
+          "name": "Autor: publicar receta secundaria",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenAutor}}" }],
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaIdDescartar}}/publicar", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaIdDescartar}}", "publicar"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "✅ Feed con Recomendaciones",
+      "item": [
+        {
+          "name": "GET feed → verifica motivoRecomendacion y contextoSocial",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Las recetas incluyen motivoRecomendacion y contextoSocial', () => {",
+                  "  pm.expect(json.recetas).to.be.an('array').that.is.not.empty;",
+                  "  json.recetas.forEach(r => {",
+                  "    pm.expect(r).to.have.property('motivoRecomendacion');",
+                  "    pm.expect(r).to.have.property('contextoSocial');",
+                  "    pm.expect(r.contextoSocial).to.have.property('publicadaPorSeguido');",
+                  "    pm.expect(r.contextoSocial).to.have.property('seguidosQueDieronLike');",
+                  "    pm.expect(r.contextoSocial).to.have.property('compartidaContigo');",
+                  "  });",
+                  "});",
+                  "pm.test('La receta principal está marcada como publicada por un seguido', () => {",
+                  "  const receta = json.recetas.find(r => r.id === pm.collectionVariables.get('recetaId'));",
+                  "  pm.expect(receta).to.not.be.undefined;",
+                  "  pm.expect(receta.publicadaPorSeguido).to.be.true;",
+                  "  pm.expect(receta.contextoSocial.publicadaPorSeguido).to.be.true;",
+                  "  pm.expect(receta.contextoSocial.textoContexto).to.eql('Publicado por alguien que sigues');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/feed?pagina=0&tamaño=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "feed"],
+              "query": [{ "key": "pagina", "value": "0" }, { "key": "tamaño", "value": "50" }]
+            }
+          }
+        },
+        {
+          "name": "GET perfil-gustos → verifica estructura",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Estructura del perfil de gustos', () => {",
+                  "  pm.expect(json).to.have.property('categoriasPreferidas');",
+                  "  pm.expect(json).to.have.property('etiquetasPreferidas');",
+                  "  pm.expect(json).to.have.property('dificultadesPreferidas');",
+                  "  pm.expect(json.categoriasPreferidas).to.be.an('object');",
+                  "  pm.expect(json.etiquetasPreferidas).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/feed/perfil-gustos", "host": ["{{baseUrl}}"], "path": ["api", "feed", "perfil-gustos"] }
+          }
+        },
+        {
+          "name": "GET recetas-seguidos → solo recetas de seguidos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Todas las recetas son del autor seguido', () => {",
+                  "  pm.expect(json.recetas).to.be.an('array').that.is.not.empty;",
+                  "  json.recetas.forEach(r => pm.expect(r.autorId).to.eql(pm.collectionVariables.get('autorId')));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/feed/recetas-seguidos?pagina=0&tamaño=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "feed", "recetas-seguidos"],
+              "query": [{ "key": "pagina", "value": "0" }, { "key": "tamaño", "value": "50" }]
+            }
+          }
+        },
+        {
+          "name": "POST descartar receta secundaria (setup limpieza)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/feed/recetas/{{recetaIdDescartar}}/descartar", "host": ["{{baseUrl}}"], "path": ["api", "feed", "recetas", "{{recetaIdDescartar}}", "descartar"] }
+          }
+        },
+        {
+          "name": "GET feed → la receta descartada no aparece",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('No incluye la receta descartada', () => {",
+                  "  const id = pm.collectionVariables.get('recetaIdDescartar');",
+                  "  pm.expect(json.recetas.some(r => r.id === id)).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/feed?pagina=0&tamaño=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "feed"],
+              "query": [{ "key": "pagina", "value": "0" }, { "key": "tamaño", "value": "50" }]
+            }
+          }
+        },
+        {
+          "name": "DELETE descartadas → limpia el historial",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/feed/descartadas", "host": ["{{baseUrl}}"], "path": ["api", "feed", "descartadas"] }
+          }
+        },
+        {
+          "name": "GET feed → la receta reaparece tras limpiar descartadas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('La receta vuelve a aparecer', () => {",
+                  "  const id = pm.collectionVariables.get('recetaIdDescartar');",
+                  "  pm.expect(json.recetas.some(r => r.id === id)).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/feed?pagina=0&tamaño=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "feed"],
+              "query": [{ "key": "pagina", "value": "0" }, { "key": "tamaño", "value": "50" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🎯 Interacciones",
+      "item": [
+        {
+          "name": "POST like a receta → actualiza perfil de gustos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/feed/recetas/{{recetaId}}/like", "host": ["{{baseUrl}}"], "path": ["api", "feed", "recetas", "{{recetaId}}", "like"] }
+          }
+        },
+        {
+          "name": "GET perfil-gustos tras el like",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('El perfil sigue teniendo estructura válida', () => {",
+                  "  pm.expect(json.categoriasPreferidas).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/feed/perfil-gustos", "host": ["{{baseUrl}}"], "path": ["api", "feed", "perfil-gustos"] }
+          }
+        },
+        {
+          "name": "POST guardar receta → actualiza perfil de gustos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/feed/recetas/{{recetaId}}/guardar", "host": ["{{baseUrl}}"], "path": ["api", "feed", "recetas", "{{recetaId}}", "guardar"] }
+          }
+        },
+        {
+          "name": "POST descartar receta → actualiza perfil de gustos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/feed/recetas/{{recetaIdDescartar}}/descartar", "host": ["{{baseUrl}}"], "path": ["api", "feed", "recetas", "{{recetaIdDescartar}}", "descartar"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "❌ Error Cases",
+      "item": [
+        {
+          "name": "GET perfil-gustos sin token → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/feed/perfil-gustos", "host": ["{{baseUrl}}"], "path": ["api", "feed", "perfil-gustos"] }
+          }
+        },
+        {
+          "name": "GET recetas-seguidos sin token → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/feed/recetas-seguidos", "host": ["{{baseUrl}}"], "path": ["api", "feed", "recetas-seguidos"] }
+          }
+        },
+        {
+          "name": "DELETE descartadas sin token → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/feed/descartadas", "host": ["{{baseUrl}}"], "path": ["api", "feed", "descartadas"] }
+          }
+        }
+      ]
+    }
+  ]
+}

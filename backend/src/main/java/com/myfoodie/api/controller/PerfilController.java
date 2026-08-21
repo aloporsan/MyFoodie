@@ -1,5 +1,6 @@
 package com.myfoodie.api.controller;
 
+import com.myfoodie.application.dto.notificacion.PreferenciasNotificacionDTO;
 import com.myfoodie.application.dto.perfil.EliminarCuentaDTO;
 import com.myfoodie.application.dto.perfil.EstadisticasPerfilDTO;
 import com.myfoodie.application.dto.perfil.PerfilResponseDTO;
@@ -52,6 +53,17 @@ public class PerfilController {
     public ResponseEntity<PreferenciasUpdateDTO> actualizarPreferencias(Principal principal,
                                                                          @RequestBody PreferenciasUpdateDTO dto) {
         return ResponseEntity.ok(perfilService.actualizarPreferencias(getUsuarioId(principal), dto));
+    }
+
+    @GetMapping("/notificaciones")
+    public ResponseEntity<PreferenciasNotificacionDTO> obtenerPreferenciasNotificacion(Principal principal) {
+        return ResponseEntity.ok(perfilService.obtenerPreferenciasNotificacion(getUsuarioId(principal)));
+    }
+
+    @PutMapping("/notificaciones")
+    public ResponseEntity<PreferenciasNotificacionDTO> actualizarPreferenciasNotificacion(
+            Principal principal, @RequestBody PreferenciasNotificacionDTO dto) {
+        return ResponseEntity.ok(perfilService.actualizarPreferenciasNotificacion(getUsuarioId(principal), dto));
     }
 
     @PutMapping("/privacidad")

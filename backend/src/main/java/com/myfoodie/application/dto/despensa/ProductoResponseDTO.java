@@ -10,6 +10,7 @@ public record ProductoResponseDTO(
         String nombre,
         double cantidad,
         String unidad,
+        String unidadOriginal,
         String categoria,
         LocalDate fechaCaducidad,
         LocalDate fechaCompra,

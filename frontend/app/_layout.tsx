@@ -9,6 +9,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { ConfirmModal } from '@/components/common/ConfirmModal';
@@ -16,6 +17,7 @@ import { ToastMessage } from '@/components/common/ToastMessage';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useToastStore } from '@/hooks/useToast';
+import { configurarListeners, solicitarPermisosYRegistrarToken } from '@/utils/notificacionesConfig';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -51,6 +53,15 @@ function RootLayoutNav() {
     if (fontsLoaded) SplashScreen.hideAsync();
   }, [fontsLoaded]);
 
+  useEffect(() => {
+    if (isAuthenticated) solicitarPermisosYRegistrarToken();
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    const limpiarListeners = configurarListeners();
+    return limpiarListeners;
+  }, []);
+
   if (!fontsLoaded) return null;
 
   return (
@@ -64,11 +75,29 @@ function RootLayoutNav() {
         <Stack.Screen name="perfil/editar"              options={{ headerShown: false }} />
         <Stack.Screen name="perfil/estadisticas"        options={{ headerShown: false }} />
         <Stack.Screen name="perfil/preferencias"        options={{ headerShown: false }} />
+        <Stack.Screen name="perfil/gustos"              options={{ headerShown: false }} />
         <Stack.Screen name="perfil/privacidad"          options={{ headerShown: false }} />
         <Stack.Screen name="perfil/recetas-guardadas"   options={{ headerShown: false }} />
         <Stack.Screen name="perfil/recetas-publicadas"  options={{ headerShown: false }} />
         <Stack.Screen name="receta/[id]"                options={{ headerShown: false }} />
         <Stack.Screen name="receta/editar"              options={{ headerShown: false }} />
+        <Stack.Screen name="feed/[id]"                  options={{ headerShown: false }} />
+        <Stack.Screen name="social/buscar"              options={{ headerShown: false }} />
+        <Stack.Screen name="social/solicitudes"         options={{ headerShown: false }} />
+        <Stack.Screen name="social/seguidores"          options={{ headerShown: false }} />
+        <Stack.Screen name="social/seguidos"            options={{ headerShown: false }} />
+        <Stack.Screen name="social/bloqueados"          options={{ headerShown: false }} />
+        <Stack.Screen name="social/perfil/[id]"         options={{ headerShown: false }} />
+        <Stack.Screen name="social"                     options={{ headerShown: false }} />
+        <Stack.Screen name="compartir/recibidas"        options={{ headerShown: false }} />
+        <Stack.Screen name="compartir/recibidas/[id]"   options={{ headerShown: false }} />
+        <Stack.Screen name="notificaciones"             options={{ headerShown: false }} />
+        <Stack.Screen name="notificaciones/preferencias" options={{ headerShown: false }} />
+        <Stack.Screen name="carrito/index"                     options={{ headerShown: false }} />
+        <Stack.Screen name="carrito/generar-lista"             options={{ headerShown: false }} />
+        <Stack.Screen name="carrito/listas"                    options={{ headerShown: false }} />
+        <Stack.Screen name="carrito/lista/[id]"                options={{ headerShown: false }} />
+        <Stack.Screen name="carrito/lista/[id]/anadir-despensa" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
       <StatusBar style="auto" />
@@ -80,8 +109,10 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <RootLayoutNav />
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <RootLayoutNav />
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

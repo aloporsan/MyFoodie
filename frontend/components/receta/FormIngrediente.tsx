@@ -1,12 +1,18 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { AvisoConversionUnidad } from '@/components/common/AvisoConversionUnidad';
 import { IngredienteInput } from '@/services/recetaService';
+import {
+  equivalenciaMetrica,
+  esUnidadSubjetiva,
+  etiquetaUnidad,
+  UNIDADES_OBJETIVAS,
+  UNIDADES_SUBJETIVAS,
+} from '@/utils/unidadConfig';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
-
-const UNIDADES = ['g', 'kg', 'ml', 'l', 'unidades', 'cucharada', 'cucharadita', 'taza', 'al gusto'];
 
 interface Props {
   onGuardar: (datos: IngredienteInput) => Promise<void>;
@@ -70,20 +76,43 @@ export function FormIngrediente({ onGuardar, isLoading = false }: Props) {
         </View>
       </View>
 
+      <Text style={styles.grupoUnidadLabel}>Unidades objetivas (recomendadas)</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View style={styles.chipsRow}>
-          {UNIDADES.map((op) => (
+          {UNIDADES_OBJETIVAS.map((op) => (
             <Pressable
               key={op}
               style={[styles.chip, unidad === op && styles.chipActivo]}
               onPress={() => setUnidad(op)}
               hitSlop={4}
             >
-              <Text style={[styles.chipText, unidad === op && styles.chipTextActivo]}>{op}</Text>
+              <Text style={[styles.chipText, unidad === op && styles.chipTextActivo]}>{etiquetaUnidad(op)}</Text>
             </Pressable>
           ))}
         </View>
       </ScrollView>
+
+      <Text style={[styles.grupoUnidadLabel, styles.grupoUnidadLabelSubjetiva]}>
+        Unidades subjetivas (se convertirán automáticamente)
+      </Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View style={styles.chipsRow}>
+          {UNIDADES_SUBJETIVAS.map((op) => (
+            <Pressable
+              key={op}
+              style={[styles.chip, unidad === op && styles.chipActivo]}
+              onPress={() => setUnidad(op)}
+              hitSlop={4}
+            >
+              <Text style={[styles.chipText, unidad === op && styles.chipTextActivo]}>{etiquetaUnidad(op)}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </ScrollView>
+
+      {esUnidadSubjetiva(unidad) && (
+        <AvisoConversionUnidad equivalencia={equivalenciaMetrica(parseFloat(cantidad), unidad) ?? ''} />
+      )}
 
       <TextInput
         style={styles.input}
@@ -126,6 +155,8 @@ const styles = StyleSheet.create({
   inputError: { borderColor: colors.error },
   inputCantidad: { textAlign: 'center' },
   error: { ...typography.caption, color: colors.error, marginTop: 2 },
+  grupoUnidadLabel: { ...typography.caption, color: colors.text.secondary },
+  grupoUnidadLabelSubjetiva: { marginTop: spacing.xs },
   chipsRow: { flexDirection: 'row', gap: spacing.sm, paddingRight: spacing.lg },
   chip: {
     paddingHorizontal: spacing.md,

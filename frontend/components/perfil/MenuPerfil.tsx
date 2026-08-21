@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import type React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -9,9 +9,11 @@ import { usePerfilStore } from '@/store/perfilStore';
 
 interface MenuItem {
   icono: React.ComponentProps<typeof Ionicons>['name'];
+  iconoMaterial?: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
   label: string;
   onPress: () => void;
   destructivo?: boolean;
+  badge?: number;
 }
 
 export function MenuPerfil() {
@@ -91,9 +93,25 @@ export function MenuPerfil() {
       onPress: () => router.push('/perfil/recetas-guardadas'),
     },
     {
+      icono: 'cart-outline',
+      label: 'Mis listas de compra',
+      onPress: () => router.push('/carrito/listas'),
+    },
+    {
       icono: 'nutrition-outline',
       label: 'Preferencias alimentarias',
       onPress: () => router.push('/perfil/preferencias'),
+    },
+    {
+      icono: 'restaurant-outline',
+      iconoMaterial: 'chef-hat',
+      label: 'Mis gustos culinarios',
+      onPress: () => router.push('/perfil/gustos'),
+    },
+    {
+      icono: 'options-outline',
+      label: 'Preferencias de notificación',
+      onPress: () => router.push('/notificaciones/preferencias'),
     },
     {
       icono: 'lock-closed-outline',
@@ -130,15 +148,28 @@ export function MenuPerfil() {
         >
           <View style={styles.itemIzquierda}>
             <View style={[styles.iconoWrapper, item.destructivo && styles.iconoWrapperDestructivo]}>
-              <Ionicons
-                name={item.icono}
-                size={18}
-                color={item.destructivo ? colors.error : colors.grayDark}
-              />
+              {item.iconoMaterial ? (
+                <MaterialCommunityIcons
+                  name={item.iconoMaterial}
+                  size={18}
+                  color={item.destructivo ? colors.error : colors.grayDark}
+                />
+              ) : (
+                <Ionicons
+                  name={item.icono}
+                  size={18}
+                  color={item.destructivo ? colors.error : colors.grayDark}
+                />
+              )}
             </View>
             <Text style={[styles.itemLabel, item.destructivo && styles.itemLabelDestructivo]}>
               {item.label}
             </Text>
+            {!!item.badge && (
+              <View style={styles.badge} testID="badge-solicitudes">
+                <Text style={styles.badgeTexto}>{item.badge}</Text>
+              </View>
+            )}
           </View>
           {!item.destructivo && (
             <Ionicons name="chevron-forward" size={18} color={colors.grayMid} />
@@ -189,5 +220,20 @@ const styles = StyleSheet.create({
   },
   itemLabelDestructivo: {
     color: colors.error,
+  },
+  badge: {
+    backgroundColor: colors.secondary,
+    borderRadius: borderRadius.full,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xs,
+  },
+  badgeTexto: {
+    ...typography.caption,
+    color: colors.white,
+    fontWeight: '700',
+    fontSize: 11,
   },
 });

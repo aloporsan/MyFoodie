@@ -12,4 +12,6 @@ public interface MovimientoProductoRepository extends MongoRepository<Movimiento
     List<MovimientoProducto> findByDespensaIdAndTipo(String despensaId, String tipo);
 
     List<MovimientoProducto> findByDespensaIdAndMotivo(String despensaId, String motivo);
+
+    List<MovimientoProducto> findByDespensaIdAndTipoAndMotivo(String despensaId, String tipo, String motivo);
 }

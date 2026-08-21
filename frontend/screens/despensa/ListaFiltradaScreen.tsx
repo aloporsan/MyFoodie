@@ -20,9 +20,10 @@ import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
-type FiltroEstado = 'caducado' | 'caduca_pronto' | 'caduca_semana' | 'caduca_mes' | 'bajoStock';
+type FiltroEstado = 'sin_stock' | 'caducado' | 'caduca_pronto' | 'caduca_semana' | 'caduca_mes' | 'bajoStock';
 
 const TITULOS: Record<FiltroEstado, string> = {
+  sin_stock:     'Sin stock',
   caducado:      'Productos caducados',
   caduca_pronto: 'Caduca pronto',
   caduca_semana: 'Caduca esta semana',
@@ -31,6 +32,7 @@ const TITULOS: Record<FiltroEstado, string> = {
 };
 
 const MENSAJES_VACIOS: Record<FiltroEstado, string> = {
+  sin_stock:     '¡Genial! No tienes productos sin stock',
   caducado:      '¡Perfecto! No tienes productos caducados',
   caduca_pronto: '¡Todo en orden! Ningún producto caduca en los próximos 3 días',
   caduca_semana: '¡Bien! Ningún producto caduca esta semana',

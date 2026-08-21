@@ -304,16 +304,15 @@ class DespensaControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("PATCH /productos/{id}/cantidad clampea a 0 si el resultado sería negativo")
-    void PATCH_cantidad_devuelve200_siResultadoNegativo() throws Exception {
+    @DisplayName("PATCH /productos/{id}/cantidad devuelve 400 si el resultado sería negativo")
+    void PATCH_cantidad_devuelve400_siResultadoNegativo() throws Exception {
         String productoId = añadirProductoYObtenerID(tokenA, "Manzanas", 1, "unidades");
 
         mockMvc.perform(patch("/api/despensa/productos/" + productoId + "/cantidad")
                         .header("Authorization", "Bearer " + tokenA)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("delta", -10))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.cantidad").value(0.0));
+                .andExpect(status().isBadRequest());
     }
 
     @Test

@@ -149,7 +149,11 @@ it('renderiza_campo_stock_minimo_personalizado', () => {
   expect(getByPlaceholderText('ej. 3')).toBeTruthy();
 });
 
-it('stock_minimo_invalido_muestra_error_de_validacion', async () => {
+it('stock_minimo_cero_es_aceptado_como_valor_valido', async () => {
+  mockAñadirProducto.mockResolvedValue({
+    id: 'prod-1', despensaId: 'desp-1', nombre: 'Leche', cantidad: 2,
+    unidad: 'unidades', estado: 'normal', createdAt: '', updatedAt: '',
+  });
   const { getByPlaceholderText, getByText } = render(<FormProductoScreen />);
   fireEvent.changeText(getByPlaceholderText('ej. Leche entera'), 'Leche');
   fireEvent.changeText(getByPlaceholderText('ej. 2'), '2');
@@ -157,9 +161,8 @@ it('stock_minimo_invalido_muestra_error_de_validacion', async () => {
   fireEvent.press(getByText('Añadir producto'));
 
   await waitFor(() => {
-    expect(mockAñadirProducto).not.toHaveBeenCalled();
+    expect(mockAñadirProducto).toHaveBeenCalledWith(expect.objectContaining({ stockMinimo: 0 }));
   });
-  expect(getByText('Debe ser un número entero positivo')).toBeTruthy();
 });
 
 it('boton_guardar_no_queda_deshabilitado_al_escribir_stock_minimo_valido', async () => {
@@ -191,4 +194,40 @@ it('rellena_stock_minimo_en_modo_edicion_si_el_producto_lo_tiene', () => {
   });
   const { getByDisplayValue } = render(<FormProductoScreen />);
   expect(getByDisplayValue('3')).toBeTruthy();
+});
+
+// -------------------------------------------------------------------------
+// RF-DESP-019 — Normalización de unidades subjetivas (#161)
+// -------------------------------------------------------------------------
+
+it('selector_unidad_muestra_dos_grupos', () => {
+  const { getByText } = render(<FormProductoScreen />);
+  expect(getByText('Unidades objetivas (recomendadas)')).toBeTruthy();
+  expect(getByText('Unidades subjetivas (se convertirán automáticamente)')).toBeTruthy();
+});
+
+it('seleccionar_unidad_subjetiva_muestra_aviso_conversion', () => {
+  const { getByText, queryByTestId } = render(<FormProductoScreen />);
+  expect(queryByTestId('aviso-conversion-unidad')).toBeNull();
+
+  fireEvent.press(getByText('Taza(s)'));
+
+  expect(queryByTestId('aviso-conversion-unidad')).toBeTruthy();
+  expect(getByText(/se convertirá automáticamente/)).toBeTruthy();
+});
+
+it('aviso_muestra_equivalencia_correcta', () => {
+  const { getByText, getByPlaceholderText } = render(<FormProductoScreen />);
+  fireEvent.changeText(getByPlaceholderText('ej. 2'), '3');
+  fireEvent.press(getByText('Taza(s)'));
+
+  expect(getByText(/750 ml/)).toBeTruthy();
+});
+
+it('seleccionar_unidad_objetiva_no_muestra_aviso', () => {
+  const { getByText, queryByTestId } = render(<FormProductoScreen />);
+
+  fireEvent.press(getByText('kg'));
+
+  expect(queryByTestId('aviso-conversion-unidad')).toBeNull();
 });

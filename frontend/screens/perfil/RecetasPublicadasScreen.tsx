@@ -19,6 +19,7 @@ import { colors } from '@/theme/colors';
 import { shadows } from '@/theme/shadows';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
+import { resolveImagenUrl } from '@/utils/media';
 
 const DIFICULTAD_COLOR: Record<string, string> = {
   Fácil: colors.primary,
@@ -115,13 +116,14 @@ function RecetaCard({
 }) {
   const dificultadColor = DIFICULTAD_COLOR[receta.dificultad] ?? colors.grayMid;
   const esPublicada = receta.estado === 'publicada';
+  const imagenUrl = resolveImagenUrl(receta.imagenUrl);
 
   return (
     <View style={cardStyles.container}>
       <Pressable onPress={onPress}>
-        {receta.imagenUrl ? (
+        {imagenUrl ? (
           <Image
-            source={{ uri: receta.imagenUrl }}
+            source={{ uri: imagenUrl }}
             style={cardStyles.imagen}
             resizeMode="cover"
           />

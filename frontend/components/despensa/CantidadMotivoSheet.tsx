@@ -28,17 +28,20 @@ interface Props {
   unidad: string;
   /** 'sumar' = añadir stock, 'restar' = consumir/gastar */
   modo: 'sumar' | 'restar';
+  /** Cantidad disponible en despensa. Al restar, no se puede pedir más de esto. */
+  maxCantidad?: number;
   onConfirm: (cantidad: number, motivo?: MotivoEliminacion, motivoDetalle?: string) => void;
   onCancelar: () => void;
 }
 
-export function CantidadMotivoSheet({ visible, unidad, modo, onConfirm, onCancelar }: Props) {
+export function CantidadMotivoSheet({ visible, unidad, modo, maxCantidad, onConfirm, onCancelar }: Props) {
   const [cantidadTexto, setCantidadTexto] = useState('1');
   const [motivoSeleccionado, setMotivoSeleccionado] = useState<MotivoEliminacion | null>(null);
   const [motivoDetalleTexto, setMotivoDetalleTexto] = useState('');
 
   const esRestar = modo === 'restar';
-  const cantidad = Math.max(1, parseInt(cantidadTexto, 10) || 1);
+  const limite = esRestar && maxCantidad != null ? maxCantidad : Infinity;
+  const cantidad = Math.min(limite, Math.max(1, parseInt(cantidadTexto, 10) || 1));
   const puedeConfirmar = !esRestar || motivoSeleccionado !== null;
 
   const handleConfirm = () => {
@@ -88,18 +91,30 @@ export function CantidadMotivoSheet({ visible, unidad, modo, onConfirm, onCancel
               style={styles.cantidadInput}
               keyboardType="numeric"
               value={cantidadTexto}
-              onChangeText={(t) => setCantidadTexto(t.replace(/[^0-9]/g, ''))}
-              onBlur={() => setCantidadTexto(String(Math.max(1, parseInt(cantidadTexto, 10) || 1)))}
+              onChangeText={(t) => {
+                const soloDigitos = t.replace(/[^0-9]/g, '');
+                if (soloDigitos === '') {
+                  setCantidadTexto('');
+                  return;
+                }
+                const parsed = parseInt(soloDigitos, 10);
+                setCantidadTexto(String(Math.min(limite, parsed)));
+              }}
+              onBlur={() => setCantidadTexto(String(Math.min(limite, Math.max(1, parseInt(cantidadTexto, 10) || 1))))}
               selectTextOnFocus
             />
             <Text style={styles.unidadText}>{unidad}</Text>
             <Pressable
-              style={styles.cantidadBtn}
-              onPress={() => setCantidadTexto(String(cantidad + 1))}
+              style={[styles.cantidadBtn, cantidad >= limite && styles.cantidadBtnDisabled]}
+              onPress={() => setCantidadTexto(String(Math.min(limite, cantidad + 1)))}
+              disabled={cantidad >= limite}
             >
-              <Ionicons name="add" size={22} color={colors.primary} />
+              <Ionicons name="add" size={22} color={cantidad >= limite ? colors.grayDark : colors.primary} />
             </Pressable>
           </View>
+          {esRestar && maxCantidad != null && (
+            <Text style={styles.maxHint}>Disponible: {maxCantidad} {unidad}</Text>
+          )}
 
           {/* Selector de motivo — solo al restar */}
           {esRestar && (
@@ -209,6 +224,13 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text.secondary,
     minWidth: 40,
+  },
+  cantidadBtnDisabled: { backgroundColor: colors.grayLight },
+  maxHint: {
+    ...typography.caption,
+    color: colors.text.secondary,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
   },
   motivoLabel: {
     ...typography.label,

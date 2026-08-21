@@ -4,7 +4,7 @@ import { MenuPerfil } from '@/components/perfil/MenuPerfil';
 import { ConfirmModal } from '@/components/common/ConfirmModal';
 import { useConfirmStore } from '@/hooks/useConfirm';
 
-jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
+jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons', MaterialCommunityIcons: 'MaterialCommunityIcons' }));
 
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
@@ -77,6 +77,17 @@ it('navega_a_Preferencias_al_pulsar', () => {
   const { getByText } = renderMenu();
   fireEvent.press(getByText('Preferencias alimentarias'));
   expect(mockPush).toHaveBeenCalledWith('/perfil/preferencias');
+});
+
+it('navega_a_PreferenciasNotificacion_al_pulsar', () => {
+  const { getByText } = renderMenu();
+  fireEvent.press(getByText('Preferencias de notificación'));
+  expect(mockPush).toHaveBeenCalledWith('/notificaciones/preferencias');
+});
+
+it('no_muestra_la_opcion_Notificaciones_porque_vive_en_el_boton_social_del_perfil', () => {
+  const { queryByText } = renderMenu();
+  expect(queryByText('Notificaciones')).toBeNull();
 });
 
 it('navega_a_Privacidad_al_pulsar', () => {

@@ -2,6 +2,8 @@ import React from 'react';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { FormIngrediente } from '@/components/receta/FormIngrediente';
 
+jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
+
 const onGuardar = jest.fn();
 
 beforeEach(() => jest.clearAllMocks());
@@ -52,4 +54,40 @@ it('limpia_campos_tras_guardar_exitoso', async () => {
   await waitFor(() => {
     expect(getByPlaceholderText('Nombre *').props.value).toBe('');
   });
+});
+
+// -------------------------------------------------------------------------
+// RF-DESP-019 — Normalización de unidades subjetivas (#161)
+// -------------------------------------------------------------------------
+
+it('selector_unidad_muestra_dos_grupos', () => {
+  const { getByText } = render(<FormIngrediente onGuardar={onGuardar} />);
+  expect(getByText('Unidades objetivas (recomendadas)')).toBeTruthy();
+  expect(getByText('Unidades subjetivas (se convertirán automáticamente)')).toBeTruthy();
+});
+
+it('seleccionar_unidad_subjetiva_muestra_aviso_conversion', () => {
+  const { getByText, queryByTestId } = render(<FormIngrediente onGuardar={onGuardar} />);
+  expect(queryByTestId('aviso-conversion-unidad')).toBeNull();
+
+  fireEvent.press(getByText('Cucharada(s)'));
+
+  expect(queryByTestId('aviso-conversion-unidad')).toBeTruthy();
+  expect(getByText(/se convertirá automáticamente/)).toBeTruthy();
+});
+
+it('aviso_muestra_equivalencia_correcta', () => {
+  const { getByText, getByPlaceholderText } = render(<FormIngrediente onGuardar={onGuardar} />);
+  fireEvent.changeText(getByPlaceholderText('Cant.'), '2');
+  fireEvent.press(getByText('Cucharada(s)'));
+
+  expect(getByText(/30 ml/)).toBeTruthy();
+});
+
+it('seleccionar_unidad_objetiva_no_muestra_aviso', () => {
+  const { getByText, queryByTestId } = render(<FormIngrediente onGuardar={onGuardar} />);
+
+  fireEvent.press(getByText('kg'));
+
+  expect(queryByTestId('aviso-conversion-unidad')).toBeNull();
 });

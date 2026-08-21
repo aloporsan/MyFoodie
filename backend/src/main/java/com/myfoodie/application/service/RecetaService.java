@@ -1,14 +1,20 @@
 package com.myfoodie.application.service;
 
+import com.myfoodie.application.dto.despensa.ProductoUpdateCantidadDTO;
 import com.myfoodie.application.dto.receta.*;
+import com.myfoodie.application.dto.unidad.UnidadConvertidaDTO;
+import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.IngredienteReceta;
 import com.myfoodie.domain.model.Paso;
+import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.model.Receta;
 import com.myfoodie.domain.model.RecetaGuardada;
 import com.myfoodie.domain.model.Usuario;
+import com.myfoodie.domain.repository.DespensaRepository;
 import com.myfoodie.domain.repository.IngredienteRecetaRepository;
 import com.myfoodie.domain.repository.LikeRepository;
 import com.myfoodie.domain.repository.PasoRepository;
+import com.myfoodie.domain.repository.ProductoRepository;
 import com.myfoodie.domain.repository.RecetaGuardadaRepository;
 import com.myfoodie.domain.repository.RecetaRepository;
 import com.myfoodie.domain.repository.UsuarioRepository;
@@ -20,6 +26,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -34,6 +41,11 @@ public class RecetaService {
     private final RecetaGuardadaRepository recetaGuardadaRepository;
     private final LikeRepository likeRepository;
     private final UsuarioRepository usuarioRepository;
+    private final DespensaRepository despensaRepository;
+    private final ProductoRepository productoRepository;
+    private final DespensaService despensaService;
+    private final CarritoInteligenteService carritoInteligenteService;
+    private final UnidadNormalizadorService unidadNormalizadorService;
 
     // -------------------------------------------------------------------------
     // CRUD básico
@@ -52,6 +64,7 @@ public class RecetaService {
                 .categoria(dto.categoria())
                 .etiquetas(dto.etiquetas() != null ? dto.etiquetas() : new ArrayList<>())
                 .imagenUrl(dto.imagenUrl())
+                .numPersonas(dto.numPersonas() != null ? dto.numPersonas() : 2)
                 .estado("borrador")
                 .build();
 
@@ -73,6 +86,7 @@ public class RecetaService {
         receta.setCategoria(dto.categoria());
         receta.setEtiquetas(dto.etiquetas() != null ? dto.etiquetas() : new ArrayList<>());
         receta.setImagenUrl(dto.imagenUrl());
+        receta.setNumPersonas(dto.numPersonas() != null ? dto.numPersonas() : 2);
         receta.setUpdatedAt(LocalDateTime.now());
 
         return toDTO(recetaRepository.save(receta));
@@ -230,6 +244,111 @@ public class RecetaService {
     }
 
     // -------------------------------------------------------------------------
+    // Marcar como realizada / descontar stock
+    // -------------------------------------------------------------------------
+
+    public List<IngredienteConsumoDTO> marcarRecetaComoRealizada(String usuarioId, String recetaId,
+                                                                   double racionesElaboradas) {
+        Receta receta = getReceta(recetaId);
+        validarRecetaGuardada(usuarioId, recetaId);
+        double factor = factorRaciones(receta, racionesElaboradas);
+        List<Producto> productos = productosDespensa(usuarioId);
+
+        return ingredienteRepository.findByRecetaId(recetaId).stream()
+                .map(i -> calcularConsumo(i, factor, productos))
+                .toList();
+    }
+
+    public DescuentoRecetaResponseDTO descontarIngredientesReceta(String usuarioId, String recetaId,
+                                                                    double racionesElaboradas) {
+        Receta receta = getReceta(recetaId);
+        validarRecetaGuardada(usuarioId, recetaId);
+        double factor = factorRaciones(receta, racionesElaboradas);
+        List<Producto> productos = productosDespensa(usuarioId);
+
+        List<IngredienteConsumoDTO> descontados = new ArrayList<>();
+        List<IngredienteConsumoDTO> noDisponibles = new ArrayList<>();
+        boolean huboDescuento = false;
+
+        for (IngredienteReceta ingrediente : ingredienteRepository.findByRecetaId(recetaId)) {
+            IngredienteConsumoDTO consumo = calcularConsumo(ingrediente, factor, productos);
+            if (!consumo.productoEnDespensa() || consumo.noComparable()) {
+                noDisponibles.add(consumo);
+                continue;
+            }
+
+            double aDescontar = Math.min(consumo.cantidadCalculada(), consumo.cantidadDisponible());
+            if (aDescontar > 0) {
+                Producto producto = buscarProductoPorNombre(productos, ingrediente.getNombre());
+                despensaService.actualizarCantidad(usuarioId, producto.getId(),
+                        new ProductoUpdateCantidadDTO(-aDescontar, "usado_en_receta", null,
+                                "Usado en receta: " + receta.getTitulo()), false);
+                huboDescuento = true;
+            }
+            descontados.add(consumo);
+        }
+
+        if (huboDescuento) {
+            carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
+        }
+
+        return new DescuentoRecetaResponseDTO(descontados, noDisponibles);
+    }
+
+    private void validarRecetaGuardada(String usuarioId, String recetaId) {
+        if (!recetaGuardadaRepository.existsByUsuarioIdAndRecetaId(usuarioId, recetaId)) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "La receta no está guardada");
+        }
+    }
+
+    private double factorRaciones(Receta receta, double racionesElaboradas) {
+        if (racionesElaboradas <= 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Las raciones elaboradas deben ser mayores que 0");
+        }
+        return racionesElaboradas / receta.getNumPersonas();
+    }
+
+    private List<Producto> productosDespensa(String usuarioId) {
+        return despensaRepository.findByUsuarioId(usuarioId)
+                .map(Despensa::getId)
+                .map(productoRepository::findByDespensaId)
+                .orElse(List.of());
+    }
+
+    private IngredienteConsumoDTO calcularConsumo(IngredienteReceta ingrediente, double factor,
+                                                    List<Producto> productos) {
+        UnidadConvertidaDTO normalizado = unidadNormalizadorService
+                .normalizarUnidades(ingrediente.getCantidad(), ingrediente.getUnidad());
+        double cantidadCalculada = normalizado.cantidadConvertida() * factor;
+        Producto producto = buscarProductoPorNombre(productos, ingrediente.getNombre());
+        boolean enDespensa = producto != null;
+
+        boolean comparable = enDespensa && unidadesCompatibles(normalizado.unidadConvertida(), producto.getUnidad());
+        double disponible = comparable ? producto.getCantidad() : 0;
+        boolean suficiente = comparable && disponible >= cantidadCalculada;
+        boolean noComparable = enDespensa && !comparable;
+
+        return new IngredienteConsumoDTO(
+                ingrediente.getNombre(), cantidadCalculada, normalizado.unidadConvertida(),
+                enDespensa, disponible, suficiente, noComparable);
+    }
+
+    private boolean unidadesCompatibles(String unidadIngrediente, String unidadProducto) {
+        return normalizar(unidadIngrediente).equals(normalizar(unidadProducto));
+    }
+
+    private Producto buscarProductoPorNombre(List<Producto> productos, String nombre) {
+        return productos.stream()
+                .filter(p -> normalizar(p.getNombre()).equals(normalizar(nombre)))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private String normalizar(String texto) {
+        return texto == null ? "" : texto.trim().toLowerCase(Locale.ROOT);
+    }
+
+    // -------------------------------------------------------------------------
     // Etiquetas e imagen
     // -------------------------------------------------------------------------
 
@@ -324,6 +443,7 @@ public class RecetaService {
                 receta.getEtiquetas(),
                 receta.getImagenUrl(),
                 receta.getEstado(),
+                receta.getNumPersonas(),
                 ingredientes,
                 pasos,
                 receta.getCreatedAt(),
@@ -363,6 +483,7 @@ public class RecetaService {
                 receta.getEtiquetas(),
                 receta.getImagenUrl(),
                 receta.getEstado(),
+                receta.getNumPersonas(),
                 totalLikes,
                 likeUsuario,
                 ingredientes,

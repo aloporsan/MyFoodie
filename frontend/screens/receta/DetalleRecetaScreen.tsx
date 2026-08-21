@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
@@ -10,17 +11,25 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ModalCompartir } from '@/components/compartir/ModalCompartir';
 import { ErrorScreen } from '@/components/common/ErrorScreen';
+import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { showConfirm } from '@/hooks/useConfirm';
+import { useToast } from '@/hooks/useToast';
+import { despensaService } from '@/services/despensaService';
+import { pdfService } from '@/services/pdfService';
 import { IngredienteReceta, PasoReceta } from '@/services/recetaService';
 import { useAuthStore } from '@/store/authStore';
+import { useCarritoStore } from '@/store/carritoStore';
 import { useRecetaStore } from '@/store/recetaStore';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
 import { shadows } from '@/theme/shadows';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
+import { resolveImagenUrl } from '@/utils/media';
+import { unidadDeCompra } from '@/utils/unidadConfig';
 
 const DIFICULTAD_COLOR: Record<string, string> = {
   Fácil: colors.primary,
@@ -30,6 +39,7 @@ const DIFICULTAD_COLOR: Record<string, string> = {
 
 export function DetalleRecetaScreen() {
   const router = useRouter();
+  const { showSuccess: showToastSuccess, showError: showToastError } = useToast();
   const { id: rawId } = useLocalSearchParams<{ id: string }>();
   const id = Array.isArray(rawId) ? rawId[0] : rawId;
   const currentUserId = useAuthStore((s) => s.usuario?.userId);
@@ -41,14 +51,41 @@ export function DetalleRecetaScreen() {
   const recetasGuardadas = useRecetaStore((s) => s.recetasGuardadas);
   const cargarRecetasGuardadas = useRecetaStore((s) => s.cargarRecetasGuardadas);
   const guardarReceta = useRecetaStore((s) => s.guardarReceta);
+  const añadirYAceptarItemManual = useCarritoStore((s) => s.añadirYAceptarItemManual);
 
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [modalCompartirVisible, setModalCompartirVisible] = useState(false);
+  const [nombresDespensa, setNombresDespensa] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!id) return;
     cargarReceta(id).finally(() => setCargando(false));
   }, [id]);
+
+  useEffect(() => {
+    if (!receta) return;
+    despensaService
+      .listarProductos()
+      .then((productos) => {
+        setNombresDespensa(new Set(productos.map((p) => p.nombre.trim().toLowerCase())));
+      })
+      .catch(() => {});
+  }, [receta?.id]);
+
+  const { disponibles, faltantes } = useMemo(() => {
+    if (!receta) return { disponibles: [] as IngredienteReceta[], faltantes: [] as IngredienteReceta[] };
+    const disponibles: IngredienteReceta[] = [];
+    const faltantes: IngredienteReceta[] = [];
+    for (const ingrediente of receta.ingredientes) {
+      if (nombresDespensa.has(ingrediente.nombre.trim().toLowerCase())) {
+        disponibles.push(ingrediente);
+      } else {
+        faltantes.push(ingrediente);
+      }
+    }
+    return { disponibles, faltantes };
+  }, [receta, nombresDespensa]);
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)'));
   const esPropia = receta?.autorId === currentUserId;
@@ -57,6 +94,43 @@ export function DetalleRecetaScreen() {
   useEffect(() => {
     if (receta && !esPropia) cargarRecetasGuardadas();
   }, [receta?.id, esPropia]);
+
+  const [añadiendoCarrito, setAñadiendoCarrito] = useState(false);
+  const [exportandoPdf, setExportandoPdf] = useState(false);
+
+  const handleExportarPDF = async () => {
+    if (!receta) return;
+    setExportandoPdf(true);
+    try {
+      const uri = await pdfService.generarPDFReceta(receta);
+      await pdfService.compartirPDF(uri, `${receta.titulo}.pdf`);
+    } catch {
+      showToastError('No se pudo exportar la receta a PDF');
+    } finally {
+      setExportandoPdf(false);
+    }
+  };
+
+  const handleAñadirAlCarrito = async () => {
+    setAñadiendoCarrito(true);
+    try {
+      for (const ingrediente of faltantes) {
+        const compra = unidadDeCompra(ingrediente.cantidad, ingrediente.unidad);
+        await añadirYAceptarItemManual({
+          nombre: ingrediente.nombre,
+          cantidad: compra?.cantidad ?? ingrediente.cantidad,
+          unidad: compra?.unidad ?? ingrediente.unidad,
+        });
+      }
+      showToastSuccess(
+        `${faltantes.length} ingrediente${faltantes.length !== 1 ? 's' : ''} añadido${faltantes.length !== 1 ? 's' : ''} al carrito`
+      );
+    } catch {
+      showToastError('No se pudieron añadir los ingredientes al carrito');
+    } finally {
+      setAñadiendoCarrito(false);
+    }
+  };
 
   const handleGuardar = async () => {
     if (!receta) return;
@@ -115,6 +189,7 @@ export function DetalleRecetaScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <LoadingOverlay visible={exportandoPdf} mensaje="Generando PDF..." />
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={goBack} hitSlop={8} style={styles.backBtn}>
@@ -125,6 +200,12 @@ export function DetalleRecetaScreen() {
         </Text>
         {esPropia ? (
           <View style={styles.headerActions}>
+            <Pressable testID="btn-exportar-pdf" onPress={handleExportarPDF} hitSlop={8}>
+              <Ionicons name="document-text-outline" size={22} color={colors.primary} />
+            </Pressable>
+            <Pressable testID="btn-compartir-receta" onPress={() => setModalCompartirVisible(true)} hitSlop={8}>
+              <Ionicons name="share-social-outline" size={22} color={colors.primary} />
+            </Pressable>
             <Pressable
               testID="btn-editar-receta"
               onPress={() => router.push(`/receta/editar?id=${receta.id}`)}
@@ -137,32 +218,46 @@ export function DetalleRecetaScreen() {
             </Pressable>
           </View>
         ) : (
-          <Pressable
-            testID="btn-guardar-receta"
-            style={[styles.guardarBtn, estaGuardada && styles.guardarBtnDisabled]}
-            onPress={estaGuardada || guardando ? undefined : handleGuardar}
-            disabled={estaGuardada || guardando}
-          >
-            <Ionicons
-              name={estaGuardada ? 'bookmark' : 'bookmark-outline'}
-              size={16}
-              color={estaGuardada ? colors.grayMid : colors.primary}
-            />
-            <Text style={[styles.guardarBtnTexto, estaGuardada && styles.guardarBtnTextoDisabled]}>
-              {estaGuardada ? 'Guardada' : 'Guardar receta'}
-            </Text>
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable testID="btn-exportar-pdf" onPress={handleExportarPDF} hitSlop={8}>
+              <Ionicons name="document-text-outline" size={22} color={colors.primary} />
+            </Pressable>
+            <Pressable testID="btn-compartir-receta" onPress={() => setModalCompartirVisible(true)} hitSlop={8}>
+              <Ionicons name="share-social-outline" size={22} color={colors.primary} />
+            </Pressable>
+            <Pressable
+              testID="btn-guardar-receta"
+              style={[styles.guardarBtn, estaGuardada && styles.guardarBtnDisabled]}
+              onPress={estaGuardada || guardando ? undefined : handleGuardar}
+              disabled={estaGuardada || guardando}
+            >
+              <Ionicons
+                name={estaGuardada ? 'bookmark' : 'bookmark-outline'}
+                size={16}
+                color={estaGuardada ? colors.grayMid : colors.primary}
+              />
+              <Text style={[styles.guardarBtnTexto, estaGuardada && styles.guardarBtnTextoDisabled]}>
+                {estaGuardada ? 'Guardada' : 'Guardar receta'}
+              </Text>
+            </Pressable>
+          </View>
         )}
       </View>
+
+      <ModalCompartir
+        visible={modalCompartirVisible}
+        recetaId={receta.id}
+        onClose={() => setModalCompartirVisible(false)}
+      />
 
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
         {/* Hero imagen */}
-        {receta.imagenUrl ? (
+        {resolveImagenUrl(receta.imagenUrl) ? (
           <Image
-            source={{ uri: receta.imagenUrl }}
+            source={{ uri: resolveImagenUrl(receta.imagenUrl) }}
             style={styles.heroImagen}
             resizeMode="cover"
           />
@@ -200,6 +295,10 @@ export function DetalleRecetaScreen() {
                 <Ionicons name="restaurant-outline" size={14} color={colors.grayDark} />
                 <Text style={styles.metaText}>{receta.categoria}</Text>
               </View>
+              <View style={styles.metaChip}>
+                <Ionicons name="people-outline" size={14} color={colors.grayDark} />
+                <Text style={styles.metaText}>Para {receta.numPersonas} personas</Text>
+              </View>
             </View>
 
             {/* Etiquetas */}
@@ -214,21 +313,59 @@ export function DetalleRecetaScreen() {
             )}
           </View>
 
-          {/* Ingredientes */}
+          {/* Ingredientes en despensa */}
           <View style={styles.card}>
             <SectionHeader
-              icon="nutrition-outline"
-              titulo="Ingredientes"
-              count={receta.ingredientes.length}
+              icon="checkmark-circle"
+              titulo="Ingredientes en tu despensa"
+              count={disponibles.length}
+              iconColor={colors.primary}
+              iconBg="#E8F5D0"
             />
-            {receta.ingredientes.length === 0 ? (
-              <Text style={styles.vaciText}>Sin ingredientes</Text>
+            {disponibles.length === 0 ? (
+              <Text style={styles.vaciText}>No tienes ninguno de estos ingredientes</Text>
             ) : (
               <View style={styles.ingredientesList}>
-                {receta.ingredientes.map((ing) => (
+                {disponibles.map((ing) => (
                   <IngredienteRow key={ing.id} ingrediente={ing} />
                 ))}
               </View>
+            )}
+          </View>
+
+          {/* Ingredientes que faltan */}
+          <View style={styles.card}>
+            <SectionHeader
+              icon="close-circle"
+              titulo="Ingredientes que te faltan"
+              count={faltantes.length}
+              iconColor={colors.error}
+              iconBg="#FCE4E4"
+            />
+            {faltantes.length === 0 ? (
+              <Text style={styles.vaciText}>¡Tienes todo lo que necesitas!</Text>
+            ) : (
+              <>
+                <View style={styles.ingredientesList}>
+                  {faltantes.map((ing) => (
+                    <IngredienteRow key={ing.id} ingrediente={ing} />
+                  ))}
+                </View>
+                <Pressable
+                  style={[styles.carritoBtn, añadiendoCarrito && styles.carritoBtnPresionado]}
+                  onPress={handleAñadirAlCarrito}
+                  disabled={añadiendoCarrito}
+                >
+                  {añadiendoCarrito ? (
+                    <ActivityIndicator size="small" color={colors.white} />
+                  ) : (
+                    <>
+                      <Ionicons name="cart-outline" size={18} color={colors.white} />
+                      <Text style={styles.carritoBtnTexto}>Añadir faltantes al carrito</Text>
+                    </>
+                  )}
+                </Pressable>
+              </>
             )}
           </View>
 
@@ -259,15 +396,19 @@ function SectionHeader({
   icon,
   titulo,
   count,
+  iconColor = colors.primary,
+  iconBg = '#E8F5D0',
 }: {
   icon: string;
   titulo: string;
   count: number;
+  iconColor?: string;
+  iconBg?: string;
 }) {
   return (
     <View style={secStyles.header}>
-      <View style={secStyles.icono}>
-        <Ionicons name={icon as any} size={18} color={colors.primary} />
+      <View style={[secStyles.icono, { backgroundColor: iconBg }]}>
+        <Ionicons name={icon as any} size={18} color={iconColor} />
       </View>
       <Text style={secStyles.titulo}>{titulo}</Text>
       <View style={secStyles.badge}>
@@ -304,9 +445,9 @@ function PasoCard({ paso }: { paso: PasoReceta }) {
       </View>
       <View style={pasoStyles.body}>
         <Text style={pasoStyles.descripcion}>{paso.descripcion}</Text>
-        {paso.imagenUrl ? (
+        {resolveImagenUrl(paso.imagenUrl) ? (
           <Image
-            source={{ uri: paso.imagenUrl }}
+            source={{ uri: resolveImagenUrl(paso.imagenUrl) }}
             style={pasoStyles.imagen}
             resizeMode="cover"
           />
@@ -408,6 +549,20 @@ const styles = StyleSheet.create({
 
   ingredientesList: { gap: spacing.sm },
   pasosList: { gap: spacing.md },
+
+  carritoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.secondary,
+    borderRadius: borderRadius.full,
+    paddingVertical: spacing.md,
+    minHeight: 44,
+    marginTop: spacing.sm,
+  },
+  carritoBtnPresionado: { backgroundColor: '#C98400' },
+  carritoBtnTexto: { ...typography.button, color: colors.white },
 });
 
 const secStyles = StyleSheet.create({

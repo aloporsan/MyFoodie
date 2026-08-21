@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CantidadMotivoSheet, ProductoEstadoBadge } from '@/components/despensa';
+import { useToast } from '@/hooks/useToast';
 import { MotivoEliminacion, MovimientoProducto } from '@/services/despensaService';
 import { useDespensaStore } from '@/store/despensaStore';
 import { borderRadius } from '@/theme/borderRadius';
@@ -38,6 +39,7 @@ const TIPO_ICONO: Record<string, { name: string; color: string }> = {
 export function DetalleProductoScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { showError } = useToast();
   const {
     productos,
     actualizarCantidad,
@@ -94,8 +96,12 @@ export function DetalleProductoScreen() {
   ) => {
     setCantidadSheet(false);
     const delta = cantidadModo === 'sumar' ? cantidad : -cantidad;
-    await actualizarCantidad(id, delta, motivo, motivoDetalle);
-    cargarHistorial(id);
+    try {
+      await actualizarCantidad(id, delta, motivo, motivoDetalle);
+      cargarHistorial(id);
+    } catch {
+      showError('No puedes quitar más cantidad de la que tienes disponible');
+    }
   };
 
   const handleEliminar = () => {
@@ -139,16 +145,23 @@ export function DetalleProductoScreen() {
           <ProductoEstadoBadge estado={producto.estado} size="md" />
         </View>
 
-        {/* Nombre y marca */}
-        <Text style={styles.nombre}>{producto.nombre}</Text>
+        {/* Marca */}
         {producto.marca && <Text style={styles.marca}>{producto.marca}</Text>}
 
         {/* Control de cantidad */}
         <View style={styles.cantidadCard}>
           <Text style={styles.cantidadLabel}>Cantidad</Text>
           <View style={styles.cantidadRow}>
-            <Pressable style={styles.cantidadBtn} onPress={handleMenos}>
-              <Ionicons name="remove" size={24} color={colors.primary} />
+            <Pressable
+              style={[styles.cantidadBtn, producto.cantidad === 0 && styles.cantidadBtnDisabled]}
+              onPress={handleMenos}
+              disabled={producto.cantidad === 0}
+            >
+              <Ionicons
+                name="remove"
+                size={24}
+                color={producto.cantidad === 0 ? colors.grayDark : colors.primary}
+              />
             </Pressable>
             <Text style={styles.cantidadValor}>
               {producto.cantidad} <Text style={styles.unidad}>{producto.unidad}</Text>
@@ -164,10 +177,10 @@ export function DetalleProductoScreen() {
           {producto.categoria && (
             <FilaDetalle icono="grid-outline" label="Categoría" valor={producto.categoria} />
           )}
-          {producto.fechaCaducidad && (
+          {producto.estado !== 'sin_stock' && producto.fechaCaducidad && (
             <FilaDetalle icono="calendar-outline" label="Caduca" valor={producto.fechaCaducidad} />
           )}
-          {producto.fechaCompra && (
+          {producto.estado !== 'sin_stock' && producto.fechaCompra && (
             <FilaDetalle icono="bag-handle-outline" label="Comprado" valor={producto.fechaCompra} />
           )}
           {producto.notas && (
@@ -202,6 +215,7 @@ export function DetalleProductoScreen() {
         visible={cantidadSheet}
         unidad={producto.unidad}
         modo={cantidadModo}
+        maxCantidad={cantidadModo === 'restar' ? producto.cantidad : undefined}
         onConfirm={confirmarCantidad}
         onCancelar={() => setCantidadSheet(false)}
       />
@@ -386,6 +400,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  cantidadBtnDisabled: { backgroundColor: colors.grayLight },
   cantidadValor: {
     ...typography.heading1,
     fontSize: 32,

@@ -120,6 +120,18 @@ it('abre_CantidadMotivoSheet_en_modo_sumar_al_pulsar_mas', () => {
   expect(getByText('¿Cuánto añades?')).toBeTruthy();
 });
 
+it('boton_menos_deshabilitado_cuando_cantidad_es_cero', () => {
+  (useDespensaStore as unknown as jest.Mock).mockReturnValue({
+    ...storeBase,
+    productos: [{ ...mockProducto, cantidad: 0 }],
+  });
+  const { queryByText, UNSAFE_getAllByType } = render(<DetalleProductoScreen />);
+  const iconos = UNSAFE_getAllByType('Ionicons' as any);
+  const btnMenos = iconos.find((i: any) => i.props.name === 'remove');
+  fireEvent.press(btnMenos!.parent as any);
+  expect(queryByText('¿Cuánto has usado?')).toBeNull();
+});
+
 it('confirmar_sheet_en_modo_sumar_llama_actualizarCantidad_con_delta_positivo', async () => {
   const { getByText, UNSAFE_getAllByType } = render(<DetalleProductoScreen />);
   const iconos = UNSAFE_getAllByType('Ionicons' as any);

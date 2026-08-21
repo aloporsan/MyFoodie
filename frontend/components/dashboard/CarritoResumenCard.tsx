@@ -1,74 +1,86 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { CarritoResumen } from '@/services/carritoService';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
-export function CarritoResumenCard() {
+interface Props {
+  resumen: CarritoResumen | null;
+  onPress: () => void;
+}
+
+export function CarritoResumenCard({ resumen, onPress }: Props) {
+  const itemsAlta = resumen?.itemsAlta ?? 0;
+  const itemsAceptados = resumen?.itemsAceptados ?? 0;
+
   return (
-    <View style={styles.card}>
+    <Pressable style={styles.card} onPress={onPress}>
       <View style={styles.row}>
         <View style={styles.iconWrapper}>
-          <Ionicons name="cart-outline" size={28} color={colors.grayDark} />
+          <Ionicons name="cart-outline" size={22} color={colors.primaryDark} />
         </View>
         <View style={styles.texto}>
           <Text style={styles.titulo}>Carrito inteligente</Text>
           <Text style={styles.descripcion}>
-            Sugerencias de compra basadas en tu despensa
+            {itemsAlta > 0
+              ? `${itemsAlta} producto${itemsAlta !== 1 ? 's' : ''} de prioridad alta`
+              : 'Sugerencias de compra basadas en tu despensa'}
           </Text>
+          {itemsAceptados > 0 && (
+            <Text style={styles.aceptadosTexto}>
+              {itemsAceptados} producto{itemsAceptados !== 1 ? 's' : ''} aceptado
+              {itemsAceptados !== 1 ? 's' : ''}
+            </Text>
+          )}
         </View>
-        <View style={styles.badge}>
-          <Text style={styles.badgeTexto}>Pronto</Text>
-        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.grayMid} />
       </View>
-    </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.grayLight,
+    backgroundColor: colors.white,
     borderRadius: borderRadius.lg,
-    padding: spacing.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.gray,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    justifyContent: 'center',
+    gap: spacing.sm,
   },
   iconWrapper: {
-    width: 48,
-    height: 48,
+    width: 40,
+    height: 40,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.white,
+    backgroundColor: '#E8F5D0',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
   texto: {
-    flex: 1,
     gap: 2,
   },
   titulo: {
     ...typography.label,
     color: colors.text.primary,
+    textAlign: 'center',
   },
   descripcion: {
     ...typography.caption,
     color: colors.text.secondary,
+    textAlign: 'center',
   },
-  badge: {
-    backgroundColor: colors.secondary,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-    borderRadius: borderRadius.full,
-  },
-  badgeTexto: {
+  aceptadosTexto: {
     ...typography.caption,
-    color: colors.white,
-    fontWeight: '700',
-    fontSize: 10,
+    color: colors.primaryDark,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

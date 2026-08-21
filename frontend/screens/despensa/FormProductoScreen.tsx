@@ -14,17 +14,24 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AvisoConversionUnidad } from '@/components/common/AvisoConversionUnidad';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { DuplicadosAlert } from '@/components/despensa';
 import { Producto, ProductoInput } from '@/services/despensaService';
 import { useDespensaStore } from '@/store/despensaStore';
 import { getCategoriaConfig } from '@/utils/categoriaConfig';
+import {
+  equivalenciaMetrica,
+  esUnidadSubjetiva,
+  etiquetaUnidad,
+  UNIDADES_OBJETIVAS,
+  UNIDADES_SUBJETIVAS,
+} from '@/utils/unidadConfig';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
-const UNIDADES = ['unidades', 'kg', 'g', 'litros', 'ml', 'packs', 'latas', 'bolsas'];
 const CATEGORIAS = [
   'Frutas y verduras', 'Carnes', 'Pescados', 'Lácteos',
   'Bebidas', 'Congelados', 'Condimentos', 'Cereales',
@@ -50,7 +57,7 @@ export function FormProductoScreen() {
 
   const [nombre, setNombre] = useState('');
   const [cantidad, setCantidad] = useState('');
-  const [unidad, setUnidad] = useState('unidades');
+  const [unidad, setUnidad] = useState('unidad');
   const [categoria, setCategoria] = useState('');
   const [fechaCaducidad, setFechaCaducidad] = useState('');
   const [fechaCompra, setFechaCompra] = useState('');
@@ -88,7 +95,7 @@ export function FormProductoScreen() {
     if (!unidad) e.unidad = 'Selecciona una unidad';
     if (stockMinimo) {
       const sm = parseInt(stockMinimo, 10);
-      if (isNaN(sm) || sm < 1) e.stockMinimo = 'Debe ser un número entero positivo';
+      if (isNaN(sm) || sm < 0) e.stockMinimo = 'Debe ser un número entero positivo o cero';
     }
     setErrores(e);
     return Object.keys(e).length === 0;
@@ -187,7 +194,15 @@ export function FormProductoScreen() {
 
           {/* Unidad */}
           <Campo label="Unidad *" error={errores.unidad}>
-            <ChipSelector opciones={UNIDADES} valor={unidad} onSelect={setUnidad} />
+            <Text style={styles.grupoUnidadLabel}>Unidades objetivas (recomendadas)</Text>
+            <ChipSelector opciones={UNIDADES_OBJETIVAS} valor={unidad} onSelect={setUnidad} getLabel={etiquetaUnidad} />
+            <Text style={[styles.grupoUnidadLabel, styles.grupoUnidadLabelSubjetiva]}>
+              Unidades subjetivas (se convertirán automáticamente)
+            </Text>
+            <ChipSelector opciones={UNIDADES_SUBJETIVAS} valor={unidad} onSelect={setUnidad} getLabel={etiquetaUnidad} />
+            {esUnidadSubjetiva(unidad) && (
+              <AvisoConversionUnidad equivalencia={equivalenciaMetrica(parseFloat(cantidad), unidad) ?? ''} />
+            )}
           </Campo>
 
           {/* Categoría */}
@@ -340,13 +355,14 @@ function Campo({
 }
 
 function ChipSelector({
-  opciones, valor, onSelect, nullable = false, getAccentColor,
+  opciones, valor, onSelect, nullable = false, getAccentColor, getLabel,
 }: {
   opciones: string[];
   valor: string;
   onSelect: (v: string) => void;
   nullable?: boolean;
   getAccentColor?: (op: string) => { bg: string; fg: string } | undefined;
+  getLabel?: (op: string) => string;
 }) {
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.xs }}>
@@ -371,7 +387,7 @@ function ChipSelector({
                   ? { color: accent.fg, fontWeight: '700' }
                   : chipStyles.textActivo),
               ]}>
-                {op}
+                {getLabel ? getLabel(op) : op}
               </Text>
             </Pressable>
           );
@@ -408,6 +424,8 @@ const styles = StyleSheet.create({
   },
   inputError: { borderColor: colors.error },
   textarea: { minHeight: 80, textAlignVertical: 'top' },
+  grupoUnidadLabel: { ...typography.caption, color: colors.text.secondary },
+  grupoUnidadLabelSubjetiva: { marginTop: spacing.sm },
   btnGuardar: {
     backgroundColor: colors.primary,
     borderRadius: borderRadius.xl,

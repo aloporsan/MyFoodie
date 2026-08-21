@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback } from 'react';
 import {
   Image,
@@ -15,32 +15,40 @@ import {
   CarritoResumenCard,
   DashboardEmptyState,
   EstadisticasCard,
+  ListaEnCursoCard,
   RecetasRecomendadasCard,
   ResumenDespensaCard,
 } from '@/components/dashboard';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { ErrorScreen } from '@/components/common/ErrorScreen';
+import { useCarritoStore } from '@/store/carritoStore';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
 export function DashboardScreen() {
+  const router = useRouter();
   const {
     resumen,
     estadisticas,
-    carritoResumen,
     recetasRecomendadas,
     isLoading,
     error,
     cargarDashboard,
     refrescar,
   } = useDashboardStore();
+  const carritoResumen = useCarritoStore((s) => s.resumen);
+  const cargarCarrito = useCarritoStore((s) => s.cargarCarrito);
+  const listaEnCurso = useCarritoStore((s) => s.listaEnCurso);
+  const cargarListaEnCurso = useCarritoStore((s) => s.cargarListaEnCurso);
 
   useFocusEffect(
     useCallback(() => {
       cargarDashboard();
+      cargarCarrito();
+      cargarListaEnCurso();
     }, [])
   );
 
@@ -79,9 +87,15 @@ export function DashboardScreen() {
             />
           }
         >
+          {listaEnCurso && (
+            <ListaEnCursoCard
+              lista={listaEnCurso}
+              onPress={() => router.push(`/carrito/lista/${listaEnCurso.id}`)}
+            />
+          )}
           {resumen && <ResumenDespensaCard resumen={resumen} />}
+          <CarritoResumenCard resumen={carritoResumen} onPress={() => router.push('/carrito')} />
           {recetasRecomendadas && <RecetasRecomendadasCard />}
-          {carritoResumen && <CarritoResumenCard />}
           {estadisticas && <EstadisticasCard estadisticas={estadisticas} />}
         </ScrollView>
       )}

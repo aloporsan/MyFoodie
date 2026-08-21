@@ -1,23 +1,31 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
 
-const getBaseUrl = (): string => {
+const getServerHost = (): string => {
   const env = process.env.EXPO_PUBLIC_API_BASE_URL;
-  if (env) return env;
+  if (env) return env.replace(/\/api\/?$/, '');
 
   const hostUri = Constants.expoConfig?.hostUri;
   if (hostUri) {
     const host = hostUri.split(':')[0];
     if (host && host !== 'localhost' && host !== '127.0.0.1') {
-      return `http://${host}:8080/api`;
+      return `http://${host}:8080`;
     }
   }
 
-  return 'http://localhost:8080/api';
+  return 'http://localhost:8080';
 };
 
+/**
+ * Host del backend sin el prefijo /api, para resolver recursos estáticos
+ * (p. ej. imágenes servidas desde backend/src/main/resources/static).
+ * Usa la misma detección de IP que el cliente HTTP, para que funcione
+ * igual da igual la red Wi-Fi en la que esté el dispositivo.
+ */
+export const getServerBaseUrl = (): string => getServerHost();
+
 export const apiClient = axios.create({
-  baseURL: getBaseUrl(),
+  baseURL: `${getServerHost()}/api`,
   timeout: 10000,
 });
 

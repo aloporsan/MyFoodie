@@ -16,6 +16,7 @@ public record RecetaResponseDTO(
         List<String> etiquetas,
         String imagenUrl,
         String estado,
+        Integer numPersonas,
         List<IngredienteResponseDTO> ingredientes,
         List<PasoResponseDTO> pasos,
         LocalDateTime createdAt,

@@ -33,6 +33,9 @@ public class Receta {
     private String imagenUrl;
 
     @Builder.Default
+    private Integer numPersonas = 2;
+
+    @Builder.Default
     private String estado = "borrador";
 
     @Builder.Default

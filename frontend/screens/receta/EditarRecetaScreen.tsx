@@ -28,6 +28,7 @@ import {
 import { showConfirm } from '@/hooks/useConfirm';
 import { IngredienteInput, PasoInput, recetaService } from '@/services/recetaService';
 import { usePerfilStore } from '@/store/perfilStore';
+import { resolveImagenUrl } from '@/utils/media';
 import { useRecetaStore } from '@/store/recetaStore';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
@@ -41,6 +42,7 @@ interface FormBasico {
   tiempoEstimado: string;
   dificultad: string;
   categoria: string;
+  numPersonas: string;
 }
 
 function validarForm(form: FormBasico): Record<string, string> {
@@ -67,7 +69,7 @@ export function EditarRecetaScreen() {
   } = useRecetaStore();
 
   const [form, setForm] = useState<FormBasico>({
-    titulo: '', descripcion: '', tiempoEstimado: '', dificultad: '', categoria: '',
+    titulo: '', descripcion: '', tiempoEstimado: '', dificultad: '', categoria: '', numPersonas: '2',
   });
   const [etiquetas, setEtiquetas] = useState<string[]>([]);
   const [erroresForm, setErroresForm] = useState<Record<string, string>>({});
@@ -89,6 +91,7 @@ export function EditarRecetaScreen() {
         tiempoEstimado: String(recetaActual.tiempoEstimado),
         dificultad: recetaActual.dificultad,
         categoria: recetaActual.categoria,
+        numPersonas: String(recetaActual.numPersonas ?? 2),
       });
       setEtiquetas(recetaActual.etiquetas ?? []);
     }
@@ -127,6 +130,7 @@ export function EditarRecetaScreen() {
           tiempoEstimado: isNaN(tiempo) ? 0 : tiempo,
           dificultad: nuevoForm.dificultad,
           categoria: nuevoForm.categoria,
+          numPersonas: parseInt(nuevoForm.numPersonas) || 2,
           etiquetas: recetaActual?.etiquetas ?? [],
         });
         useRecetaStore.setState({ recetaActual: actualizada });
@@ -154,6 +158,7 @@ export function EditarRecetaScreen() {
         titulo: form.titulo.trim(), descripcion: form.descripcion.trim(),
         tiempoEstimado: parseInt(form.tiempoEstimado),
         dificultad: form.dificultad, categoria: form.categoria,
+        numPersonas: parseInt(form.numPersonas) || 2,
         etiquetas: recetaActual?.etiquetas ?? [],
       });
       setUltimoGuardado(new Date());
@@ -192,6 +197,7 @@ export function EditarRecetaScreen() {
         tiempoEstimado: parseInt(form.tiempoEstimado),
         dificultad: form.dificultad,
         categoria: form.categoria,
+        numPersonas: parseInt(form.numPersonas) || 2,
         etiquetas: recetaActual?.etiquetas ?? [],
       });
       if (router.canGoBack()) router.back();
@@ -323,7 +329,8 @@ export function EditarRecetaScreen() {
             <FormRecetaBasica
               titulo={form.titulo} descripcion={form.descripcion}
               tiempoEstimado={form.tiempoEstimado} dificultad={form.dificultad}
-              categoria={form.categoria} onChange={handleCambio} errores={erroresForm}
+              categoria={form.categoria} numPersonas={form.numPersonas}
+              onChange={handleCambio} errores={erroresForm}
             />
             <Pressable
               style={[styles.btnSeccion, isLoading && styles.btnDisabled]}
@@ -337,7 +344,7 @@ export function EditarRecetaScreen() {
           <View style={styles.card}>
             <SeccionHeader icono="image-outline" titulo="Imagen de portada" opcional />
             <ImagenReceta
-              imagenUrl={recetaActual?.imagenUrl}
+              imagenUrl={resolveImagenUrl(recetaActual?.imagenUrl)}
               onActualizar={(url) => actualizarImagen(id, url)}
               isLoading={isLoading}
             />

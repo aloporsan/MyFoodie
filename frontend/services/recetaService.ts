@@ -30,6 +30,7 @@ export interface Receta {
   etiquetas: string[];
   imagenUrl?: string;
   estado: EstadoReceta;
+  numPersonas: number;
   totalLikes?: number;
   likeUsuario?: boolean;
   ingredientes: IngredienteReceta[];
@@ -61,6 +62,7 @@ export interface RecetaInput {
   categoria: string;
   etiquetas: string[];
   imagenUrl?: string;
+  numPersonas?: number;
 }
 
 export interface IngredienteInput {
@@ -73,6 +75,20 @@ export interface IngredienteInput {
 export interface PasoInput {
   descripcion: string;
   imagenUrl?: string;
+}
+
+export interface IngredienteConsumo {
+  nombre: string;
+  cantidadCalculada: number;
+  unidad: string;
+  productoEnDespensa: boolean;
+  cantidadDisponible: number;
+  suficiente: boolean;
+}
+
+export interface DescuentoRecetaResponse {
+  descontados: IngredienteConsumo[];
+  noDisponibles: IngredienteConsumo[];
 }
 
 export const recetaService = {
@@ -159,5 +175,21 @@ export const recetaService = {
 
   eliminarGuardado: async (id: string): Promise<void> => {
     await apiClient.delete(`/recetas/${id}/guardar`);
+  },
+
+  marcarRealizada: async (id: string, racionesElaboradas: number): Promise<IngredienteConsumo[]> => {
+    const { data } = await apiClient.post<IngredienteConsumo[]>(
+      `/recetas/${id}/realizada`,
+      { racionesElaboradas }
+    );
+    return data;
+  },
+
+  descontarStock: async (id: string, racionesElaboradas: number): Promise<DescuentoRecetaResponse> => {
+    const { data } = await apiClient.post<DescuentoRecetaResponse>(
+      `/recetas/${id}/descontar-stock`,
+      { racionesElaboradas }
+    );
+    return data;
   },
 };

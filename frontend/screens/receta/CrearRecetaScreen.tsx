@@ -27,6 +27,7 @@ interface FormBasico {
   tiempoEstimado: string;
   dificultad: string;
   categoria: string;
+  numPersonas: string;
 }
 
 const FORM_VACIO: FormBasico = {
@@ -35,6 +36,7 @@ const FORM_VACIO: FormBasico = {
   tiempoEstimado: '',
   dificultad: '',
   categoria: '',
+  numPersonas: '2',
 };
 
 function validarForm(form: FormBasico): Record<string, string> {
@@ -79,6 +81,7 @@ export function CrearRecetaScreen() {
         tiempoEstimado: parseInt(form.tiempoEstimado),
         dificultad: form.dificultad,
         categoria: form.categoria,
+        numPersonas: parseInt(form.numPersonas) || 2,
         etiquetas,
       });
       setForm(FORM_VACIO);
@@ -151,6 +154,7 @@ export function CrearRecetaScreen() {
               tiempoEstimado={form.tiempoEstimado}
               dificultad={form.dificultad}
               categoria={form.categoria}
+              numPersonas={form.numPersonas}
               onChange={handleCambio}
               errores={errores}
             />

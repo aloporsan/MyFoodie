@@ -5,6 +5,7 @@ import com.myfoodie.application.dto.despensa.ProductoFiltroDTO;
 import com.myfoodie.application.dto.despensa.ProductoRequestDTO;
 import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.despensa.ProductoUpdateCantidadDTO;
+import com.myfoodie.application.dto.unidad.UnidadConvertidaDTO;
 import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.MovimientoProducto;
 import com.myfoodie.domain.model.Preferencias;
@@ -14,6 +15,7 @@ import com.myfoodie.domain.repository.MovimientoProductoRepository;
 import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.ProductoRepository;
 import com.myfoodie.exception.ApiException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +33,9 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -42,8 +47,19 @@ class DespensaServiceTest {
     @Mock private ProductoRepository productoRepository;
     @Mock private PreferenciasRepository preferenciasRepository;
     @Mock private MovimientoProductoRepository movimientoRepository;
+    @Mock private CarritoInteligenteService carritoInteligenteService;
+    @Mock private UnidadNormalizadorService unidadNormalizadorService;
+    @Mock private NotificacionService notificacionService;
 
     @InjectMocks private DespensaService despensaService;
+
+    // Por defecto, unidadNormalizadorService devuelve la cantidad/unidad tal cual (comportamiento
+    // real para unidades ya objetivas, que es lo que usan la mayoría de los tests de este archivo).
+    @BeforeEach
+    void configurarNormalizadorPorDefecto() {
+        lenient().when(unidadNormalizadorService.normalizarUnidades(anyDouble(), anyString()))
+                .thenAnswer(inv -> new UnidadConvertidaDTO(inv.getArgument(0), inv.getArgument(1), false));
+    }
 
     // -------------------------------------------------------------------------
     // Helpers
@@ -121,6 +137,32 @@ class DespensaServiceTest {
         assertThat(resultado.posiblesDuplicados().get(0).nombre()).isEqualTo("Leche Entera");
     }
 
+    @Test
+    @DisplayName("añadirProducto normaliza una unidad subjetiva y conserva la unidad original (RF-DESP-019)")
+    void añadirProducto_normalizaUnidadSubjetiva_yConservaUnidadOriginal() {
+        Despensa d = despensa("desp-1", "user-1");
+        ProductoRequestDTO dtoTaza = new ProductoRequestDTO(
+                "Leche", 3, "taza", null, null, null, null, null, null);
+        Producto guardado = Producto.builder()
+                .id("prod-1").despensaId("desp-1").nombre("Leche")
+                .cantidad(750).unidad("ml").unidadOriginal("taza")
+                .build();
+
+        when(unidadNormalizadorService.normalizarUnidades(3, "taza"))
+                .thenReturn(new UnidadConvertidaDTO(750, "ml", true));
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaIdAndNombreContainingIgnoreCase("desp-1", "Leche"))
+                .thenReturn(List.of());
+        when(productoRepository.save(any(Producto.class))).thenReturn(guardado);
+        when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
+
+        ProductoResponseDTO resultado = despensaService.añadirProducto("user-1", dtoTaza);
+
+        assertThat(resultado.cantidad()).isEqualTo(750);
+        assertThat(resultado.unidad()).isEqualTo("ml");
+        assertThat(resultado.unidadOriginal()).isEqualTo("taza");
+    }
+
     // -------------------------------------------------------------------------
     // listarProductos — cálculo de estado
     // -------------------------------------------------------------------------
@@ -179,6 +221,111 @@ class DespensaServiceTest {
         List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
 
         assertThat(lista.get(0).estado()).isEqualTo("normal");
+    }
+
+    @Test
+    @DisplayName("calcularEstado devuelve 'bajoStock' aunque la fecha de caducidad sea lejana (>30 días)")
+    void listarProductos_calculaEstado_bajoStock_con_fechaCaducidad_lejana() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p = producto("p-1", "desp-1", "Arroz", 1, LocalDate.now().plusDays(31));
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista.get(0).estado()).isEqualTo("bajoStock");
+    }
+
+    // -------------------------------------------------------------------------
+    // RF-DESP-018 — Jerarquía de alertas de estado (#160)
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("calcularEstado devuelve 'sin_stock' cuando cantidad es 0, aunque no esté caducado")
+    void estado_sin_stock_cuando_cantidad_es_cero_aunque_no_caducado() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p = producto("p-1", "desp-1", "Leche", 0, LocalDate.now().plusDays(20));
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista.get(0).estado()).isEqualTo("sin_stock");
+    }
+
+    @Test
+    @DisplayName("calcularEstado devuelve 'sin_stock' con prioridad sobre 'caducado' cuando cantidad es 0")
+    void estado_sin_stock_tiene_prioridad_sobre_caducado() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p = producto("p-1", "desp-1", "Yogur", 0, LocalDate.now().minusDays(5));
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista.get(0).estado()).isEqualTo("sin_stock");
+    }
+
+    @Test
+    @DisplayName("calcularEstado devuelve 'sin_stock' con prioridad sobre 'caduca_hoy' cuando cantidad es 0")
+    void estado_sin_stock_tiene_prioridad_sobre_caduca_hoy() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p = producto("p-1", "desp-1", "Fresas", 0, LocalDate.now());
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista.get(0).estado()).isEqualTo("sin_stock");
+    }
+
+    @Test
+    @DisplayName("calcularEstado devuelve 'caducado' cuando la cantidad es positiva y la fecha ya pasó")
+    void estado_caducado_cuando_cantidad_positiva_y_fecha_pasada() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto p = producto("p-1", "desp-1", "Queso", 2, LocalDate.now().minusDays(1));
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(p));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(lista.get(0).estado()).isEqualTo("caducado");
+    }
+
+    @Test
+    @DisplayName("la jerarquía respeta el orden correcto de prioridades: sin_stock > caducado > caduca_hoy > "
+            + "caduca_pronto > bajoStock > caduca_semana > caduca_mes > normal")
+    void jerarquia_respeta_orden_correcto_de_prioridades() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto sinStock    = producto("p-1", "desp-1", "SinStock", 0, null);
+        Producto caducado    = producto("p-2", "desp-1", "Caducado", 2, LocalDate.now().minusDays(1));
+        Producto caducaHoy   = producto("p-3", "desp-1", "CaducaHoy", 2, LocalDate.now());
+        Producto caducaPronto = producto("p-4", "desp-1", "CaducaPronto", 2, LocalDate.now().plusDays(2));
+        // cantidad=1 <= umbral por defecto (1), fecha lejana: bajoStock tiene prioridad sobre caduca_mes
+        Producto bajoStock   = producto("p-5", "desp-1", "BajoStock", 1, LocalDate.now().plusDays(10));
+        Producto caducaSemana = producto("p-6", "desp-1", "CaducaSemana", 5, LocalDate.now().plusDays(5));
+        Producto caducaMes   = producto("p-7", "desp-1", "CaducaMes", 5, LocalDate.now().plusDays(20));
+        Producto normal      = producto("p-8", "desp-1", "Normal", 5, LocalDate.now().plusDays(40));
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(
+                sinStock, caducado, caducaHoy, caducaPronto, bajoStock, caducaSemana, caducaMes, normal));
+
+        List<ProductoResponseDTO> lista = despensaService.listarProductos("user-1");
+
+        assertThat(porNombre(lista, "SinStock").estado()).isEqualTo("sin_stock");
+        assertThat(porNombre(lista, "Caducado").estado()).isEqualTo("caducado");
+        assertThat(porNombre(lista, "CaducaHoy").estado()).isEqualTo("caduca_hoy");
+        assertThat(porNombre(lista, "CaducaPronto").estado()).isEqualTo("caduca_pronto");
+        assertThat(porNombre(lista, "BajoStock").estado()).isEqualTo("bajoStock");
+        assertThat(porNombre(lista, "CaducaSemana").estado()).isEqualTo("caduca_semana");
+        assertThat(porNombre(lista, "CaducaMes").estado()).isEqualTo("caduca_mes");
+        assertThat(porNombre(lista, "Normal").estado()).isEqualTo("normal");
     }
 
     // -------------------------------------------------------------------------
@@ -283,7 +430,7 @@ class DespensaServiceTest {
         when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
 
         ProductoResponseDTO resultado = despensaService.actualizarCantidad(
-                "user-1", "prod-1", new ProductoUpdateCantidadDTO(2.0, null, null));
+                "user-1", "prod-1", new ProductoUpdateCantidadDTO(2.0, null, null, null));
 
         assertThat(resultado.cantidad()).isEqualTo(5.0);
     }
@@ -300,26 +447,26 @@ class DespensaServiceTest {
         when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
 
         ProductoResponseDTO resultado = despensaService.actualizarCantidad(
-                "user-1", "prod-1", new ProductoUpdateCantidadDTO(-1.0, null, null));
+                "user-1", "prod-1", new ProductoUpdateCantidadDTO(-1.0, null, null, null));
 
         assertThat(resultado.cantidad()).isEqualTo(2.0);
     }
 
     @Test
-    @DisplayName("actualizarCantidad clampea a 0 si el resultado sería negativo")
-    void actualizarCantidad_clampea_a_cero_siResultadoNegativo() {
+    @DisplayName("actualizarCantidad lanza 400 si el resultado sería negativo")
+    void actualizarCantidad_falla_siResultadoSeriaNegativo() {
         Despensa d = despensa("desp-1", "user-1");
         Producto p = producto("prod-1", "desp-1", "Sal", 1, null);
 
         when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
         when(productoRepository.findByDespensaIdAndId("desp-1", "prod-1")).thenReturn(Optional.of(p));
-        when(productoRepository.save(any(Producto.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
 
-        ProductoResponseDTO resultado = despensaService.actualizarCantidad(
-                "user-1", "prod-1", new ProductoUpdateCantidadDTO(-99.0, null, null));
-
-        assertThat(resultado.cantidad()).isEqualTo(0.0);
+        assertThatThrownBy(() -> despensaService.actualizarCantidad(
+                "user-1", "prod-1", new ProductoUpdateCantidadDTO(-99.0, null, null, null)))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("La cantidad no puede ser negativa")
+                .satisfies(ex -> assertThat(((ApiException) ex).getStatus())
+                        .isEqualTo(HttpStatus.BAD_REQUEST));
     }
 
     @Test
@@ -334,7 +481,7 @@ class DespensaServiceTest {
         when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
 
         despensaService.actualizarCantidad("user-1", "prod-1",
-                new ProductoUpdateCantidadDTO(-1.0, "consumido", null));
+                new ProductoUpdateCantidadDTO(-1.0, "consumido", null, null));
 
         ArgumentCaptor<MovimientoProducto> captor = ArgumentCaptor.forClass(MovimientoProducto.class);
         verify(movimientoRepository).save(captor.capture());
@@ -359,7 +506,7 @@ class DespensaServiceTest {
         when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
 
         despensaService.actualizarCantidad("user-1", "prod-1",
-                new ProductoUpdateCantidadDTO(2.0, null, null));
+                new ProductoUpdateCantidadDTO(2.0, null, null, null));
 
         ArgumentCaptor<MovimientoProducto> captor = ArgumentCaptor.forClass(MovimientoProducto.class);
         verify(movimientoRepository).save(captor.capture());
@@ -503,7 +650,7 @@ class DespensaServiceTest {
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> despensaService.actualizarCantidad(
-                "user-1", "no-existe", new ProductoUpdateCantidadDTO(1.0, null, null)))
+                "user-1", "no-existe", new ProductoUpdateCantidadDTO(1.0, null, null, null)))
                 .isInstanceOf(ApiException.class)
                 .hasMessage("Producto no encontrado")
                 .satisfies(ex -> assertThat(((ApiException) ex).getStatus())
@@ -641,6 +788,28 @@ class DespensaServiceTest {
 
         assertThat(lista.get(0).estado()).isEqualTo("normal");
         assertThat(lista.get(0).alertaCompra()).isFalse();
+    }
+
+    @Test
+    @DisplayName("añadirProducto acepta y persiste stockMinimo=0 (FIX-006)")
+    void stockMinimo_aceptaValorCero_yLoPersiste() {
+        Despensa d = despensa("desp-1", "user-1");
+        ProductoRequestDTO dto = new ProductoRequestDTO(
+                "Sal", 5, "kg", null, null, null, null, null, 0);
+        Producto guardado = Producto.builder()
+                .id("prod-1").despensaId("desp-1").nombre("Sal").cantidad(5).unidad("kg")
+                .stockMinimo(0)
+                .build();
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaIdAndNombreContainingIgnoreCase("desp-1", "Sal"))
+                .thenReturn(List.of());
+        when(productoRepository.save(any(Producto.class))).thenReturn(guardado);
+        when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
+
+        ProductoResponseDTO resultado = despensaService.añadirProducto("user-1", dto);
+
+        assertThat(resultado.stockMinimo()).isEqualTo(0);
     }
 
     // -------------------------------------------------------------------------

@@ -6,6 +6,7 @@ import com.myfoodie.application.dto.despensa.ProductoFiltroDTO;
 import com.myfoodie.application.dto.despensa.ProductoRequestDTO;
 import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.despensa.ProductoUpdateCantidadDTO;
+import com.myfoodie.application.dto.unidad.UnidadConvertidaDTO;
 import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.MovimientoProducto;
 import com.myfoodie.domain.model.Preferencias;
@@ -39,6 +40,9 @@ public class DespensaService {
     private final ProductoRepository productoRepository;
     private final PreferenciasRepository preferenciasRepository;
     private final MovimientoProductoRepository movimientoRepository;
+    private final CarritoInteligenteService carritoInteligenteService;
+    private final UnidadNormalizadorService unidadNormalizadorService;
+    private final NotificacionService notificacionService;
 
     // -------------------------------------------------------------------------
     // CRUD básico
@@ -51,11 +55,14 @@ public class DespensaService {
         List<Producto> similares = productoRepository
                 .findByDespensaIdAndNombreContainingIgnoreCase(despensa.getId(), dto.nombre().trim());
 
+        UnidadConvertidaDTO normalizado = unidadNormalizadorService.normalizarUnidades(dto.cantidad(), dto.unidad());
+
         Producto producto = Producto.builder()
                 .despensaId(despensa.getId())
                 .nombre(dto.nombre())
-                .cantidad(dto.cantidad())
-                .unidad(dto.unidad())
+                .cantidad(normalizado.cantidadConvertida())
+                .unidad(normalizado.unidadConvertida())
+                .unidadOriginal(dto.unidad())
                 .categoria(dto.categoria())
                 .fechaCaducidad(dto.fechaCaducidad())
                 .fechaCompra(dto.fechaCompra())
@@ -68,6 +75,8 @@ public class DespensaService {
         actualizarDespensa(despensa);
         registrarMovimiento(saved, usuarioId, "añadido", "Producto añadido a la despensa",
                 null, saved.getCantidad(), null, null);
+        carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
+        notificacionService.generarNotificacionesCaducidad(usuarioId);
 
         List<ProductoResponseDTO> duplicados = similares.stream()
                 .map(p -> toDTO(p, null, resolverUmbral(p, globalUmbral)))
@@ -118,6 +127,7 @@ public class DespensaService {
         actualizarDespensa(despensa);
         registrarMovimiento(saved, usuarioId, "editado", "Producto actualizado",
                 null, null, null, null);
+        carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
         return toDTO(saved, null, resolverUmbral(saved, globalUmbral));
     }
 
@@ -130,23 +140,38 @@ public class DespensaService {
                 p.getCantidad(), null, motivo, motivoDetalle);
         productoRepository.delete(p);
         actualizarDespensa(despensa);
+        carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
     }
 
     public ProductoResponseDTO actualizarCantidad(String usuarioId, String productoId,
                                                    ProductoUpdateCantidadDTO dto) {
+        return actualizarCantidad(usuarioId, productoId, dto, true);
+    }
+
+    // actualizarCarrito=false evita disparar N regeneraciones async en paralelo cuando el llamante itera varios productos
+    public ProductoResponseDTO actualizarCantidad(String usuarioId, String productoId,
+                                                   ProductoUpdateCantidadDTO dto, boolean actualizarCarrito) {
         Despensa despensa = getDespensaDeUsuario(usuarioId);
         int globalUmbral = obtenerGlobalUmbral(usuarioId);
         Producto p = getProductoDeUsuario(despensa.getId(), productoId);
 
         double cantidadAnterior = p.getCantidad();
-        double nuevaCantidad = Math.max(0, cantidadAnterior + dto.delta());
+        double nuevaCantidad = cantidadAnterior + dto.delta();
+        if (nuevaCantidad < 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "La cantidad no puede ser negativa");
+        }
         p.setCantidad(nuevaCantidad);
         p.setUpdatedAt(LocalDateTime.now());
 
         Producto saved = productoRepository.save(p);
         actualizarDespensa(despensa);
-        registrarMovimiento(saved, usuarioId, "cantidad_actualizada", "Cantidad actualizada",
+        String descripcion = dto.descripcion() != null ? dto.descripcion() : "Cantidad actualizada";
+        registrarMovimiento(saved, usuarioId, "cantidad_actualizada", descripcion,
                 cantidadAnterior, nuevaCantidad, dto.motivo(), dto.motivoDetalle());
+        if (actualizarCarrito) {
+            carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
+            notificacionService.generarNotificacionesCaducidad(usuarioId);
+        }
         return toDTO(saved, null, resolverUmbral(saved, globalUmbral));
     }
 
@@ -243,6 +268,7 @@ public class DespensaService {
                 .productoId(p.getId())
                 .despensaId(p.getDespensaId())
                 .usuarioId(usuarioId)
+                .nombre(p.getNombre())
                 .tipo(tipo)
                 .descripcion(descripcion)
                 .cantidadAnterior(cantidadAnterior)
@@ -265,16 +291,20 @@ public class DespensaService {
     }
 
     String calcularEstado(Producto p, int umbral) {
-        if (p.getFechaCaducidad() != null) {
-            long dias = ChronoUnit.DAYS.between(LocalDate.now(), p.getFechaCaducidad());
-            if (dias < 0)   return "caducado";
-            if (dias == 0)  return "caduca_hoy";
-            if (dias <= 3)  return "caduca_pronto";
-            if (dias <= 7)  return "caduca_semana";
-            if (dias <= 30) return "caduca_mes";
-            return "normal";
+        if (p.getCantidad() <= 0) {
+            return "sin_stock";
         }
+
+        Long dias = p.getFechaCaducidad() != null
+                ? ChronoUnit.DAYS.between(LocalDate.now(), p.getFechaCaducidad())
+                : null;
+
+        if (dias != null && dias < 0)  return "caducado";
+        if (dias != null && dias == 0) return "caduca_hoy";
+        if (dias != null && dias <= 3) return "caduca_pronto";
         if (p.getCantidad() <= umbral) return "bajoStock";
+        if (dias != null && dias <= 7)  return "caduca_semana";
+        if (dias != null && dias <= 30) return "caduca_mes";
         return "normal";
     }
 
@@ -291,6 +321,7 @@ public class DespensaService {
                 p.getNombre(),
                 p.getCantidad(),
                 p.getUnidad(),
+                p.getUnidadOriginal(),
                 p.getCategoria(),
                 p.getFechaCaducidad(),
                 p.getFechaCompra(),

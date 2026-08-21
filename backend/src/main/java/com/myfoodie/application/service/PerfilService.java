@@ -1,5 +1,6 @@
 package com.myfoodie.application.service;
 
+import com.myfoodie.application.dto.notificacion.PreferenciasNotificacionDTO;
 import com.myfoodie.application.dto.perfil.EliminarCuentaDTO;
 import com.myfoodie.application.dto.perfil.EstadisticasPerfilDTO;
 import com.myfoodie.application.dto.perfil.PerfilResponseDTO;
@@ -9,6 +10,8 @@ import com.myfoodie.application.dto.perfil.PrivacidadUpdateDTO;
 import com.myfoodie.domain.model.ConfiguracionPrivacidad;
 import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.Preferencias;
+import com.myfoodie.domain.model.PreferenciasNotificacion;
+import com.myfoodie.domain.model.Privacidad;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.DespensaRepository;
@@ -87,12 +90,43 @@ public class PerfilService {
         return toPreferenciasDTO(preferenciasRepository.save(pref));
     }
 
+    public PreferenciasNotificacionDTO obtenerPreferenciasNotificacion(String usuarioId) {
+        Preferencias pref = preferenciasRepository.findByUsuarioId(usuarioId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Preferencias no encontradas"));
+        return toPreferenciasNotificacionDTO(pref.getPreferenciasNotificacion());
+    }
+
+    public PreferenciasNotificacionDTO actualizarPreferenciasNotificacion(String usuarioId,
+                                                                            PreferenciasNotificacionDTO dto) {
+        Preferencias pref = preferenciasRepository.findByUsuarioId(usuarioId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Preferencias no encontradas"));
+
+        PreferenciasNotificacion actual = pref.getPreferenciasNotificacion();
+        if (dto.notificarNuevoSeguidor() != null) actual.setNotificarNuevoSeguidor(dto.notificarNuevoSeguidor());
+        if (dto.notificarSolicitudSeguimiento() != null) {
+            actual.setNotificarSolicitudSeguimiento(dto.notificarSolicitudSeguimiento());
+        }
+        if (dto.notificarLikes() != null) actual.setNotificarLikes(dto.notificarLikes());
+        if (dto.notificarComentarios() != null) actual.setNotificarComentarios(dto.notificarComentarios());
+        if (dto.notificarRecetasCompartidas() != null) {
+            actual.setNotificarRecetasCompartidas(dto.notificarRecetasCompartidas());
+        }
+        if (dto.notificarCaducidades() != null) actual.setNotificarCaducidades(dto.notificarCaducidades());
+        if (dto.notificarCarrito() != null) actual.setNotificarCarrito(dto.notificarCarrito());
+
+        pref.setPreferenciasNotificacion(actual);
+        return toPreferenciasNotificacionDTO(preferenciasRepository.save(pref).getPreferenciasNotificacion());
+    }
+
     public void actualizarPrivacidad(String usuarioId, PrivacidadUpdateDTO dto) {
         Usuario usuario = usuarioRepository.findById(usuarioId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
 
         ConfiguracionPrivacidad cfg = usuario.getConfiguracionPrivacidad();
-        if (dto.perfilPublico() != null) cfg.setPerfilPublico(dto.perfilPublico());
+        if (dto.perfilPublico() != null) {
+            cfg.setPerfilPublico(dto.perfilPublico());
+            usuario.setPrivacidad(dto.perfilPublico() ? Privacidad.PUBLICA : Privacidad.PRIVADA);
+        }
         if (dto.mostrarRecetas() != null) cfg.setMostrarRecetas(dto.mostrarRecetas());
         if (dto.mostrarEstadisticas() != null) cfg.setMostrarEstadisticas(dto.mostrarEstadisticas());
         if (dto.permitirMensajes() != null) cfg.setPermitirMensajes(dto.permitirMensajes());
@@ -204,6 +238,18 @@ public class PerfilService {
                 pref.getNivelDificultad(),
                 pref.getTiempoCoccionMax(),
                 pref.getStockMinimoGlobal()
+        );
+    }
+
+    private PreferenciasNotificacionDTO toPreferenciasNotificacionDTO(PreferenciasNotificacion pref) {
+        return new PreferenciasNotificacionDTO(
+                pref.isNotificarNuevoSeguidor(),
+                pref.isNotificarSolicitudSeguimiento(),
+                pref.isNotificarLikes(),
+                pref.isNotificarComentarios(),
+                pref.isNotificarRecetasCompartidas(),
+                pref.isNotificarCaducidades(),
+                pref.isNotificarCarrito()
         );
     }
 }
