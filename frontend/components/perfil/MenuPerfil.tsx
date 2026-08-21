@@ -5,7 +5,6 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { showConfirm } from '@/hooks/useConfirm';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
 import { useAuthStore } from '@/store/authStore';
-import { useNotificacionStore } from '@/store/notificacionStore';
 import { usePerfilStore } from '@/store/perfilStore';
 
 interface MenuItem {
@@ -21,7 +20,6 @@ export function MenuPerfil() {
   const router = useRouter();
   const logout = useAuthStore((s) => s.logout);
   const { cerrarSesion, eliminarCuenta, reset } = usePerfilStore();
-  const contadorNotificaciones = useNotificacionStore((s) => s.contadorNoLeidas);
 
   const handleCerrarSesion = () => {
     showConfirm(
@@ -109,12 +107,6 @@ export function MenuPerfil() {
       iconoMaterial: 'chef-hat',
       label: 'Mis gustos culinarios',
       onPress: () => router.push('/perfil/gustos'),
-    },
-    {
-      icono: 'notifications-outline',
-      label: 'Notificaciones',
-      onPress: () => router.push('/notificaciones'),
-      badge: contadorNotificaciones,
     },
     {
       icono: 'options-outline',

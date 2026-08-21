@@ -25,7 +25,7 @@ interface NotificacionActions {
   cargarContador: () => Promise<void>;
   marcarComoLeida: (id: string) => Promise<void>;
   marcarTodasComoLeidas: () => Promise<void>;
-  eliminarNotificacion: (id: string) => Promise<void>;
+  eliminarNotificacion: (id: string) => void;
   registrarPushToken: (token: string) => Promise<void>;
   cargarPreferenciasNotificacion: () => Promise<void>;
   actualizarPreferenciasNotificacion: (datos: Partial<PreferenciasNotificacion>) => Promise<void>;
@@ -121,18 +121,27 @@ export const useNotificacionStore = create<NotificacionState & NotificacionActio
       }
     },
 
-    eliminarNotificacion: async (id) => {
-      set({ error: null });
-      try {
-        await notificacionService.eliminarNotificacion(id);
-        set((s) => ({
-          notificaciones: s.notificaciones.filter((n) => n.id !== id),
-        }));
-        await get().cargarContador();
-      } catch (e) {
-        set({ error: handleApiError(e) });
-        throw e;
-      }
+    eliminarNotificacion: (id) => {
+      const snapshotNotificaciones = get().notificaciones;
+      const snapshotContador = get().contadorNoLeidas;
+      const eliminada = snapshotNotificaciones.find((n) => n.id === id);
+      if (!eliminada) return;
+
+      // Actualización optimista: refleja el borrado al instante, sin esperar la red.
+      set({
+        error: null,
+        notificaciones: snapshotNotificaciones.filter((n) => n.id !== id),
+        contadorNoLeidas: eliminada.leida ? snapshotContador : Math.max(0, snapshotContador - 1),
+      });
+
+      notificacionService.eliminarNotificacion(id).catch((e) => {
+        // Revierte la actualización optimista si la petición falla.
+        set({
+          error: handleApiError(e),
+          notificaciones: snapshotNotificaciones,
+          contadorNoLeidas: snapshotContador,
+        });
+      });
     },
 
     registrarPushToken: async (token) => {

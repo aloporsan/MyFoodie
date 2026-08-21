@@ -1,11 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import type { Notificacion } from '@/services/notificacionService';
 import { useNotificacionStore } from '@/store/notificacionStore';
 import { navegarSegunNotificacion } from '@/utils/notificacionesConfig';
 import { borderRadius, colors, spacing, typography } from '@/theme';
+
+const UMBRAL_SWIPE = 80;
+const DURACION_SALIDA = 200;
 
 const ICONO_POR_TIPO: Partial<Record<string, keyof typeof Ionicons.glyphMap>> = {
   nuevo_seguidor: 'person-add',
@@ -42,6 +52,8 @@ export function NotificacionItem({ notificacion }: Props) {
   const marcarComoLeida = useNotificacionStore((s) => s.marcarComoLeida);
   const eliminarNotificacion = useNotificacionStore((s) => s.eliminarNotificacion);
 
+  const translateX = useSharedValue(0);
+
   const handlePress = async () => {
     if (!notificacion.leida) {
       try {
@@ -59,69 +71,107 @@ export function NotificacionItem({ notificacion }: Props) {
   };
 
   const handleEliminar = () => {
-    eliminarNotificacion(notificacion.id).catch(() => {});
+    // El store borra de forma optimista (no espera a la red), la animación
+    // de salida solo controla cuándo desaparece visualmente de la lista.
+    setTimeout(() => eliminarNotificacion(notificacion.id), DURACION_SALIDA);
   };
 
+  // activeOffsetX deja pasar el gesto vertical a la lista mientras no haya
+  // un desplazamiento horizontal claro (mismo patrón que ItemCarritoCard).
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-10, 10])
+    .onUpdate((event) => {
+      translateX.value = Math.min(0, event.translationX);
+    })
+    .onEnd((event) => {
+      if (event.translationX < -UMBRAL_SWIPE) {
+        translateX.value = withTiming(-500, { duration: DURACION_SALIDA });
+        runOnJS(handleEliminar)();
+      } else {
+        translateX.value = withSpring(0);
+      }
+    });
+
+  const cardAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const overlayEliminarStyle = useAnimatedStyle(() => ({
+    opacity: Math.min(-translateX.value / UMBRAL_SWIPE, 1),
+  }));
+
   return (
-    <Swipeable
-      renderRightActions={() => (
-        <Pressable
-          style={styles.eliminarOverlay}
-          onPress={handleEliminar}
-          testID="btn-eliminar-notificacion"
+    <GestureDetector gesture={panGesture}>
+      <View style={styles.wrapper}>
+        <Animated.View
+          style={[styles.overlayEliminar, overlayEliminarStyle]}
+          pointerEvents="none"
+          testID="overlay-eliminar-notificacion"
         >
           <Ionicons name="trash-outline" size={22} color={colors.white} />
-        </Pressable>
-      )}
-      overshootRight={false}
-    >
-      <Pressable
-        style={[styles.container, !notificacion.leida && styles.containerNoLeida]}
-        onPress={handlePress}
-        testID="notificacion-item"
-      >
-        {notificacion.emisor ? (
-          notificacion.emisor.fotoPerfil ? (
-            <Image
-              source={{ uri: notificacion.emisor.fotoPerfil }}
-              style={styles.avatar}
-              contentFit="cover"
-            />
-          ) : (
-            <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <Ionicons name="person" size={18} color={colors.white} />
-            </View>
-          )
-        ) : (
-          <View style={[styles.avatar, styles.iconoSistema]}>
-            <Ionicons
-              name={ICONO_POR_TIPO[notificacion.tipo] ?? 'notifications'}
-              size={18}
-              color={colors.white}
-            />
-          </View>
-        )}
+        </Animated.View>
 
-        <View style={styles.contenido}>
-          <Text
-            style={[styles.titulo, !notificacion.leida && styles.tituloNoLeida]}
-            numberOfLines={2}
+        <Animated.View style={cardAnimStyle}>
+          <Pressable
+            style={[styles.container, !notificacion.leida && styles.containerNoLeida]}
+            onPress={handlePress}
+            testID="notificacion-item"
           >
-            {notificacion.titulo}
-          </Text>
-          <Text style={styles.cuerpo} numberOfLines={2}>
-            {notificacion.cuerpo}
-          </Text>
-          <Text style={styles.fecha}>{formatearFechaRelativa(notificacion.createdAt)}</Text>
-        </View>
+            {notificacion.emisor ? (
+              notificacion.emisor.fotoPerfil ? (
+                <Image
+                  source={{ uri: notificacion.emisor.fotoPerfil }}
+                  style={styles.avatar}
+                  contentFit="cover"
+                />
+              ) : (
+                <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                  <Ionicons name="person" size={18} color={colors.white} />
+                </View>
+              )
+            ) : (
+              <View style={[styles.avatar, styles.iconoSistema]}>
+                <Ionicons
+                  name={ICONO_POR_TIPO[notificacion.tipo] ?? 'notifications'}
+                  size={18}
+                  color={colors.white}
+                />
+              </View>
+            )}
 
-        {!notificacion.leida && <View style={styles.puntoNoLeida} testID="punto-no-leida" />}
-      </Pressable>
-    </Swipeable>
+            <View style={styles.contenido}>
+              <Text
+                style={[styles.titulo, !notificacion.leida && styles.tituloNoLeida]}
+                numberOfLines={2}
+              >
+                {notificacion.titulo}
+              </Text>
+              <Text style={styles.cuerpo} numberOfLines={2}>
+                {notificacion.cuerpo}
+              </Text>
+              <Text style={styles.fecha}>{formatearFechaRelativa(notificacion.createdAt)}</Text>
+            </View>
+
+            {!notificacion.leida && <View style={styles.puntoNoLeida} testID="punto-no-leida" />}
+          </Pressable>
+        </Animated.View>
+      </View>
+    </GestureDetector>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    overflow: 'hidden',
+  },
+  overlayEliminar: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.error,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingRight: spacing.lg,
+  },
   container: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -173,11 +223,5 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     backgroundColor: colors.primary,
     marginTop: 6,
-  },
-  eliminarOverlay: {
-    width: 72,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.error,
   },
 });

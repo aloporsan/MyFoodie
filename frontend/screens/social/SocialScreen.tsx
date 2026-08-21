@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCompartirStore } from '@/store/compartirStore';
+import { useNotificacionStore } from '@/store/notificacionStore';
 import { useSocialStore } from '@/store/socialStore';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
 
@@ -22,13 +23,22 @@ export function SocialScreen() {
   const cargarSolicitudes = useSocialStore((s) => s.cargarSolicitudes);
   const contadorNoLeidas = useCompartirStore((s) => s.contadorNoLeidas);
   const cargarContador = useCompartirStore((s) => s.cargarContador);
+  const contadorNotificaciones = useNotificacionStore((s) => s.contadorNoLeidas);
+  const cargarContadorNotificaciones = useNotificacionStore((s) => s.cargarContador);
 
   useEffect(() => {
     cargarSolicitudes();
     cargarContador();
+    cargarContadorNotificaciones();
   }, []);
 
   const items: MenuItem[] = [
+    {
+      icono: 'notifications-outline',
+      label: 'Notificaciones',
+      onPress: () => router.push('/notificaciones'),
+      badge: contadorNotificaciones,
+    },
     {
       icono: 'person-add-outline',
       label: 'Solicitudes de seguimiento',

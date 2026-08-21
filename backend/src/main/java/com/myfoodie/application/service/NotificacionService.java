@@ -272,12 +272,19 @@ public class NotificacionService {
                                 u.getId(), u.getNombre(), u.getNombreUsuario(), u.getFotoPerfil()))
                         .orElse(null);
 
+        String titulo = notificacion.getTitulo() != null ? notificacion.getTitulo()
+                : resolverTitulo(notificacion.getTipo(), notificacion.getEmisorId(),
+                        notificacion.getReferenciaId(), notificacion.getReferenciaType());
+        String cuerpo = notificacion.getCuerpo() != null ? notificacion.getCuerpo()
+                : resolverCuerpo(notificacion.getTipo(), notificacion.getEmisorId(),
+                        notificacion.getReferenciaId(), notificacion.getReferenciaType());
+
         return new NotificacionResponseDTO(
                 notificacion.getId(),
                 notificacion.getTipo(),
                 emisor,
-                notificacion.getTitulo(),
-                notificacion.getCuerpo(),
+                titulo,
+                cuerpo,
                 Boolean.TRUE.equals(notificacion.getLeida()),
                 notificacion.getReferenciaId(),
                 notificacion.getReferenciaType(),
