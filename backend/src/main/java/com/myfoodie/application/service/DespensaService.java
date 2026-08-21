@@ -42,6 +42,7 @@ public class DespensaService {
     private final MovimientoProductoRepository movimientoRepository;
     private final CarritoInteligenteService carritoInteligenteService;
     private final UnidadNormalizadorService unidadNormalizadorService;
+    private final NotificacionService notificacionService;
 
     // -------------------------------------------------------------------------
     // CRUD básico
@@ -75,6 +76,7 @@ public class DespensaService {
         registrarMovimiento(saved, usuarioId, "añadido", "Producto añadido a la despensa",
                 null, saved.getCantidad(), null, null);
         carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
+        notificacionService.generarNotificacionesCaducidad(usuarioId);
 
         List<ProductoResponseDTO> duplicados = similares.stream()
                 .map(p -> toDTO(p, null, resolverUmbral(p, globalUmbral)))
@@ -168,6 +170,7 @@ public class DespensaService {
                 cantidadAnterior, nuevaCantidad, dto.motivo(), dto.motivoDetalle());
         if (actualizarCarrito) {
             carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
+            notificacionService.generarNotificacionesCaducidad(usuarioId);
         }
         return toDTO(saved, null, resolverUmbral(saved, globalUmbral));
     }

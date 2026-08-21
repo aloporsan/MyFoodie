@@ -1,0 +1,509 @@
+{
+  "info": {
+    "name": "MyFoodie — Notificaciones API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",          "value": "http://localhost:8080" },
+    { "key": "tokenA",           "value": "" },
+    { "key": "tokenB",           "value": "" },
+    { "key": "tokenC",           "value": "" },
+    { "key": "idA",              "value": "" },
+    { "key": "idB",              "value": "" },
+    { "key": "idC",              "value": "" },
+    { "key": "recetaId",         "value": "" },
+    { "key": "notificacionId1",  "value": "" },
+    { "key": "notificacionId2",  "value": "" },
+    { "key": "hoyISO",           "value": "" }
+  ],
+  "item": [
+    {
+      "name": "🔧 Setup",
+      "item": [
+        {
+          "name": "Registrar usuario A (receptor)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201 o 409 (ya existe)', () => pm.expect([201, 409]).to.include(pm.response.code));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Notif Alpha\",\n  \"nombreUsuario\": \"notifalpha\",\n  \"email\": \"notif_alpha@test.com\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Registrar usuario B (emisor)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201 o 409 (ya existe)', () => pm.expect([201, 409]).to.include(pm.response.code));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Notif Bravo\",\n  \"nombreUsuario\": \"notifbravo\",\n  \"email\": \"notif_bravo@test.com\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Registrar usuario C (segundo seguidor)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201 o 409 (ya existe)', () => pm.expect([201, 409]).to.include(pm.response.code));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Notif Charlie\",\n  \"nombreUsuario\": \"notifcharlie\",\n  \"email\": \"notif_charlie@test.com\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Login A",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "if (json.token) pm.collectionVariables.set('tokenA', json.token);",
+            "if (json.userId) pm.collectionVariables.set('idA', json.userId);",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Tiene token', () => pm.expect(json.token).to.not.be.empty);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"notif_alpha@test.com\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Login B",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "if (json.token) pm.collectionVariables.set('tokenB', json.token);",
+            "if (json.userId) pm.collectionVariables.set('idB', json.userId);",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Tiene token', () => pm.expect(json.token).to.not.be.empty);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"notif_bravo@test.com\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Login C",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "if (json.token) pm.collectionVariables.set('tokenC', json.token);",
+            "if (json.userId) pm.collectionVariables.set('idC', json.userId);",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Tiene token', () => pm.expect(json.token).to.not.be.empty);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"notif_charlie@test.com\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Autor: crear receta para like/compartir",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "pm.collectionVariables.set('recetaId', json.id);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"titulo\": \"Receta para notificaciones\",\n  \"descripcion\": \"Receta usada para probar like y compartir\",\n  \"tiempoEstimado\": 10,\n  \"dificultad\": \"fácil\",\n  \"categoria\": \"entrante\",\n  \"etiquetas\": [\"Rápida\"]\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas", "host": ["{{baseUrl}}"], "path": ["api", "recetas"] }
+          }
+        },
+        {
+          "name": "Autor: añadir ingrediente a la receta",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Tomate\",\n  \"cantidad\": 2,\n  \"unidad\": \"unidades\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaId}}/ingredientes", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaId}}", "ingredientes"] }
+          }
+        },
+        {
+          "name": "Autor: añadir paso a la receta",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"descripcion\": \"Cortar el tomate\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaId}}/pasos", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaId}}", "pasos"] }
+          }
+        },
+        {
+          "name": "Autor: publicar la receta",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaId}}/publicar", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaId}}", "publicar"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "✅ Notificaciones — Happy Path",
+      "item": [
+        {
+          "name": "1. Setup: B sigue a A → genera nuevo_seguidor",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenB}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/seguir/{{idA}}", "host": ["{{baseUrl}}"], "path": ["api", "social", "seguir", "{{idA}}"] }
+          }
+        },
+        {
+          "name": "2. Setup: C sigue a A → genera segundo nuevo_seguidor",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenC}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/seguir/{{idA}}", "host": ["{{baseUrl}}"], "path": ["api", "social", "seguir", "{{idA}}"] }
+          }
+        },
+        {
+          "name": "3. GET /api/notificaciones (A) → array paginado con estructura correcta",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Es un array con al menos 2 notificaciones', () => {",
+            "  pm.expect(json).to.be.an('array');",
+            "  pm.expect(json.length).to.be.at.least(2);",
+            "});",
+            "pm.test('Cada notificación tiene la estructura esperada', () => {",
+            "  const n = json[0];",
+            "  pm.expect(n).to.have.all.keys('id', 'tipo', 'emisor', 'titulo', 'cuerpo', 'leida', 'referenciaId', 'referenciaType', 'createdAt');",
+            "  pm.expect(n.emisor).to.have.all.keys('id', 'nombre', 'nombreUsuario', 'fotoPerfil');",
+            "});",
+            "pm.collectionVariables.set('notificacionId1', json[0].id);",
+            "pm.collectionVariables.set('notificacionId2', json[1].id);"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notificaciones", "host": ["{{baseUrl}}"], "path": ["api", "notificaciones"] }
+          }
+        },
+        {
+          "name": "4. GET /api/notificaciones/contador (A) → número de no leídas",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Al menos 2 no leídas', () => pm.expect(json.noLeidas).to.be.at.least(2));"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notificaciones/contador", "host": ["{{baseUrl}}"], "path": ["api", "notificaciones", "contador"] }
+          }
+        },
+        {
+          "name": "5. PUT /api/notificaciones/{id}/leer (A) → 200",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notificaciones/{{notificacionId1}}/leer", "host": ["{{baseUrl}}"], "path": ["api", "notificaciones", "{{notificacionId1}}", "leer"] }
+          }
+        },
+        {
+          "name": "6. GET /api/notificaciones (A) → confirma leida:true",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('La notificación marcada tiene leida true', () => {",
+            "  const n = json.find(x => x.id === pm.collectionVariables.get('notificacionId1'));",
+            "  pm.expect(n).to.not.be.undefined;",
+            "  pm.expect(n.leida).to.be.true;",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notificaciones", "host": ["{{baseUrl}}"], "path": ["api", "notificaciones"] }
+          }
+        },
+        {
+          "name": "7. PUT /api/notificaciones/leer-todas (A) → 200",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notificaciones/leer-todas", "host": ["{{baseUrl}}"], "path": ["api", "notificaciones", "leer-todas"] }
+          }
+        },
+        {
+          "name": "8. GET /api/notificaciones/contador (A) → 0 no leídas",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Contador en cero', () => pm.expect(json.noLeidas).to.eql(0));"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notificaciones/contador", "host": ["{{baseUrl}}"], "path": ["api", "notificaciones", "contador"] }
+          }
+        },
+        {
+          "name": "9. DELETE /api/notificaciones/{id} (A) → 204",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 204', () => pm.response.to.have.status(204));"
+          ] } }],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notificaciones/{{notificacionId1}}", "host": ["{{baseUrl}}"], "path": ["api", "notificaciones", "{{notificacionId1}}"] }
+          }
+        },
+        {
+          "name": "10. GET /api/notificaciones (A) → ya no incluye la eliminada",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('No incluye la notificación eliminada', () => {",
+            "  pm.expect(json.some(n => n.id === pm.collectionVariables.get('notificacionId1'))).to.be.false;",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notificaciones", "host": ["{{baseUrl}}"], "path": ["api", "notificaciones"] }
+          }
+        },
+        {
+          "name": "11. POST /api/usuarios/push-token (A) → token registrado",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/usuarios/push-token", "host": ["{{baseUrl}}"], "path": ["api", "usuarios", "push-token"] }
+          }
+        },
+        {
+          "name": "12. PUT /api/perfil/notificaciones (A) → preferencias actualizadas",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('notificarCarrito queda en false', () => pm.expect(json.notificarCarrito).to.be.false);"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"notificarCarrito\": false\n}" },
+            "url": { "raw": "{{baseUrl}}/api/perfil/notificaciones", "host": ["{{baseUrl}}"], "path": ["api", "perfil", "notificaciones"] }
+          }
+        },
+        {
+          "name": "13. GET /api/perfil/notificaciones (A) → refleja el cambio",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('notificarCarrito es false', () => pm.expect(json.notificarCarrito).to.be.false);"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/perfil/notificaciones", "host": ["{{baseUrl}}"], "path": ["api", "perfil", "notificaciones"] }
+          }
+        },
+        {
+          "name": "14. Cleanup: PUT /api/perfil/notificaciones (A) → restaurar notificarCarrito a true",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"notificarCarrito\": true\n}" },
+            "url": { "raw": "{{baseUrl}}/api/perfil/notificaciones", "host": ["{{baseUrl}}"], "path": ["api", "perfil", "notificaciones"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "✅ Notificaciones — Generación",
+      "item": [
+        {
+          "name": "1. B da like a la receta de A → genera nuevo_like",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenB}}" }],
+            "url": { "raw": "{{baseUrl}}/api/feed/recetas/{{recetaId}}/like", "host": ["{{baseUrl}}"], "path": ["api", "feed", "recetas", "{{recetaId}}", "like"] }
+          }
+        },
+        {
+          "name": "2. GET /api/notificaciones (A) → contiene nuevo_like",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Incluye notificación nuevo_like de B', () => {",
+            "  const n = json.find(x => x.tipo === 'nuevo_like' && x.referenciaId === pm.collectionVariables.get('recetaId'));",
+            "  pm.expect(n).to.not.be.undefined;",
+            "  pm.expect(n.emisor.nombreUsuario).to.eql('notifbravo');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notificaciones", "host": ["{{baseUrl}}"], "path": ["api", "notificaciones"] }
+          }
+        },
+        {
+          "name": "3. B comparte la receta con A → genera receta_compartida",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenB}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"receptorIds\": [\"{{idA}}\"],\n  \"mensaje\": \"Prueba de notificación\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/compartir/recetas/{{recetaId}}", "host": ["{{baseUrl}}"], "path": ["api", "compartir", "recetas", "{{recetaId}}"] }
+          }
+        },
+        {
+          "name": "4. GET /api/notificaciones (A) → contiene receta_compartida",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Incluye notificación receta_compartida de B', () => {",
+            "  const n = json.find(x => x.tipo === 'receta_compartida');",
+            "  pm.expect(n).to.not.be.undefined;",
+            "  pm.expect(n.emisor.nombreUsuario).to.eql('notifbravo');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notificaciones", "host": ["{{baseUrl}}"], "path": ["api", "notificaciones"] }
+          }
+        },
+        {
+          "name": "5. A añade un producto que caduca hoy → genera producto_caduca_hoy",
+          "event": [
+            { "listen": "prerequest", "script": { "exec": [
+              "pm.collectionVariables.set('hoyISO', new Date().toISOString().split('T')[0]);"
+            ] } },
+            { "listen": "test", "script": { "exec": [
+              "pm.test('Status 201', () => pm.response.to.have.status(201));"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Yogur caduca hoy\",\n  \"cantidad\": 2,\n  \"unidad\": \"unidades\",\n  \"categoria\": \"lácteos\",\n  \"fechaCaducidad\": \"{{hoyISO}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "6. GET /api/notificaciones (A) → contiene producto_caduca_hoy",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Incluye notificación producto_caduca_hoy', () => {",
+            "  const n = json.find(x => x.tipo === 'producto_caduca_hoy');",
+            "  pm.expect(n).to.not.be.undefined;",
+            "  pm.expect(n.referenciaType).to.eql('producto');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenA}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notificaciones?tamaño=50", "host": ["{{baseUrl}}"], "path": ["api", "notificaciones"], "query": [{ "key": "tamaño", "value": "50" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "❌ Error Cases",
+      "item": [
+        {
+          "name": "GET /api/notificaciones sin token → 401",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 401', () => pm.response.to.have.status(401));"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/notificaciones", "host": ["{{baseUrl}}"], "path": ["api", "notificaciones"] }
+          }
+        },
+        {
+          "name": "PUT /api/notificaciones/{id}/leer de otro usuario → 403",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403', () => pm.response.to.have.status(403));"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenB}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notificaciones/{{notificacionId2}}/leer", "host": ["{{baseUrl}}"], "path": ["api", "notificaciones", "{{notificacionId2}}", "leer"] }
+          }
+        },
+        {
+          "name": "DELETE /api/notificaciones/{id} de otro usuario → 403",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 403', () => pm.response.to.have.status(403));"
+          ] } }],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenB}}" }],
+            "url": { "raw": "{{baseUrl}}/api/notificaciones/{{notificacionId2}}", "host": ["{{baseUrl}}"], "path": ["api", "notificaciones", "{{notificacionId2}}"] }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -17,6 +17,7 @@ import { ToastMessage } from '@/components/common/ToastMessage';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useToastStore } from '@/hooks/useToast';
+import { configurarListeners, solicitarPermisosYRegistrarToken } from '@/utils/notificacionesConfig';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -52,6 +53,15 @@ function RootLayoutNav() {
     if (fontsLoaded) SplashScreen.hideAsync();
   }, [fontsLoaded]);
 
+  useEffect(() => {
+    if (isAuthenticated) solicitarPermisosYRegistrarToken();
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    const limpiarListeners = configurarListeners();
+    return limpiarListeners;
+  }, []);
+
   if (!fontsLoaded) return null;
 
   return (
@@ -81,6 +91,8 @@ function RootLayoutNav() {
         <Stack.Screen name="social"                     options={{ headerShown: false }} />
         <Stack.Screen name="compartir/recibidas"        options={{ headerShown: false }} />
         <Stack.Screen name="compartir/recibidas/[id]"   options={{ headerShown: false }} />
+        <Stack.Screen name="notificaciones"             options={{ headerShown: false }} />
+        <Stack.Screen name="notificaciones/preferencias" options={{ headerShown: false }} />
         <Stack.Screen name="carrito/index"                     options={{ headerShown: false }} />
         <Stack.Screen name="carrito/generar-lista"             options={{ headerShown: false }} />
         <Stack.Screen name="carrito/listas"                    options={{ headerShown: false }} />

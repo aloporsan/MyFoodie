@@ -29,6 +29,8 @@ public class CompartirService {
     private static final String ESTADO_ACEPTADO = "aceptado";
     private static final int MAX_RECEPTORES = 10;
     private static final int MENSAJE_MAX_LENGTH = 200;
+    private static final String TIPO_RECETA_COMPARTIDA = "receta_compartida";
+    private static final String REFERENCIA_RECETA_COMPARTIDA = "receta_compartida";
 
     private final RecetaCompartidaRepository recetaCompartidaRepository;
     private final BloqueoRepository bloqueoRepository;
@@ -36,6 +38,7 @@ public class CompartirService {
     private final UsuarioRepository usuarioRepository;
     private final RecetaService recetaService;
     private final DespensaService despensaService;
+    private final NotificacionService notificacionService;
 
     public List<RecetaCompartidaResponseDTO> compartirReceta(String emisorId, String recetaId,
                                                                CompartirRecetaRequestDTO dto) {
@@ -64,12 +67,17 @@ public class CompartirService {
         }
 
         List<RecetaCompartida> creadas = dto.receptorIds().stream()
-                .map(receptorId -> recetaCompartidaRepository.save(RecetaCompartida.builder()
-                        .emisorId(emisorId)
-                        .receptorId(receptorId)
-                        .recetaId(recetaId)
-                        .mensaje(dto.mensaje())
-                        .build()))
+                .map(receptorId -> {
+                    RecetaCompartida compartida = recetaCompartidaRepository.save(RecetaCompartida.builder()
+                            .emisorId(emisorId)
+                            .receptorId(receptorId)
+                            .recetaId(recetaId)
+                            .mensaje(dto.mensaje())
+                            .build());
+                    notificacionService.crearNotificacion(receptorId, TIPO_RECETA_COMPARTIDA, emisorId,
+                            compartida.getId(), REFERENCIA_RECETA_COMPARTIDA);
+                    return compartida;
+                })
                 .toList();
 
         Usuario emisor = obtenerUsuario(emisorId);

@@ -109,6 +109,11 @@ export function MenuPerfil() {
       onPress: () => router.push('/perfil/gustos'),
     },
     {
+      icono: 'options-outline',
+      label: 'Preferencias de notificación',
+      onPress: () => router.push('/notificaciones/preferencias'),
+    },
+    {
       icono: 'lock-closed-outline',
       label: 'Privacidad',
       onPress: () => router.push('/perfil/privacidad'),

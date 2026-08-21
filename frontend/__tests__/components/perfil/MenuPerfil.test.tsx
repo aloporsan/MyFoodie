@@ -79,6 +79,17 @@ it('navega_a_Preferencias_al_pulsar', () => {
   expect(mockPush).toHaveBeenCalledWith('/perfil/preferencias');
 });
 
+it('navega_a_PreferenciasNotificacion_al_pulsar', () => {
+  const { getByText } = renderMenu();
+  fireEvent.press(getByText('Preferencias de notificación'));
+  expect(mockPush).toHaveBeenCalledWith('/notificaciones/preferencias');
+});
+
+it('no_muestra_la_opcion_Notificaciones_porque_vive_en_el_boton_social_del_perfil', () => {
+  const { queryByText } = renderMenu();
+  expect(queryByText('Notificaciones')).toBeNull();
+});
+
 it('navega_a_Privacidad_al_pulsar', () => {
   const { getByText } = renderMenu();
   fireEvent.press(getByText('Privacidad'));

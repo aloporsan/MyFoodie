@@ -45,6 +45,7 @@ class CompartirServiceTest {
     @Mock private UsuarioRepository usuarioRepository;
     @Mock private RecetaService recetaService;
     @Mock private DespensaService despensaService;
+    @Mock private NotificacionService notificacionService;
 
     @InjectMocks
     private CompartirService compartirService;

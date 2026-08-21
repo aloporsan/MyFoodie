@@ -1,11 +1,31 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { useEffect } from 'react';
+import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@/theme/colors';
 import { CreateTabButton } from '@/components/navigation/CreateTabButton';
+import { BadgeNotificaciones } from '@/components/notificaciones/BadgeNotificaciones';
+import { useNotificacionStore } from '@/store/notificacionStore';
+
+function PerfilTabIcon({ color, size }: { color: string; size: number }) {
+  const contadorNoLeidas = useNotificacionStore((s) => s.contadorNoLeidas);
+
+  return (
+    <View>
+      <Ionicons name="person-outline" size={size} color={color} />
+      <BadgeNotificaciones contador={contadorNoLeidas} />
+    </View>
+  );
+}
 
 export default function TabLayout() {
   const { bottom } = useSafeAreaInsets();
+  const cargarContador = useNotificacionStore((s) => s.cargarContador);
+
+  useEffect(() => {
+    cargarContador();
+  }, []);
 
   return (
     <Tabs
@@ -65,9 +85,7 @@ export default function TabLayout() {
         name="perfil"
         options={{
           title: 'Perfil',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <PerfilTabIcon color={color} size={size} />,
         }}
       />
     </Tabs>
