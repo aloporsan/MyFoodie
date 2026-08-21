@@ -46,7 +46,6 @@ class NotificacionControllerIntegrationTest {
 
         JsonNode seguidor = registrar("notifseguidor", "notifseguidor@myfoodie.com");
         tokenSeguidor = seguidor.get("token").asText();
-        String idSeguidor = seguidor.get("userId").asText();
 
         JsonNode seguido = registrar("notifseguido", "notifseguido@myfoodie.com");
         tokenSeguido = seguido.get("token").asText();

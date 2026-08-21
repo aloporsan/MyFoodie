@@ -4,12 +4,10 @@ import com.myfoodie.application.dto.social.PerfilPublicoResponseDTO;
 import com.myfoodie.application.dto.social.SeguimientoResponseDTO;
 import com.myfoodie.application.dto.social.UsuarioBusquedaResponseDTO;
 import com.myfoodie.domain.model.Bloqueo;
-import com.myfoodie.domain.model.Notificacion;
 import com.myfoodie.domain.model.Privacidad;
 import com.myfoodie.domain.model.Seguimiento;
 import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.BloqueoRepository;
-import com.myfoodie.domain.repository.NotificacionRepository;
 import com.myfoodie.domain.repository.RecetaRepository;
 import com.myfoodie.domain.repository.SeguimientoRepository;
 import com.myfoodie.domain.repository.UsuarioRepository;
@@ -17,7 +15,6 @@ import com.myfoodie.exception.ApiException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -30,7 +27,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,7 +38,7 @@ class SocialServiceTest {
     @Mock private BloqueoRepository bloqueoRepository;
     @Mock private UsuarioRepository usuarioRepository;
     @Mock private RecetaRepository recetaRepository;
-    @Mock private NotificacionRepository notificacionRepository;
+    @Mock private NotificacionService notificacionService;
 
     @InjectMocks
     private SocialService socialService;
@@ -97,13 +93,7 @@ class SocialServiceTest {
 
         socialService.seguirUsuario("seguidor-1", "seguido-1");
 
-        ArgumentCaptor<Notificacion> captor = ArgumentCaptor.forClass(Notificacion.class);
-        verify(notificacionRepository).save(captor.capture());
-        Notificacion notificacion = captor.getValue();
-        assertThat(notificacion.getUsuarioId()).isEqualTo("seguido-1");
-        assertThat(notificacion.getTipo()).isEqualTo("nuevo_seguidor");
-        assertThat(notificacion.getEmisorId()).isEqualTo("seguidor-1");
-        assertThat(notificacion.getReferenciaId()).isEqualTo("seg-1");
+        verify(notificacionService).crearNotificacion("seguido-1", "nuevo_seguidor", "seguidor-1", "seg-1", "seguimiento");
     }
 
     @Test
@@ -112,12 +102,16 @@ class SocialServiceTest {
         when(bloqueoRepository.existsByBloqueadorIdAndBloqueadoId(anyString(), anyString())).thenReturn(false);
         when(seguimientoRepository.findBySeguidorIdAndSeguidoId("seguidor-1", "privado-1"))
                 .thenReturn(Optional.empty());
-        when(seguimientoRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(seguimientoRepository.save(any())).thenAnswer(i -> {
+            Seguimiento s = i.getArgument(0);
+            s.setId("seg-1");
+            return s;
+        });
 
         SeguimientoResponseDTO result = socialService.seguirUsuario("seguidor-1", "privado-1");
 
         assertThat(result.estado()).isEqualTo("pendiente");
-        verify(notificacionRepository, never()).save(any());
+        verify(notificacionService).crearNotificacion("privado-1", "solicitud_seguimiento", "seguidor-1", "seg-1", "seguimiento");
     }
 
     @Test
