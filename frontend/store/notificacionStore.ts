@@ -1,5 +1,9 @@
 import { create } from 'zustand';
-import { Notificacion, notificacionService } from '@/services/notificacionService';
+import {
+  Notificacion,
+  PreferenciasNotificacion,
+  notificacionService,
+} from '@/services/notificacionService';
 import { handleApiError } from '@/utils/errorHandler';
 
 const TAMAÑO_PAGINA = 20;
@@ -9,6 +13,7 @@ interface NotificacionState {
   pagina: number;
   hayMas: boolean;
   contadorNoLeidas: number;
+  preferenciasNotificacion: PreferenciasNotificacion | null;
   isLoading: boolean;
   isLoadingMas: boolean;
   error: string | null;
@@ -22,6 +27,8 @@ interface NotificacionActions {
   marcarTodasComoLeidas: () => Promise<void>;
   eliminarNotificacion: (id: string) => Promise<void>;
   registrarPushToken: (token: string) => Promise<void>;
+  cargarPreferenciasNotificacion: () => Promise<void>;
+  actualizarPreferenciasNotificacion: (datos: Partial<PreferenciasNotificacion>) => Promise<void>;
   clearError: () => void;
   reset: () => void;
 }
@@ -31,6 +38,7 @@ const ESTADO_INICIAL: NotificacionState = {
   pagina: 0,
   hayMas: false,
   contadorNoLeidas: 0,
+  preferenciasNotificacion: null,
   isLoading: false,
   isLoadingMas: false,
   error: null,
@@ -132,6 +140,26 @@ export const useNotificacionStore = create<NotificacionState & NotificacionActio
         await notificacionService.registrarPushToken(token);
       } catch (e) {
         set({ error: handleApiError(e) });
+      }
+    },
+
+    cargarPreferenciasNotificacion: async () => {
+      try {
+        const preferenciasNotificacion = await notificacionService.obtenerPreferencias();
+        set({ preferenciasNotificacion });
+      } catch (e) {
+        set({ error: handleApiError(e) });
+      }
+    },
+
+    actualizarPreferenciasNotificacion: async (datos) => {
+      set({ error: null });
+      try {
+        const preferenciasNotificacion = await notificacionService.actualizarPreferencias(datos);
+        set({ preferenciasNotificacion });
+      } catch (e) {
+        set({ error: handleApiError(e) });
+        throw e;
       }
     },
 
