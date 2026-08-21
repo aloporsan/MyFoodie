@@ -17,6 +17,7 @@ import { ToastMessage } from '@/components/common/ToastMessage';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useToastStore } from '@/hooks/useToast';
+import { configurarListeners, solicitarPermisosYRegistrarToken } from '@/utils/notificacionesConfig';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -51,6 +52,15 @@ function RootLayoutNav() {
   useEffect(() => {
     if (fontsLoaded) SplashScreen.hideAsync();
   }, [fontsLoaded]);
+
+  useEffect(() => {
+    if (isAuthenticated) solicitarPermisosYRegistrarToken();
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    const limpiarListeners = configurarListeners();
+    return limpiarListeners;
+  }, []);
 
   if (!fontsLoaded) return null;
 

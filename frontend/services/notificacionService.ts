@@ -1,6 +1,7 @@
 import { apiClient } from './apiClient';
 
 export interface EmisorNotificacion {
+  id: string;
   nombre: string;
   nombreUsuario: string;
   fotoPerfil: string | null;

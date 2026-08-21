@@ -24,6 +24,7 @@ import org.springframework.web.client.RestClient;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -96,15 +97,17 @@ public class NotificacionService {
             return;
         }
 
+        Map<String, Object> data = new HashMap<>();
+        data.put("tipo", notificacion.getTipo());
+        data.put("emisorId", notificacion.getEmisorId());
+        data.put("referenciaId", notificacion.getReferenciaId());
+        data.put("referenciaType", notificacion.getReferenciaType());
+
         Map<String, Object> payload = Map.of(
                 "to", receptor.getExpoPushToken(),
                 "title", notificacion.getTitulo(),
                 "body", notificacion.getCuerpo(),
-                "data", Map.of(
-                        "tipo", notificacion.getTipo(),
-                        "referenciaId", notificacion.getReferenciaId(),
-                        "referenciaType", notificacion.getReferenciaType()
-                ),
+                "data", data,
                 "sound", "default",
                 "badge", 1
         );
@@ -266,7 +269,7 @@ public class NotificacionService {
                 ? null
                 : usuarioRepository.findById(notificacion.getEmisorId())
                         .map(u -> new NotificacionResponseDTO.EmisorDTO(
-                                u.getNombre(), u.getNombreUsuario(), u.getFotoPerfil()))
+                                u.getId(), u.getNombre(), u.getNombreUsuario(), u.getFotoPerfil()))
                         .orElse(null);
 
         return new NotificacionResponseDTO(

@@ -201,7 +201,7 @@
             "pm.test('Cada notificación tiene la estructura esperada', () => {",
             "  const n = json[0];",
             "  pm.expect(n).to.have.all.keys('id', 'tipo', 'emisor', 'titulo', 'cuerpo', 'leida', 'referenciaId', 'referenciaType', 'createdAt');",
-            "  pm.expect(n.emisor).to.have.all.keys('nombre', 'nombreUsuario', 'fotoPerfil');",
+            "  pm.expect(n.emisor).to.have.all.keys('id', 'nombre', 'nombreUsuario', 'fotoPerfil');",
             "});",
             "pm.collectionVariables.set('notificacionId1', json[0].id);",
             "pm.collectionVariables.set('notificacionId2', json[1].id);"

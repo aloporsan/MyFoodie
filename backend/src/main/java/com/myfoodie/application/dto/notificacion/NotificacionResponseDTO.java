@@ -14,6 +14,7 @@ public record NotificacionResponseDTO(
         LocalDateTime createdAt
 ) {
     public record EmisorDTO(
+            String id,
             String nombre,
             String nombreUsuario,
             String fotoPerfil
