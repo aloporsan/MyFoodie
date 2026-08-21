@@ -2,15 +2,21 @@ import { create } from 'zustand';
 import { Notificacion, notificacionService } from '@/services/notificacionService';
 import { handleApiError } from '@/utils/errorHandler';
 
+const TAMAÑO_PAGINA = 20;
+
 interface NotificacionState {
   notificaciones: Notificacion[];
+  pagina: number;
+  hayMas: boolean;
   contadorNoLeidas: number;
   isLoading: boolean;
+  isLoadingMas: boolean;
   error: string | null;
 }
 
 interface NotificacionActions {
-  cargarNotificaciones: (pagina?: number, tamaño?: number) => Promise<void>;
+  cargarNotificaciones: () => Promise<void>;
+  cargarMas: () => Promise<void>;
   cargarContador: () => Promise<void>;
   marcarComoLeida: (id: string) => Promise<void>;
   marcarTodasComoLeidas: () => Promise<void>;
@@ -22,8 +28,11 @@ interface NotificacionActions {
 
 const ESTADO_INICIAL: NotificacionState = {
   notificaciones: [],
+  pagina: 0,
+  hayMas: false,
   contadorNoLeidas: 0,
   isLoading: false,
+  isLoadingMas: false,
   error: null,
 };
 
@@ -31,13 +40,37 @@ export const useNotificacionStore = create<NotificacionState & NotificacionActio
   (set, get) => ({
     ...ESTADO_INICIAL,
 
-    cargarNotificaciones: async (pagina = 0, tamaño = 20) => {
+    cargarNotificaciones: async () => {
       set({ isLoading: true, error: null });
       try {
-        const notificaciones = await notificacionService.obtenerNotificaciones(pagina, tamaño);
-        set({ notificaciones, isLoading: false });
+        const notificaciones = await notificacionService.obtenerNotificaciones(0, TAMAÑO_PAGINA);
+        set({
+          notificaciones,
+          pagina: 0,
+          hayMas: notificaciones.length === TAMAÑO_PAGINA,
+          isLoading: false,
+        });
       } catch (e) {
         set({ error: handleApiError(e), isLoading: false });
+      }
+    },
+
+    cargarMas: async () => {
+      const { hayMas, isLoadingMas, pagina } = get();
+      if (!hayMas || isLoadingMas) return;
+
+      set({ isLoadingMas: true, error: null });
+      try {
+        const siguiente = pagina + 1;
+        const nuevas = await notificacionService.obtenerNotificaciones(siguiente, TAMAÑO_PAGINA);
+        set((s) => ({
+          notificaciones: [...s.notificaciones, ...nuevas],
+          pagina: siguiente,
+          hayMas: nuevas.length === TAMAÑO_PAGINA,
+          isLoadingMas: false,
+        }));
+      } catch (e) {
+        set({ error: handleApiError(e), isLoadingMas: false });
       }
     },
 
