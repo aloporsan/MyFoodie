@@ -101,10 +101,10 @@ export function DespensaScreen() {
   }, [productos, busquedaActiva]);
 
   const handleSearch = useCallback((texto: string) => {
-    setBusqueda(texto);
+    limpiarFiltros();
     setFiltroActivo('todos');
     setCategoriaActiva('');
-    limpiarFiltros();
+    setBusqueda(texto);
     setTimeout(() => cargarProductos(), 0);
   }, []);
 
@@ -201,13 +201,6 @@ export function DespensaScreen() {
         </View>
       </View>
 
-      {duplicados.length > 0 && (
-        <AlertaDuplicados
-          cantidad={duplicados.length}
-          onRevisar={() => router.push('/despensa/duplicados')}
-        />
-      )}
-
       {/* Buscador + filtro categoría */}
       <View style={styles.buscadorRow}>
         <View style={styles.buscadorFlex}>
@@ -245,9 +238,17 @@ export function DespensaScreen() {
         refreshControl={
           <RefreshControl
             refreshing={isLoading}
-            onRefresh={cargarProductos}
+            onRefresh={() => { cargarProductos(); cargarDuplicados(); }}
             tintColor={colors.primary}
           />
+        }
+        ListHeaderComponent={
+          duplicados.length > 0 ? (
+            <AlertaDuplicados
+              cantidad={duplicados.length}
+              onRevisar={() => router.push('/despensa/duplicados')}
+            />
+          ) : null
         }
         renderItem={({ item }) => (
           <ProductoCard

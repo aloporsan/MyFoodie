@@ -11,6 +11,7 @@ import {
 import { matchingService, MatchProducto } from '@/services/matchingService';
 import { handleApiError } from '@/utils/errorHandler';
 import { useDashboardStore } from './dashboardStore';
+import { useFusionStore } from './fusionStore';
 
 const FILTRO_VACIO: ProductoFiltro = {};
 const ORDEN_STORAGE_KEY = 'despensa_orden';
@@ -83,6 +84,7 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
       const nuevo = await despensaService.añadirProducto(datos);
       set((s) => ({ productos: [...s.productos, nuevo], isLoading: false }));
       useDashboardStore.getState().cargarDashboard();
+      useFusionStore.getState().cargarDuplicados();
       return nuevo;
     } catch (e) {
       set({ error: handleApiError(e), isLoading: false });

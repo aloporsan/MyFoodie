@@ -75,6 +75,7 @@ function RootLayoutNav() {
         <Stack.Screen name="despensa/form"              options={{ headerShown: false }} />
         <Stack.Screen name="despensa/[id]"              options={{ headerShown: false }} />
         <Stack.Screen name="despensa/filtrada"          options={{ headerShown: false }} />
+        <Stack.Screen name="despensa/duplicados"        options={{ headerShown: false }} />
         <Stack.Screen name="perfil/editar"              options={{ headerShown: false }} />
         <Stack.Screen name="perfil/estadisticas"        options={{ headerShown: false }} />
         <Stack.Screen name="perfil/preferencias"        options={{ headerShown: false }} />
