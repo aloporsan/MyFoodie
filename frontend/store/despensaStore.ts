@@ -8,6 +8,7 @@ import {
   ProductoFiltro,
   ProductoInput,
 } from '@/services/despensaService';
+import { matchingService, MatchProducto } from '@/services/matchingService';
 import { handleApiError } from '@/utils/errorHandler';
 import { useDashboardStore } from './dashboardStore';
 
@@ -23,6 +24,7 @@ interface DespensaState {
   filtrosActivos: ProductoFiltro;
   busquedaActiva: string;
   ordenActivo: string;
+  similaresSugeridos: MatchProducto[];
 }
 
 interface DespensaActions {
@@ -32,6 +34,8 @@ interface DespensaActions {
   eliminarProducto: (id: string, motivo?: MotivoEliminacion, motivoDetalle?: string) => Promise<void>;
   actualizarCantidad: (id: string, delta: number, motivo?: MotivoEliminacion, motivoDetalle?: string) => Promise<void>;
   cargarHistorial: (productoId: string) => Promise<void>;
+  buscarSimilares: (nombre: string) => Promise<void>;
+  limpiarSimilares: () => void;
   setBusqueda: (texto: string) => void;
   setFiltros: (filtros: ProductoFiltro) => void;
   limpiarFiltros: () => void;
@@ -51,6 +55,7 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
   filtrosActivos: FILTRO_VACIO,
   busquedaActiva: '',
   ordenActivo: ORDEN_POR_DEFECTO,
+  similaresSugeridos: [],
 
   cargarProductos: async () => {
     set({ isLoading: true, error: null });
@@ -137,6 +142,17 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
       set({ error: handleApiError(e), isLoading: false });
     }
   },
+
+  buscarSimilares: async (nombre) => {
+    try {
+      const similares = await matchingService.buscarSimilares(nombre);
+      set({ similaresSugeridos: similares });
+    } catch (e) {
+      set({ error: handleApiError(e) });
+    }
+  },
+
+  limpiarSimilares: () => set({ similaresSugeridos: [] }),
 
   setBusqueda: (texto) => set({ busquedaActiva: texto }),
 

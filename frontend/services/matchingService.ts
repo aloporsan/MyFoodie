@@ -18,6 +18,13 @@ export interface MatchProducto {
 }
 
 export const matchingService = {
+  buscarSimilares: async (nombre: string): Promise<MatchProducto[]> => {
+    const { data } = await apiClient.get<MatchProducto[]>('/despensa/productos/similares', {
+      params: { nombre },
+    });
+    return data;
+  },
+
   obtenerDuplicados: async (): Promise<ParDuplicado[]> => {
     const { data } = await apiClient.get<ParDuplicado[]>('/despensa/productos/duplicados');
     return data;

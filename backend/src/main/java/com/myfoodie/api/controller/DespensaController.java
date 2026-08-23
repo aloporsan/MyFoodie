@@ -8,6 +8,7 @@ import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.despensa.ProductoUpdateCantidadDTO;
 import com.myfoodie.application.dto.matching.FusionarProductosRequestDTO;
 import com.myfoodie.application.dto.matching.IgnorarFusionRequestDTO;
+import com.myfoodie.application.dto.matching.MatchProductoDTO;
 import com.myfoodie.application.dto.matching.ParDuplicadoDTO;
 import com.myfoodie.application.service.DespensaService;
 import com.myfoodie.application.service.FusionService;
@@ -99,6 +100,13 @@ public class DespensaController {
             @Valid @RequestBody ProductoUpdateCantidadDTO dto,
             Principal principal) {
         return ResponseEntity.ok(despensaService.actualizarCantidad(getUsuarioId(principal), id, dto));
+    }
+
+    @GetMapping("/similares")
+    public ResponseEntity<List<MatchProductoDTO>> similares(
+            @RequestParam String nombre,
+            Principal principal) {
+        return ResponseEntity.ok(matchingService.buscarProductoSimilarEnDespensa(getUsuarioId(principal), nombre));
     }
 
     @GetMapping("/duplicados")
