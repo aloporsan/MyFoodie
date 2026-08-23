@@ -245,7 +245,7 @@ export function FormProductoScreen() {
               <Text style={sugerenciasStyles.seleccionadoTexto} numberOfLines={1}>
                 Actualizando cantidad de &quot;{productoSeleccionado.nombre}&quot;
               </Text>
-              <Pressable onPress={handleQuitarSeleccion} hitSlop={8}>
+              <Pressable onPress={handleQuitarSeleccion} hitSlop={8} testID="quitar-seleccion">
                 <Ionicons name="close" size={18} color={colors.text.secondary} />
               </Pressable>
             </View>
@@ -255,7 +255,7 @@ export function FormProductoScreen() {
             <View style={sugerenciasStyles.container}>
               <View style={sugerenciasStyles.cabecera}>
                 <Text style={sugerenciasStyles.titulo}>¿Es uno de estos?</Text>
-                <Pressable onPress={handleDescartarSugerencias} hitSlop={8}>
+                <Pressable onPress={handleDescartarSugerencias} hitSlop={8} testID="descartar-sugerencias">
                   <Ionicons name="close" size={18} color={colors.text.secondary} />
                 </Pressable>
               </View>
