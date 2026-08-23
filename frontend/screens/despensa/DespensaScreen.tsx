@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import {
+  AlertaDuplicados,
   BuscadorDespensa,
   CantidadMotivoSheet,
   FiltrosBar,
@@ -23,6 +24,7 @@ import {
 import { useToast } from '@/hooks/useToast';
 import { EstadoProducto, MotivoEliminacion } from '@/services/despensaService';
 import { useDespensaStore } from '@/store/despensaStore';
+import { useFusionStore } from '@/store/fusionStore';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -56,6 +58,7 @@ export function DespensaScreen() {
     setOrden,
     inicializarOrden,
   } = useDespensaStore();
+  const { duplicados, cargarDuplicados } = useFusionStore();
 
   const [filtroActivo, setFiltroActivo] = useState<FiltroId>('todos');
   const [categoriaActiva, setCategoriaActiva] = useState('');
@@ -87,6 +90,7 @@ export function DespensaScreen() {
       cargarProductos();
     };
     iniciar();
+    cargarDuplicados();
   }, []);
 
   useEffect(() => {
@@ -196,6 +200,13 @@ export function DespensaScreen() {
           </Pressable>
         </View>
       </View>
+
+      {duplicados.length > 0 && (
+        <AlertaDuplicados
+          cantidad={duplicados.length}
+          onRevisar={() => router.push('/despensa/duplicados')}
+        />
+      )}
 
       {/* Buscador + filtro categoría */}
       <View style={styles.buscadorRow}>
