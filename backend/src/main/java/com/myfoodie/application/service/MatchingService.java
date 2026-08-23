@@ -1,21 +1,44 @@
 package com.myfoodie.application.service;
 
+import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
+import com.myfoodie.application.dto.matching.MatchProductoDTO;
+import com.myfoodie.application.dto.matching.ParDuplicadoDTO;
 import com.myfoodie.application.dto.matching.SimilitudResultDTO;
+import com.myfoodie.domain.model.Despensa;
+import com.myfoodie.domain.model.Preferencias;
+import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.model.TipoMatch;
+import com.myfoodie.domain.repository.DespensaRepository;
+import com.myfoodie.domain.repository.PreferenciasRepository;
+import com.myfoodie.domain.repository.ProductoRepository;
+import com.myfoodie.exception.ApiException;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.text.Normalizer;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class MatchingService {
 
     private static final double UMBRAL_AUTOMATICO = 0.85;
     private static final double UMBRAL_PROPONER = 0.60;
+    private static final double UMBRAL_DUPLICADO = 0.75;
+
+    private final DespensaRepository despensaRepository;
+    private final ProductoRepository productoRepository;
+    private final PreferenciasRepository preferenciasRepository;
 
     private static final Set<String> ARTICULOS = Set.of(
             "el", "la", "los", "las", "un", "una", "unos", "unas");
@@ -157,5 +180,111 @@ public class MatchingService {
             return TipoMatch.PROPONER;
         }
         return TipoMatch.NUEVO;
+    }
+
+    public List<MatchProductoDTO> buscarProductoSimilarEnDespensa(String usuarioId, String nombreBuscado) {
+        Despensa despensa = getDespensaDeUsuario(usuarioId);
+        int globalUmbral = obtenerGlobalUmbral(usuarioId);
+        List<Producto> productos = productoRepository.findByDespensaId(despensa.getId());
+
+        return productos.stream()
+                .map(p -> Map.entry(p, calcularSimilitud(nombreBuscado, p.getNombre())))
+                .filter(entry -> entry.getValue().puntuacion() >= UMBRAL_PROPONER)
+                .sorted(Comparator.comparingDouble(
+                        (Map.Entry<Producto, SimilitudResultDTO> entry) -> entry.getValue().puntuacion())
+                        .reversed())
+                .map(entry -> {
+                    Producto p = entry.getKey();
+                    double puntuacion = entry.getValue().puntuacion();
+                    ProductoResponseDTO productoDTO = toProductoResponseDTO(p, resolverUmbral(p, globalUmbral));
+                    String textoSugerido = "¿Es lo mismo que '" + p.getNombre() + "' en tu despensa?";
+                    return new MatchProductoDTO(productoDTO, puntuacion, clasificarMatch(puntuacion), textoSugerido);
+                })
+                .toList();
+    }
+
+    public List<ParDuplicadoDTO> buscarDuplicadosEnDespensa(String usuarioId) {
+        Despensa despensa = getDespensaDeUsuario(usuarioId);
+        int globalUmbral = obtenerGlobalUmbral(usuarioId);
+        List<Producto> productos = productoRepository.findByDespensaId(despensa.getId());
+
+        List<ParDuplicadoDTO> duplicados = new ArrayList<>();
+        for (int i = 0; i < productos.size(); i++) {
+            for (int j = i + 1; j < productos.size(); j++) {
+                Producto a = productos.get(i);
+                Producto b = productos.get(j);
+                double puntuacion = calcularSimilitud(a.getNombre(), b.getNombre()).puntuacion();
+                if (puntuacion >= UMBRAL_DUPLICADO) {
+                    ProductoResponseDTO dtoA = toProductoResponseDTO(a, resolverUmbral(a, globalUmbral));
+                    ProductoResponseDTO dtoB = toProductoResponseDTO(b, resolverUmbral(b, globalUmbral));
+                    duplicados.add(new ParDuplicadoDTO(dtoA, dtoB, puntuacion,
+                            "Estos productos podrían ser el mismo. ¿Quieres fusionarlos?"));
+                }
+            }
+        }
+        return duplicados;
+    }
+
+    private Despensa getDespensaDeUsuario(String usuarioId) {
+        return despensaRepository.findByUsuarioId(usuarioId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Despensa no encontrada"));
+    }
+
+    private int obtenerGlobalUmbral(String usuarioId) {
+        return preferenciasRepository.findByUsuarioId(usuarioId)
+                .map(Preferencias::getStockMinimoGlobal)
+                .filter(v -> v != null)
+                .orElse(1);
+    }
+
+    private int resolverUmbral(Producto p, int globalUmbral) {
+        return p.getStockMinimo() != null ? p.getStockMinimo() : globalUmbral;
+    }
+
+    private String calcularEstado(Producto p, int umbral) {
+        if (p.getCantidad() <= 0) {
+            return "sin_stock";
+        }
+
+        Long dias = p.getFechaCaducidad() != null
+                ? ChronoUnit.DAYS.between(LocalDate.now(), p.getFechaCaducidad())
+                : null;
+
+        if (dias != null && dias < 0)  return "caducado";
+        if (dias != null && dias == 0) return "caduca_hoy";
+        if (dias != null && dias <= 3) return "caduca_pronto";
+        if (p.getCantidad() <= umbral) return "bajoStock";
+        if (dias != null && dias <= 7)  return "caduca_semana";
+        if (dias != null && dias <= 30) return "caduca_mes";
+        return "normal";
+    }
+
+    private Integer calcularDiasHastaCaducidad(Producto p) {
+        if (p.getFechaCaducidad() == null) return null;
+        return (int) ChronoUnit.DAYS.between(LocalDate.now(), p.getFechaCaducidad());
+    }
+
+    private ProductoResponseDTO toProductoResponseDTO(Producto p, int umbralEfectivo) {
+        boolean alertaCompra = p.getCantidad() <= umbralEfectivo;
+        return new ProductoResponseDTO(
+                p.getId(),
+                p.getDespensaId(),
+                p.getNombre(),
+                p.getCantidad(),
+                p.getUnidad(),
+                p.getUnidadOriginal(),
+                p.getCategoria(),
+                p.getFechaCaducidad(),
+                p.getFechaCompra(),
+                p.getMarca(),
+                p.getNotas(),
+                p.getStockMinimo(),
+                alertaCompra,
+                calcularEstado(p, umbralEfectivo),
+                calcularDiasHastaCaducidad(p),
+                null,
+                p.getCreatedAt(),
+                p.getUpdatedAt()
+        );
     }
 }
