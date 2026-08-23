@@ -1,0 +1,542 @@
+{
+  "info": {
+    "name": "MyFoodie — OCR & Matching Carrito API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",             "value": "http://localhost:8080" },
+    { "key": "token",               "value": "" },
+    { "key": "testEmail",           "value": "" },
+    { "key": "productoBaseOCRId",   "value": "" },
+    { "key": "productoArrozId",     "value": "" },
+    { "key": "productoColiflorId",  "value": "" },
+    { "key": "itemArrozId",         "value": "" },
+    { "key": "itemCebollaId",       "value": "" },
+    { "key": "itemSuavizanteId",    "value": "" },
+    { "key": "listaId",             "value": "" }
+  ],
+  "item": [
+    {
+      "name": "🔧 Setup",
+      "item": [
+        {
+          "name": "Registrar usuario",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "exec": [
+                "const ts = Date.now();",
+                "pm.collectionVariables.set('testEmail', 'ocr_' + ts + '@test.com');"
+              ] }
+            },
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "if (json.token) pm.collectionVariables.set('token', json.token);",
+                "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                "pm.test('Tiene token', () => pm.expect(json.token).to.not.be.empty);"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Usuario OCR\",\n  \"nombreUsuario\": \"ocr_{{$timestamp}}\",\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Añadir 'Pan' a despensa (base para confirmar OCR 'actualizado')",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                "pm.expect(json.cantidad).to.eql(1);",
+                "pm.collectionVariables.set('productoBaseOCRId', json.id);"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Pan\",\n  \"cantidad\": 1,\n  \"unidad\": \"unidades\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "Añadir 'Arroz' a despensa (base para matching carrito 'actualizado')",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                "pm.collectionVariables.set('productoArrozId', json.id);"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Arroz\",\n  \"cantidad\": 1,\n  \"unidad\": \"kg\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "Añadir 'Coliflor' a despensa (base para matching carrito 'sugerencia')",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                "pm.collectionVariables.set('productoColiflorId', json.id);"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Coliflor\",\n  \"cantidad\": 2,\n  \"unidad\": \"unidades\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "✅ OCR — Happy Path",
+      "item": [
+        {
+          "name": "1. POST procesar con imagen de ticket → lista de ResultadoOCRDTO",
+          "description": "⚠️ Requiere adjuntar manualmente una imagen de ticket en el campo 'imagen' (form-data) antes de ejecutar, y GOOGLE_APPLICATION_CREDENTIALS configurado en el servidor apuntando a una cuenta de servicio con acceso a Vision API.",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "if (pm.response.code === 400) {",
+                "  pm.test.skip('Sin imagen adjunta — adjunta un ticket real en el campo \"imagen\" (form-data) para ejecutar este test', () => {});",
+                "} else {",
+                "  const json = pm.response.json();",
+                "  pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "  pm.test('Devuelve un array de ResultadoOCRDTO', () => {",
+                "    pm.expect(json).to.be.an('array');",
+                "    if (json.length > 0) {",
+                "      pm.expect(json[0]).to.have.property('productoTicket');",
+                "      pm.expect(json[0]).to.have.property('accion');",
+                "    }",
+                "  });",
+                "}"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "imagen", "type": "file", "src": [] }]
+            },
+            "url": { "raw": "{{baseUrl}}/api/despensa/ocr/procesar", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "ocr", "procesar"] }
+          }
+        },
+        {
+          "name": "2. POST procesar → cada resultado trae un campo 'accion' válido",
+          "description": "⚠️ Requiere la misma imagen de ticket adjunta manualmente que el paso anterior.",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "if (pm.response.code === 400) {",
+                "  pm.test.skip('Sin imagen adjunta — adjunta un ticket real en el campo \"imagen\" (form-data) para ejecutar este test', () => {});",
+                "} else {",
+                "  const json = pm.response.json();",
+                "  pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "  pm.test(\"'accion' es siempre nuevo/actualizado/sugerencia\", () => {",
+                "    json.forEach(r => pm.expect(['nuevo', 'actualizado', 'sugerencia']).to.include(r.accion));",
+                "  });",
+                "}"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "imagen", "type": "file", "src": [] }]
+            },
+            "url": { "raw": "{{baseUrl}}/api/despensa/ocr/procesar", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "ocr", "procesar"] }
+          }
+        },
+        {
+          "name": "3. POST confirmar con accion 'nuevo' → producto creado en despensa",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('Resumen: 1 añadido, 0 actualizados, 0 ignorados', () => {",
+                "  pm.expect(json.añadidos).to.eql(1);",
+                "  pm.expect(json.actualizados).to.eql(0);",
+                "  pm.expect(json.ignorados).to.eql(0);",
+                "});"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"nombre\": \"Aceite de Girasol OCR\",\n    \"cantidad\": 1,\n    \"unidad\": \"litros\",\n    \"fechaCaducidad\": null,\n    \"accion\": \"nuevo\",\n    \"productoExistenteId\": null\n  }\n]"
+            },
+            "url": { "raw": "{{baseUrl}}/api/despensa/ocr/confirmar", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "ocr", "confirmar"] }
+          }
+        },
+        {
+          "name": "4. POST confirmar con accion 'actualizado' → resumen correcto",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('Resumen: 0 añadidos, 1 actualizado, 0 ignorados', () => {",
+                "  pm.expect(json.añadidos).to.eql(0);",
+                "  pm.expect(json.actualizados).to.eql(1);",
+                "  pm.expect(json.ignorados).to.eql(0);",
+                "});"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"nombre\": \"Pan\",\n    \"cantidad\": 3,\n    \"unidad\": \"unidades\",\n    \"fechaCaducidad\": null,\n    \"accion\": \"actualizado\",\n    \"productoExistenteId\": \"{{productoBaseOCRId}}\"\n  }\n]"
+            },
+            "url": { "raw": "{{baseUrl}}/api/despensa/ocr/confirmar", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "ocr", "confirmar"] }
+          }
+        },
+        {
+          "name": "5. GET producto 'Pan' → cantidad sumada (1 + 3 = 4)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('Cantidad actualizada a 4', () => pm.expect(json.cantidad).to.eql(4));"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoBaseOCRId}}", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoBaseOCRId}}"] }
+          }
+        },
+        {
+          "name": "6. POST confirmar con accion 'ignorado' → no crea ni actualiza nada",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('Resumen: 0 añadidos, 0 actualizados, 1 ignorado', () => {",
+                "  pm.expect(json.añadidos).to.eql(0);",
+                "  pm.expect(json.actualizados).to.eql(0);",
+                "  pm.expect(json.ignorados).to.eql(1);",
+                "});"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"nombre\": \"Producto Ignorado OCR\",\n    \"cantidad\": 1,\n    \"unidad\": \"unidades\",\n    \"fechaCaducidad\": null,\n    \"accion\": \"ignorado\",\n    \"productoExistenteId\": null\n  }\n]"
+            },
+            "url": { "raw": "{{baseUrl}}/api/despensa/ocr/confirmar", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "ocr", "confirmar"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "✅ Matching Carrito — Happy Path",
+      "item": [
+        {
+          "name": "1. POST item manual 'Arroz' (nombre exacto → dará accion actualizado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                "pm.collectionVariables.set('itemArrozId', json.id);"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Arroz\",\n  \"cantidad\": 1,\n  \"unidad\": \"kg\",\n  \"categoria\": \"cereales\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/carrito/items", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "items"] }
+          }
+        },
+        {
+          "name": "2. POST item manual 'Cebolla' (similar a 'Coliflor' → dará accion sugerencia)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                "pm.collectionVariables.set('itemCebollaId', json.id);"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Cebolla\",\n  \"cantidad\": 1,\n  \"unidad\": \"unidades\",\n  \"categoria\": \"verduras\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/carrito/items", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "items"] }
+          }
+        },
+        {
+          "name": "3. POST item manual 'Suavizante' (sin match → dará accion creado)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                "pm.collectionVariables.set('itemSuavizanteId', json.id);"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Suavizante\",\n  \"cantidad\": 1,\n  \"unidad\": \"unidades\",\n  \"categoria\": \"limpieza\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/carrito/items", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "items"] }
+          }
+        },
+        {
+          "name": "4. PUT aceptar los 3 items",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "pm.test('Los 3 items se aceptan', () => pm.response.to.have.status(200));"
+              ] }
+            },
+            {
+              "listen": "prerequest",
+              "script": { "exec": [
+                "const ids = ['itemArrozId', 'itemCebollaId', 'itemSuavizanteId'].map(k => pm.collectionVariables.get(k));",
+                "const token = pm.collectionVariables.get('token');",
+                "const baseUrl = pm.collectionVariables.get('baseUrl');",
+                "const ejecutar = (i) => {",
+                "  if (i >= ids.length) return;",
+                "  pm.sendRequest({",
+                "    url: `${baseUrl}/api/carrito/items/${ids[i]}/aceptar`,",
+                "    method: 'PUT',",
+                "    header: { Authorization: `Bearer ${token}` }",
+                "  }, () => ejecutar(i + 1));",
+                "};",
+                "ejecutar(0);"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/carrito", "host": ["{{baseUrl}}"], "path": ["api", "carrito"] }
+          }
+        },
+        {
+          "name": "5. POST lista → creada con los 3 items aceptados",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                "pm.test('Contiene los 3 items', () => pm.expect(json.items.length).to.be.at.least(3));",
+                "pm.collectionVariables.set('listaId', json.id);"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/carrito/lista", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "lista"] }
+          }
+        },
+        {
+          "name": "6. PUT comprado en los 3 items de la lista",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "pm.test('Los 3 items se marcan comprados', () => pm.response.to.have.status(200));"
+              ] }
+            },
+            {
+              "listen": "prerequest",
+              "script": { "exec": [
+                "const ids = ['itemArrozId', 'itemCebollaId', 'itemSuavizanteId'].map(k => pm.collectionVariables.get(k));",
+                "const token = pm.collectionVariables.get('token');",
+                "const baseUrl = pm.collectionVariables.get('baseUrl');",
+                "const listaId = pm.collectionVariables.get('listaId');",
+                "const ejecutar = (i) => {",
+                "  if (i >= ids.length) return;",
+                "  pm.sendRequest({",
+                "    url: `${baseUrl}/api/carrito/listas/${listaId}/items/${ids[i]}/comprado`,",
+                "    method: 'PUT',",
+                "    header: { Authorization: `Bearer ${token}` }",
+                "  }, () => ejecutar(i + 1));",
+                "};",
+                "ejecutar(0);"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/carrito", "host": ["{{baseUrl}}"], "path": ["api", "carrito"] }
+          }
+        },
+        {
+          "name": "7. POST añadir-despensa → accion actualizado + sugerencia + creado",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "const resultados = json.resultados;",
+                "const arroz = resultados.find(r => r.itemNombre === 'Arroz');",
+                "const cebolla = resultados.find(r => r.itemNombre === 'Cebolla');",
+                "const suavizante = resultados.find(r => r.itemNombre === 'Suavizante');",
+                "pm.test(\"'Arroz' → accion actualizado (match exacto)\", () => {",
+                "  pm.expect(arroz.accion).to.eql('actualizado');",
+                "  pm.expect(arroz.productoExistente.id).to.eql(pm.collectionVariables.get('productoArrozId'));",
+                "});",
+                "pm.test(\"'Cebolla' → accion sugerencia (match parcial con 'Coliflor')\", () => {",
+                "  pm.expect(cebolla.accion).to.eql('sugerencia');",
+                "  pm.expect(cebolla.productoExistente.id).to.eql(pm.collectionVariables.get('productoColiflorId'));",
+                "});",
+                "pm.test(\"'Suavizante' → accion creado (sin match)\", () => {",
+                "  pm.expect(suavizante.accion).to.eql('creado');",
+                "  pm.expect(suavizante.producto).to.not.be.null;",
+                "});",
+                "pm.test('Lista completada', () => pm.expect(json.lista.estado).to.eql('completada'));"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/carrito/listas/{{listaId}}/añadir-despensa", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "listas", "{{listaId}}", "añadir-despensa"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "❌ Error Cases",
+      "item": [
+        {
+          "name": "POST procesar sin imagen → 400",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Status 400', () => pm.response.to.have.status(400));"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "body": { "mode": "formdata", "formdata": [] },
+            "url": { "raw": "{{baseUrl}}/api/despensa/ocr/procesar", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "ocr", "procesar"] }
+          }
+        },
+        {
+          "name": "POST procesar con imagen > 10MB → 400",
+          "description": "⚠️ Adjunta manualmente un archivo de imagen mayor de 10MB en el campo 'imagen' antes de ejecutar.",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Status 400', () => pm.response.to.have.status(400));"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [{ "key": "imagen", "type": "file", "src": [] }]
+            },
+            "url": { "raw": "{{baseUrl}}/api/despensa/ocr/procesar", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "ocr", "procesar"] }
+          }
+        },
+        {
+          "name": "POST procesar sin token → 401",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Status 401', () => pm.response.to.have.status(401));"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": { "mode": "formdata", "formdata": [{ "key": "imagen", "type": "file", "src": [] }] },
+            "url": { "raw": "{{baseUrl}}/api/despensa/ocr/procesar", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "ocr", "procesar"] }
+          }
+        },
+        {
+          "name": "POST confirmar sin token → 401",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Status 401', () => pm.response.to.have.status(401));"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "[]" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/ocr/confirmar", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "ocr", "confirmar"] }
+          }
+        }
+      ]
+    }
+  ]
+}
