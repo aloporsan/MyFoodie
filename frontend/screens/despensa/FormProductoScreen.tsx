@@ -83,6 +83,7 @@ export function FormProductoScreen() {
   const [duplicados, setDuplicados] = useState<Producto[]>([]);
   const [pendingDatos, setPendingDatos] = useState<ProductoInput | null>(null);
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
+  const [sugerenciasDescartadas, setSugerenciasDescartadas] = useState(false);
 
   useEffect(() => {
     if (esEdicion) {
@@ -101,8 +102,12 @@ export function FormProductoScreen() {
     }
   }, [id]);
 
+  // La búsqueda de similares nunca decide por el usuario: solo se muestra como sugerencia
+  // y hace falta tocarla para aceptarla. Así nunca se bloquea el campo mientras se sigue
+  // escribiendo (p.ej. "aceitunas" ya matchea algo mientras el usuario termina de escribir
+  // "aceitunas gordales").
   useEffect(() => {
-    if (esEdicion || productoSeleccionado) return;
+    if (esEdicion || productoSeleccionado || sugerenciasDescartadas) return;
     const texto = nombre.trim();
     if (texto.length < LONGITUD_MINIMA_BUSQUEDA) {
       limpiarSimilares();
@@ -110,12 +115,14 @@ export function FormProductoScreen() {
     }
     const timer = setTimeout(() => buscarSimilares(texto), DEBOUNCE_BUSQUEDA_MS);
     return () => clearTimeout(timer);
-  }, [nombre, esEdicion, productoSeleccionado]);
+  }, [nombre, esEdicion, productoSeleccionado, sugerenciasDescartadas]);
 
   useEffect(() => () => limpiarSimilares(), []);
 
-  const sugerencias = similaresSugeridos.filter(
-    (m) => m.tipoMatch === 'PROPONER' || m.tipoMatch === 'AUTOMATICO'
+  // Ordenamos los AUTOMATICO (>=85%) primero, pero seguimos exigiendo un toque explícito
+  // para seleccionarlos: el matching automático lo confirma el usuario, no el sistema.
+  const sugerencias = [...similaresSugeridos].sort((a, b) =>
+    a.tipoMatch === b.tipoMatch ? 0 : a.tipoMatch === 'AUTOMATICO' ? -1 : 1
   );
 
   const handleSeleccionarSugerencia = (match: MatchProducto) => {
@@ -123,8 +130,16 @@ export function FormProductoScreen() {
     limpiarSimilares();
   };
 
+  // Una vez descartadas (por la X del panel o del banner de selección), no se vuelven
+  // a proponer para el resto de esta edición: si el usuario dijo que no, se respeta.
+  const handleDescartarSugerencias = () => {
+    setSugerenciasDescartadas(true);
+    limpiarSimilares();
+  };
+
   const handleQuitarSeleccion = () => {
     setProductoSeleccionado(null);
+    setSugerenciasDescartadas(true);
   };
 
   const validar = (): boolean => {
@@ -238,7 +253,12 @@ export function FormProductoScreen() {
 
           {!productoSeleccionado && sugerencias.length > 0 && (
             <View style={sugerenciasStyles.container}>
-              <Text style={sugerenciasStyles.titulo}>¿Es uno de estos?</Text>
+              <View style={sugerenciasStyles.cabecera}>
+                <Text style={sugerenciasStyles.titulo}>¿Es uno de estos?</Text>
+                <Pressable onPress={handleDescartarSugerencias} hitSlop={8}>
+                  <Ionicons name="close" size={18} color={colors.text.secondary} />
+                </Pressable>
+              </View>
               {sugerencias.map((match) => (
                 <Pressable
                   key={match.producto.id}
@@ -251,7 +271,12 @@ export function FormProductoScreen() {
                     </Text>
                     <Text style={sugerenciasStyles.itemDetalle}>{match.textoSugerido}</Text>
                   </View>
-                  <Text style={sugerenciasStyles.itemPorcentaje}>
+                  <Text
+                    style={[
+                      sugerenciasStyles.itemPorcentaje,
+                      match.tipoMatch === 'AUTOMATICO' && sugerenciasStyles.itemPorcentajeAlto,
+                    ]}
+                  >
                     {Math.round(match.similitud * 100)}%
                   </Text>
                 </Pressable>
@@ -574,6 +599,11 @@ const sugerenciasStyles = StyleSheet.create({
     padding: spacing.sm,
     gap: spacing.xs,
   },
+  cabecera: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   titulo: { ...typography.label, color: colors.text.primary, marginBottom: spacing.xs },
   item: {
     flexDirection: 'row',
@@ -589,6 +619,7 @@ const sugerenciasStyles = StyleSheet.create({
   itemNombre: { ...typography.label, color: colors.text.primary },
   itemDetalle: { ...typography.caption, color: colors.text.secondary },
   itemPorcentaje: { ...typography.caption, color: colors.primaryDark, fontWeight: '700' },
+  itemPorcentajeAlto: { color: colors.secondary },
   seleccionado: {
     flexDirection: 'row',
     alignItems: 'center',
