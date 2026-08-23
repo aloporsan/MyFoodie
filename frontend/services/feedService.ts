@@ -84,6 +84,13 @@ export const feedService = {
     return data;
   },
 
+  inicializarPerfil: async (
+    tiposCocinaPreferidos: string[],
+    tiempoDisponible: string | null
+  ): Promise<void> => {
+    await apiClient.post('/feed/inicializar-perfil', { tiposCocinaPreferidos, tiempoDisponible });
+  },
+
   obtenerPerfilGustos: async (): Promise<PerfilGustos> => {
     const { data } = await apiClient.get<PerfilGustos>('/feed/perfil-gustos');
     return data;

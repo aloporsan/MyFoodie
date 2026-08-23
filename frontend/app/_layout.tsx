@@ -17,11 +17,12 @@ import { ToastMessage } from '@/components/common/ToastMessage';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useToastStore } from '@/hooks/useToast';
+import { useAuthStore } from '@/store/authStore';
 import { configurarListeners, solicitarPermisosYRegistrarToken } from '@/utils/notificacionesConfig';
 
 SplashScreen.preventAutoHideAsync();
 
-function useAuthGuard(isAuthenticated: boolean, ready: boolean) {
+function useAuthGuard(isAuthenticated: boolean, ready: boolean, recienRegistrado: boolean) {
   const segments = useSegments();
   const router = useRouter();
 
@@ -31,14 +32,15 @@ function useAuthGuard(isAuthenticated: boolean, ready: boolean) {
     if (!isAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/login');
     } else if (isAuthenticated && inAuthGroup) {
-      router.replace('/(tabs)');
+      router.replace(recienRegistrado ? '/onboarding-preferencias' : '/(tabs)');
     }
-  }, [isAuthenticated, segments, ready, router]);
+  }, [isAuthenticated, segments, ready, router, recienRegistrado]);
 }
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
   const { isAuthenticated, isReady } = useAuth();
+  const recienRegistrado = useAuthStore((s) => s.recienRegistrado);
   const { visible, tipo, mensaje, hide } = useToastStore();
 
   const [fontsLoaded] = useFonts({
@@ -47,7 +49,7 @@ function RootLayoutNav() {
     Poppins_600SemiBold,
   });
 
-  useAuthGuard(isAuthenticated, fontsLoaded && isReady);
+  useAuthGuard(isAuthenticated, fontsLoaded && isReady, recienRegistrado);
 
   useEffect(() => {
     if (fontsLoaded) SplashScreen.hideAsync();
@@ -69,6 +71,7 @@ function RootLayoutNav() {
       <Stack>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="onboarding-preferencias"    options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="despensa/form"              options={{ headerShown: false }} />
         <Stack.Screen name="despensa/[id]"              options={{ headerShown: false }} />
         <Stack.Screen name="despensa/filtrada"          options={{ headerShown: false }} />

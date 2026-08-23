@@ -25,6 +25,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  recienRegistrado: boolean;
 }
 
 interface AuthActions {
@@ -32,6 +33,7 @@ interface AuthActions {
   register: (datos: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
+  marcarOnboardingVisto: () => void;
 }
 
 export const useAuthStore = create<AuthState & AuthActions>()(
@@ -42,6 +44,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       isAuthenticated: false,
       isLoading: false,
       error: null,
+      recienRegistrado: false,
 
       login: async (email, password) => {
         set({ isLoading: true, error: null });
@@ -68,6 +71,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             usuario: { userId: res.userId, email: res.email, nombreUsuario: res.nombreUsuario, nombre: res.nombre },
             isAuthenticated: true,
             isLoading: false,
+            recienRegistrado: true,
           });
         } catch (e: unknown) {
           set({ isLoading: false, error: handleApiError(e) });
@@ -76,10 +80,12 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       },
 
       logout: async () => {
-        set({ token: null, usuario: null, isAuthenticated: false, error: null });
+        set({ token: null, usuario: null, isAuthenticated: false, error: null, recienRegistrado: false });
       },
 
       clearError: () => set({ error: null }),
+
+      marcarOnboardingVisto: () => set({ recienRegistrado: false }),
     }),
     {
       name: 'myfoodie-auth',
