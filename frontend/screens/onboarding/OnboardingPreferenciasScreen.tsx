@@ -13,7 +13,15 @@ const TIPOS_COCINA = [
   'Asiática',
   'Mexicana',
   'Americana',
+  'India',
+  'China',
+  'Japonesa',
+  'Francesa',
+  'Árabe',
   'Vegetariana',
+  'Vegana',
+  'Saludable',
+  'Económica',
   'Rápida y fácil',
 ];
 
