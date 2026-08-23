@@ -1,0 +1,885 @@
+{
+  "info": {
+    "name": "MyFoodie — Matching API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",              "value": "http://localhost:8080" },
+    { "key": "token",                "value": "" },
+    { "key": "tokenOtro",            "value": "" },
+    { "key": "tokenNuevo",           "value": "" },
+    { "key": "testEmail",            "value": "" },
+    { "key": "testEmailOtro",        "value": "" },
+    { "key": "testEmailNuevo",       "value": "" },
+    { "key": "productoMantenerId",   "value": "" },
+    { "key": "productoEliminarId",   "value": "" },
+    { "key": "productoTomateAId",    "value": "" },
+    { "key": "productoTomateBId",    "value": "" },
+    { "key": "productoQuesoAId",     "value": "" },
+    { "key": "productoQuesoBId",     "value": "" },
+    { "key": "productoOtroId",       "value": "" },
+    { "key": "productoDetergenteId", "value": "" },
+    { "key": "productoLecheAlgoId",  "value": "" },
+    { "key": "productoLecheAlgoBId", "value": "" },
+    { "key": "recetaCompartidaId",   "value": "" },
+    { "key": "recetaInteraccion1Id", "value": "" },
+    { "key": "recetaInteraccion2Id", "value": "" },
+    { "key": "recetaInteraccion3Id", "value": "" },
+    { "key": "recetaInteraccion4Id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "🔧 Setup",
+      "item": [
+        {
+          "name": "Registrar usuario principal",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const ts = Date.now();",
+                  "pm.collectionVariables.set('testEmail', 'matching_' + ts + '@test.com');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.collectionVariables.set('token', json.token);",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Tiene token', () => pm.expect(json.token).to.not.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Usuario Matching\",\n  \"nombreUsuario\": \"matching_principal_{{$timestamp}}\",\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Registrar usuario otro (para casos de error)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const ts = Date.now();",
+                  "pm.collectionVariables.set('testEmailOtro', 'matching_otro_' + ts + '@test.com');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.collectionVariables.set('tokenOtro', json.token);",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Usuario Otro\",\n  \"nombreUsuario\": \"matching_otro_{{$timestamp}}\",\n  \"email\": \"{{testEmailOtro}}\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Registrar usuario nuevo (sin interacciones, para cold start)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const ts = Date.now();",
+                  "pm.collectionVariables.set('testEmailNuevo', 'matching_nuevo_' + ts + '@test.com');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.collectionVariables.set('tokenNuevo', json.token);",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Usuario Nuevo\",\n  \"nombreUsuario\": \"matching_nuevo_{{$timestamp}}\",\n  \"email\": \"{{testEmailNuevo}}\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Otro: crear receta compartida (visible en el feed)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('recetaCompartidaId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenOtro}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Receta para el feed\",\n  \"descripcion\": \"Usada en los tests de cold start\",\n  \"tiempoEstimado\": 20,\n  \"dificultad\": \"fácil\",\n  \"categoria\": \"cena\",\n  \"etiquetas\": [\"rápida\"]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/recetas", "host": ["{{baseUrl}}"], "path": ["api", "recetas"] }
+          }
+        },
+        {
+          "name": "Otro: añadir ingrediente",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenOtro}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Arroz\",\n  \"cantidad\": 1,\n  \"unidad\": \"kg\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaCompartidaId}}/ingredientes", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaCompartidaId}}", "ingredientes"] }
+          }
+        },
+        {
+          "name": "Otro: añadir paso",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenOtro}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"descripcion\": \"Cocer el arroz\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaCompartidaId}}/pasos", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaCompartidaId}}", "pasos"] }
+          }
+        },
+        {
+          "name": "Otro: publicar receta",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenOtro}}" }],
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaCompartidaId}}/publicar", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaCompartidaId}}", "publicar"] }
+          }
+        },
+        {
+          "name": "Otro: añadir producto propio (para test 403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('productoOtroId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenOtro}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Producto de otro usuario\",\n  \"cantidad\": 1,\n  \"unidad\": \"unidades\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "✅ Matching — Happy Path",
+      "item": [
+        {
+          "name": "1. Añadir 'Leche'",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('productoMantenerId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Leche\",\n  \"cantidad\": 1,\n  \"unidad\": \"litros\",\n  \"fechaCaducidad\": \"2026-12-01\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "2. Añadir 'Leche Entera' (duplicado por sinónimo)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('productoEliminarId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Leche Entera\",\n  \"cantidad\": 2,\n  \"unidad\": \"litros\",\n  \"fechaCaducidad\": \"2026-06-01\",\n  \"stockMinimo\": 3\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "3. GET duplicados → array de pares con similitud",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Devuelve un array con al menos un par', () => {",
+                  "  pm.expect(json).to.be.an('array').that.is.not.empty;",
+                  "  pm.expect(json[0]).to.have.property('similitud');",
+                  "  pm.expect(json[0]).to.have.property('sugerencia');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/duplicados", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "duplicados"] }
+          }
+        },
+        {
+          "name": "4. POST fusionar 'Leche' + 'Leche Entera' → cantidad sumada y stockMinimo más alto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Cantidad sumada (1 + 2 = 3)', () => pm.expect(json.cantidad).to.eql(3));",
+                  "pm.test('Conserva el stockMinimo más alto', () => pm.expect(json.stockMinimo).to.eql(3));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"productoMantenerId\": \"{{productoMantenerId}}\",\n  \"productoEliminarId\": \"{{productoEliminarId}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/fusionar", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "fusionar"] }
+          }
+        },
+        {
+          "name": "5. Añadir 'Tomate' (caduca lejos)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('productoTomateAId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Tomate\",\n  \"cantidad\": 2,\n  \"unidad\": \"unidades\",\n  \"fechaCaducidad\": \"2026-12-31\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "6. Añadir 'Tomate Triturado' (caduca pronto)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('productoTomateBId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Tomate Triturado\",\n  \"cantidad\": 1,\n  \"unidad\": \"unidades\",\n  \"fechaCaducidad\": \"2026-01-15\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "7. POST fusionar 'Tomate' + 'Tomate Triturado' → conserva caducidad más próxima",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Conserva la fecha de caducidad más próxima (2026-01-15)', () => {",
+                  "  pm.expect(json.fechaCaducidad).to.eql('2026-01-15');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"productoMantenerId\": \"{{productoTomateAId}}\",\n  \"productoEliminarId\": \"{{productoTomateBId}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/fusionar", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "fusionar"] }
+          }
+        },
+        {
+          "name": "8. Añadir 'Queso Manchego'",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('productoQuesoAId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Queso Manchego\",\n  \"cantidad\": 1,\n  \"unidad\": \"unidades\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "9. Añadir 'Queso Fresco'",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('productoQuesoBId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Queso Fresco\",\n  \"cantidad\": 1,\n  \"unidad\": \"unidades\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "10. POST ignorar-fusion (Queso Manchego + Queso Fresco)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"productoAId\": \"{{productoQuesoAId}}\",\n  \"productoBId\": \"{{productoQuesoBId}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/ignorar-fusion", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "ignorar-fusion"] }
+          }
+        },
+        {
+          "name": "11. GET duplicados → el par de Queso ignorado ya no aparece",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const quesoAId = pm.collectionVariables.get('productoQuesoAId');",
+                  "const quesoBId = pm.collectionVariables.get('productoQuesoBId');",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('El par de queso ignorado no aparece en duplicados', () => {",
+                  "  const aparece = json.some(par =>",
+                  "    (par.productoA.id === quesoAId && par.productoB.id === quesoBId) ||",
+                  "    (par.productoA.id === quesoBId && par.productoB.id === quesoAId));",
+                  "  pm.expect(aparece).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/duplicados", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "duplicados"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "✅ Matching — Algoritmo",
+      "item": [
+        {
+          "name": "1. Añadir producto sin similitud ('Detergente en Polvo')",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('productoDetergenteId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Detergente en Polvo\",\n  \"cantidad\": 1,\n  \"unidad\": \"unidades\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "2. GET duplicados → el producto sin similitud no aparece en ningún par",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const id = pm.collectionVariables.get('productoDetergenteId');",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('No hay ningún par que involucre al producto sin similitud', () => {",
+                  "  const aparece = json.some(par => par.productoA.id === id || par.productoB.id === id);",
+                  "  pm.expect(aparece).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/duplicados", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "duplicados"] }
+          }
+        },
+        {
+          "name": "3. Añadir 'Leche' (fresco, para el test del algoritmo)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('productoLecheAlgoId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Leche\",\n  \"cantidad\": 1,\n  \"unidad\": \"litros\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "4. Añadir 'leche entera' (minúsculas, para el test del algoritmo)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('productoLecheAlgoBId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"leche entera\",\n  \"cantidad\": 1,\n  \"unidad\": \"litros\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "5. GET duplicados con 'Leche' y 'leche entera' → par detectado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const a = pm.collectionVariables.get('productoLecheAlgoId');",
+                  "const b = pm.collectionVariables.get('productoLecheAlgoBId');",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Detecta el par Leche / leche entera con similitud alta', () => {",
+                  "  const par = json.find(p =>",
+                  "    (p.productoA.id === a && p.productoB.id === b) ||",
+                  "    (p.productoA.id === b && p.productoB.id === a));",
+                  "  pm.expect(par).to.not.be.undefined;",
+                  "  pm.expect(par.similitud).to.be.at.least(0.60);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/duplicados", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "duplicados"] }
+          }
+        },
+        {
+          "name": "6. GET feed usuario nuevo → modoFallback: true",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Hay recetas y están en modoFallback', () => {",
+                  "  pm.expect(json.recetas).to.be.an('array').that.is.not.empty;",
+                  "  json.recetas.forEach(r => pm.expect(r.modoFallback).to.be.true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenNuevo}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/feed?pagina=0&tamaño=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "feed"],
+              "query": [{ "key": "pagina", "value": "0" }, { "key": "tamaño", "value": "50" }]
+            }
+          }
+        },
+        {
+          "name": "7. Crear receta de interacción 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('recetaInteraccion1Id', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"titulo\": \"Receta interacción 1\",\n  \"descripcion\": \"Usada para generar interacciones\",\n  \"tiempoEstimado\": 10,\n  \"dificultad\": \"fácil\",\n  \"categoria\": \"entrante\",\n  \"etiquetas\": [\"rápida\"]\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas", "host": ["{{baseUrl}}"], "path": ["api", "recetas"] }
+          }
+        },
+        {
+          "name": "8. Crear receta de interacción 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('recetaInteraccion2Id', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"titulo\": \"Receta interacción 2\",\n  \"descripcion\": \"Usada para generar interacciones\",\n  \"tiempoEstimado\": 10,\n  \"dificultad\": \"fácil\",\n  \"categoria\": \"entrante\",\n  \"etiquetas\": [\"rápida\"]\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas", "host": ["{{baseUrl}}"], "path": ["api", "recetas"] }
+          }
+        },
+        {
+          "name": "9. Crear receta de interacción 3",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('recetaInteraccion3Id', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"titulo\": \"Receta interacción 3\",\n  \"descripcion\": \"Usada para generar interacciones\",\n  \"tiempoEstimado\": 10,\n  \"dificultad\": \"fácil\",\n  \"categoria\": \"entrante\",\n  \"etiquetas\": [\"rápida\"]\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas", "host": ["{{baseUrl}}"], "path": ["api", "recetas"] }
+          }
+        },
+        {
+          "name": "10. Crear receta de interacción 4",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('recetaInteraccion4Id', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"titulo\": \"Receta interacción 4\",\n  \"descripcion\": \"Usada para generar interacciones\",\n  \"tiempoEstimado\": 10,\n  \"dificultad\": \"fácil\",\n  \"categoria\": \"entrante\",\n  \"etiquetas\": [\"rápida\"]\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas", "host": ["{{baseUrl}}"], "path": ["api", "recetas"] }
+          }
+        },
+        {
+          "name": "11. Generar 12 interacciones (like + guardar + descartar x4) → perfil suficiente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Las 12 interacciones se registran correctamente', () => pm.response.to.have.status(200));"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const ids = [1, 2, 3, 4].map(n => pm.collectionVariables.get('recetaInteraccion' + n + 'Id'));",
+                  "const token = pm.collectionVariables.get('token');",
+                  "const baseUrl = pm.collectionVariables.get('baseUrl');",
+                  "",
+                  "const acciones = [];",
+                  "ids.forEach(id => { acciones.push(['like', id]); acciones.push(['guardar', id]); acciones.push(['descartar', id]); });",
+                  "",
+                  "const ejecutar = (i) => {",
+                  "  if (i >= acciones.length) return;",
+                  "  const [tipo, id] = acciones[i];",
+                  "  pm.sendRequest({",
+                  "    url: `${baseUrl}/api/feed/recetas/${id}/${tipo}`,",
+                  "    method: 'POST',",
+                  "    header: { Authorization: `Bearer ${token}` }",
+                  "  }, () => ejecutar(i + 1));",
+                  "};",
+                  "ejecutar(0);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/feed/perfil-gustos", "host": ["{{baseUrl}}"], "path": ["api", "feed", "perfil-gustos"] }
+          }
+        },
+        {
+          "name": "12. GET feed usuario con interacciones → modoFallback: false",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Hay recetas y ya no están en modoFallback', () => {",
+                  "  pm.expect(json.recetas).to.be.an('array').that.is.not.empty;",
+                  "  json.recetas.forEach(r => pm.expect(r.modoFallback).to.be.false);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/feed?pagina=0&tamaño=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "feed"],
+              "query": [{ "key": "pagina", "value": "0" }, { "key": "tamaño", "value": "50" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "❌ Error Cases",
+      "item": [
+        {
+          "name": "POST fusionar con producto de otro usuario → 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"productoMantenerId\": \"{{productoMantenerId}}\",\n  \"productoEliminarId\": \"{{productoOtroId}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/fusionar", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "fusionar"] }
+          }
+        },
+        {
+          "name": "POST fusionar con mismo id dos veces → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"productoMantenerId\": \"{{productoMantenerId}}\",\n  \"productoEliminarId\": \"{{productoMantenerId}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/fusionar", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "fusionar"] }
+          }
+        },
+        {
+          "name": "GET duplicados sin token → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/duplicados", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "duplicados"] }
+          }
+        }
+      ]
+    }
+  ]
+}
