@@ -25,5 +25,6 @@ public record RecetaFeedDTO(
         String motivoRecomendacion,
         Boolean publicadaPorSeguido,
         Integer likesDeSeguidosCount,
-        ContextoSocialDTO contextoSocial
+        ContextoSocialDTO contextoSocial,
+        Boolean modoFallback
 ) {}

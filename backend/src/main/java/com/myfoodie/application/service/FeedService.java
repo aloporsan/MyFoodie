@@ -320,7 +320,8 @@ public class FeedService {
                 recetaPuntuada.motivoRecomendacion(),
                 publicadaPorSeguido,
                 likesDeSeguidosCount,
-                contextoSocial);
+                contextoSocial,
+                recetaPuntuada.modoFallback());
     }
 
     private String construirTextoContexto(List<String> nombresLikers, int totalLikesDeSeguidos,
