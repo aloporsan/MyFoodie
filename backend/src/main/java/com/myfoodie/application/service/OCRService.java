@@ -7,8 +7,12 @@ import com.google.cloud.vision.v1.Feature;
 import com.google.cloud.vision.v1.Image;
 import com.google.cloud.vision.v1.ImageAnnotatorClient;
 import com.google.protobuf.ByteString;
+import com.myfoodie.application.dto.matching.MatchProductoDTO;
 import com.myfoodie.application.dto.ocr.ProductoTicketDTO;
+import com.myfoodie.application.dto.ocr.ResultadoOCRDTO;
 import com.myfoodie.exception.ApiException;
+import com.myfoodie.domain.model.TipoMatch;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -21,7 +25,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
+@RequiredArgsConstructor
 public class OCRService {
+
+    private final MatchingService matchingService;
 
     private static final Set<String> PALABRAS_CLAVE_TICKET = Set.of(
             "TOTAL", "IVA", "TICKET", "FECHA", "CAJERO", "GRACIAS", "IMPORTE");
@@ -126,5 +133,28 @@ public class OCRService {
 
     private Float parseFloat(String valor) {
         return Float.parseFloat(valor.replace(",", "."));
+    }
+
+    public List<ResultadoOCRDTO> procesarProductosTicket(String usuarioId, List<ProductoTicketDTO> productos) {
+        List<ResultadoOCRDTO> resultados = new ArrayList<>();
+
+        for (ProductoTicketDTO producto : productos) {
+            List<MatchProductoDTO> matches = matchingService.buscarProductoSimilarEnDespensa(
+                    usuarioId, producto.nombreDetectado());
+
+            if (matches.isEmpty()) {
+                resultados.add(new ResultadoOCRDTO(producto, "nuevo", null, null, null));
+                continue;
+            }
+
+            MatchProductoDTO mejorMatch = matches.get(0);
+            String accion = mejorMatch.tipoMatch() == TipoMatch.AUTOMATICO ? "actualizado" : "sugerencia";
+            String mensajeSugerencia = accion.equals("sugerencia") ? mejorMatch.textoSugerido() : null;
+
+            resultados.add(new ResultadoOCRDTO(
+                    producto, accion, mejorMatch.producto(), mejorMatch.similitud(), mensajeSugerencia));
+        }
+
+        return resultados;
     }
 }
