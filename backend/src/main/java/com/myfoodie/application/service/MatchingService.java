@@ -9,6 +9,7 @@ import com.myfoodie.domain.model.Preferencias;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.model.TipoMatch;
 import com.myfoodie.domain.repository.DespensaRepository;
+import com.myfoodie.domain.repository.FusionIgnoradaRepository;
 import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.ProductoRepository;
 import com.myfoodie.exception.ApiException;
@@ -39,6 +40,7 @@ public class MatchingService {
     private final DespensaRepository despensaRepository;
     private final ProductoRepository productoRepository;
     private final PreferenciasRepository preferenciasRepository;
+    private final FusionIgnoradaRepository fusionIgnoradaRepository;
 
     private static final Set<String> ARTICULOS = Set.of(
             "el", "la", "los", "las", "un", "una", "unos", "unas");
@@ -207,6 +209,9 @@ public class MatchingService {
         Despensa despensa = getDespensaDeUsuario(usuarioId);
         int globalUmbral = obtenerGlobalUmbral(usuarioId);
         List<Producto> productos = productoRepository.findByDespensaId(despensa.getId());
+        Set<String> paresIgnorados = fusionIgnoradaRepository.findByUsuarioId(usuarioId).stream()
+                .map(f -> clavePar(f.getProductoANombre(), f.getProductoBNombre()))
+                .collect(Collectors.toSet());
 
         List<ParDuplicadoDTO> duplicados = new ArrayList<>();
         for (int i = 0; i < productos.size(); i++) {
@@ -214,15 +219,24 @@ public class MatchingService {
                 Producto a = productos.get(i);
                 Producto b = productos.get(j);
                 double puntuacion = calcularSimilitud(a.getNombre(), b.getNombre()).puntuacion();
-                if (puntuacion >= UMBRAL_DUPLICADO) {
-                    ProductoResponseDTO dtoA = toProductoResponseDTO(a, resolverUmbral(a, globalUmbral));
-                    ProductoResponseDTO dtoB = toProductoResponseDTO(b, resolverUmbral(b, globalUmbral));
-                    duplicados.add(new ParDuplicadoDTO(dtoA, dtoB, puntuacion,
-                            "Estos productos podrían ser el mismo. ¿Quieres fusionarlos?"));
+                if (puntuacion < UMBRAL_DUPLICADO) {
+                    continue;
                 }
+                String clave = clavePar(normalizar(a.getNombre()), normalizar(b.getNombre()));
+                if (paresIgnorados.contains(clave)) {
+                    continue;
+                }
+                ProductoResponseDTO dtoA = toProductoResponseDTO(a, resolverUmbral(a, globalUmbral));
+                ProductoResponseDTO dtoB = toProductoResponseDTO(b, resolverUmbral(b, globalUmbral));
+                duplicados.add(new ParDuplicadoDTO(dtoA, dtoB, puntuacion,
+                        "Estos productos podrían ser el mismo. ¿Quieres fusionarlos?"));
             }
         }
         return duplicados;
+    }
+
+    private String clavePar(String nombreA, String nombreB) {
+        return nombreA.compareTo(nombreB) <= 0 ? nombreA + "|" + nombreB : nombreB + "|" + nombreA;
     }
 
     private Despensa getDespensaDeUsuario(String usuarioId) {
