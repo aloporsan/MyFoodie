@@ -4,6 +4,7 @@ import com.myfoodie.application.dto.recomendacion.CandidatoRecetaDTO;
 import com.myfoodie.application.dto.recomendacion.ContextoPuntuacionDTO;
 import com.myfoodie.application.dto.recomendacion.RecetaPuntuadaDTO;
 import com.myfoodie.domain.model.PerfilGustos;
+import com.myfoodie.domain.model.Preferencias;
 import com.myfoodie.domain.model.Receta;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,6 +31,7 @@ class RecomendacionServiceTest {
                 .categoriasPreferidas(new HashMap<>())
                 .etiquetasPreferidas(new HashMap<>())
                 .dificultadesPreferidas(new HashMap<>())
+                .totalInteracciones(10)
                 .build();
 
         contextoNeutro = new ContextoPuntuacionDTO(0, false, List.of(), false, null);
@@ -271,5 +273,154 @@ class RecomendacionServiceTest {
                 candidatos, "usuario-1", Set.of(), perfil);
 
         assertThat(resultado.get(0).motivoRecomendacion()).isEqualTo("Recomendado para ti");
+    }
+
+    @Test
+    void puntuarReceta_nunca_baja_del_suelo_minimo_aunque_todos_los_factores_sean_cero() {
+        Receta receta = receta("r1", "autor-1", null, null, null, 30);
+
+        double puntuacion = recomendacionService.puntuarReceta(
+                receta, "usuario-1", perfilVacio, Set.of(), contextoNeutro, true);
+
+        assertThat(puntuacion).isEqualTo(0.05);
+    }
+
+    // ===== tienePerfilSuficiente (RF-REC-005, cold start) =====
+
+    @Test
+    void tienePerfilSuficiente_es_falso_si_el_perfil_es_null() {
+        assertThat(recomendacionService.tienePerfilSuficiente(null)).isFalse();
+    }
+
+    @Test
+    void tienePerfilSuficiente_es_falso_con_menos_de_10_interacciones() {
+        PerfilGustos perfil = PerfilGustos.builder().usuarioId("u1").totalInteracciones(9).build();
+        assertThat(recomendacionService.tienePerfilSuficiente(perfil)).isFalse();
+    }
+
+    @Test
+    void tienePerfilSuficiente_es_verdadero_con_10_o_mas_interacciones() {
+        PerfilGustos perfil = PerfilGustos.builder().usuarioId("u1").totalInteracciones(10).build();
+        assertThat(recomendacionService.tienePerfilSuficiente(perfil)).isTrue();
+    }
+
+    @Test
+    void tienePerfilSuficiente_es_falso_si_totalInteracciones_es_null() {
+        PerfilGustos perfil = PerfilGustos.builder().usuarioId("u1").totalInteracciones(null).build();
+        assertThat(recomendacionService.tienePerfilSuficiente(perfil)).isFalse();
+    }
+
+    // ===== puntuarRecetaFallback (cold start) =====
+
+    @Test
+    void puntuarRecetaFallback_sin_preferencias_solo_puntua_por_despensa() {
+        Receta receta = receta("r1", "autor-1", null, null, null, 30);
+        ContextoPuntuacionDTO contexto = new ContextoPuntuacionDTO(80, false, List.of(), false, null);
+
+        double puntuacion = recomendacionService.puntuarRecetaFallback(receta, contexto, null);
+
+        // Despensa: 80*0.9=72 -> *0.60=43.2. Preferencias: 0 (null) -> *0.40=0.
+        assertThat(puntuacion).isCloseTo(43.2, org.assertj.core.data.Offset.offset(0.0001));
+    }
+
+    @Test
+    void puntuarRecetaFallback_coincide_tipo_dieta_de_las_preferencias_de_onboarding() {
+        Receta receta = receta("r1", "autor-1", null, null, List.of("vegano"), 30);
+        Preferencias preferencias = Preferencias.builder().usuarioId("u1").tipoDieta("vegano").build();
+
+        double puntuacion = recomendacionService.puntuarRecetaFallback(receta, contextoNeutro, preferencias);
+
+        // Despensa: 0. Preferencias: 60 (dieta) -> *0.40=24.
+        assertThat(puntuacion).isEqualTo(24.0);
+    }
+
+    @Test
+    void puntuarRecetaFallback_tiempo_dentro_del_maximo_de_onboarding_suma_puntos() {
+        Receta receta = receta("r1", "autor-1", null, null, null, 30);
+        Preferencias preferencias = Preferencias.builder().usuarioId("u1").tiempoCoccionMax(45).build();
+
+        double puntuacion = recomendacionService.puntuarRecetaFallback(receta, contextoNeutro, preferencias);
+
+        // Despensa: 0. Preferencias: 40 (tiempo) -> *0.40=16.
+        assertThat(puntuacion).isEqualTo(16.0);
+    }
+
+    @Test
+    void puntuarRecetaFallback_nunca_baja_del_suelo_minimo_de_fallback() {
+        Receta receta = receta("r1", "autor-1", null, null, null, 30);
+
+        double puntuacion = recomendacionService.puntuarRecetaFallback(receta, contextoNeutro, null);
+
+        assertThat(puntuacion).isEqualTo(0.1);
+    }
+
+    // ===== inicializarPerfilDesdeOnboarding (RF-REC-005) =====
+
+    @Test
+    void inicializarPerfilDesdeOnboarding_asigna_puntuacion_inicial_a_cada_tipo_de_cocina() {
+        PerfilGustos perfil = recomendacionService.inicializarPerfilDesdeOnboarding(
+                "usuario-1", List.of("Italiana", "Vegana"), "menos_30");
+
+        assertThat(perfil.getUsuarioId()).isEqualTo("usuario-1");
+        assertThat(perfil.getCategoriasPreferidas()).containsEntry("Italiana", 50).containsEntry("Vegana", 50);
+        assertThat(perfil.getTiempoMaximoHabitual()).isEqualTo(30);
+    }
+
+    @Test
+    void inicializarPerfilDesdeOnboarding_mapea_los_tres_rangos_de_tiempo_disponible() {
+        assertThat(recomendacionService.inicializarPerfilDesdeOnboarding("u1", List.of(), "menos_30")
+                .getTiempoMaximoHabitual()).isEqualTo(30);
+        assertThat(recomendacionService.inicializarPerfilDesdeOnboarding("u1", List.of(), "30_60")
+                .getTiempoMaximoHabitual()).isEqualTo(60);
+        assertThat(recomendacionService.inicializarPerfilDesdeOnboarding("u1", List.of(), "mas_1_hora")
+                .getTiempoMaximoHabitual()).isEqualTo(999);
+    }
+
+    @Test
+    void inicializarPerfilDesdeOnboarding_tolera_listas_y_tiempo_null() {
+        PerfilGustos perfil = recomendacionService.inicializarPerfilDesdeOnboarding("usuario-1", null, null);
+
+        assertThat(perfil.getCategoriasPreferidas()).isEmpty();
+        assertThat(perfil.getTiempoMaximoHabitual()).isNull();
+    }
+
+    @Test
+    void inicializarPerfilDesdeOnboarding_ignora_entradas_en_blanco_de_tipos_de_cocina() {
+        PerfilGustos perfil = recomendacionService.inicializarPerfilDesdeOnboarding(
+                "usuario-1", java.util.Arrays.asList("Italiana", " ", null), "30_60");
+
+        assertThat(perfil.getCategoriasPreferidas()).hasSize(1).containsKey("Italiana");
+    }
+
+    // ===== ordenarFeed en modo fallback (cold start, RF-REC-005) =====
+
+    @Test
+    void ordenarFeed_usa_puntuarRecetaFallback_si_el_perfil_no_es_suficiente() {
+        PerfilGustos perfilInsuficiente = PerfilGustos.builder()
+                .usuarioId("usuario-1")
+                .categoriasPreferidas(new HashMap<>())
+                .etiquetasPreferidas(new HashMap<>())
+                .dificultadesPreferidas(new HashMap<>())
+                .totalInteracciones(2)
+                .build();
+        Receta receta = receta("r1", "autor-1", null, null, null, 30);
+        List<CandidatoRecetaDTO> candidatos = List.of(new CandidatoRecetaDTO(receta, contextoNeutro));
+
+        List<RecetaPuntuadaDTO> resultado = recomendacionService.ordenarFeed(
+                candidatos, "usuario-1", Set.of(), perfilInsuficiente, null);
+
+        assertThat(resultado.get(0).modoFallback()).isTrue();
+        assertThat(resultado.get(0).puntuacion()).isEqualTo(0.1);
+    }
+
+    @Test
+    void ordenarFeed_no_usa_modo_fallback_si_el_perfil_ya_es_suficiente() {
+        Receta receta = receta("r1", "autor-1", null, null, null, 30);
+        List<CandidatoRecetaDTO> candidatos = List.of(new CandidatoRecetaDTO(receta, contextoNeutro));
+
+        List<RecetaPuntuadaDTO> resultado = recomendacionService.ordenarFeed(
+                candidatos, "usuario-1", Set.of(), perfilVacio, null);
+
+        assertThat(resultado.get(0).modoFallback()).isFalse();
     }
 }

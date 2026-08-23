@@ -2,8 +2,10 @@ package com.myfoodie.application.service;
 
 import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.feed.FeedResponseDTO;
+import com.myfoodie.application.dto.feed.InicializarPerfilRequestDTO;
 import com.myfoodie.application.dto.feed.RecetaFeedDTO;
 import com.myfoodie.domain.model.IngredienteReceta;
+import com.myfoodie.domain.model.PerfilGustos;
 import com.myfoodie.domain.model.Receta;
 import com.myfoodie.domain.model.RecetaDescartada;
 import com.myfoodie.domain.model.Usuario;
@@ -132,5 +134,72 @@ class FeedServiceTest {
         assertThat(dto.likes()).isEqualTo(3L);
         assertThat(dto.yaLike()).isTrue();
         assertThat(dto.yaGuardada()).isFalse();
+    }
+
+    @Test
+    @DisplayName("obtenerFeed marca modoFallback cuando el usuario no tiene interacciones suficientes (cold start)")
+    void obtenerFeed_marca_modoFallback_con_perfil_insuficiente() {
+        when(recetaDescartadaRepository.findByUsuarioId("user-1")).thenReturn(List.of());
+        when(perfilGustosRepository.findByUsuarioId("user-1")).thenReturn(Optional.empty());
+
+        Receta r = receta("receta-1", "otro-usuario", 0);
+        when(recetaRepository.findByEstadoAndAutorIdNotAndIdNotIn(
+                anyString(), anyString(), anyList(), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(r)));
+        when(ingredienteRepository.findByRecetaId("receta-1")).thenReturn(List.of());
+        when(despensaService.listarProductos("user-1")).thenReturn(List.of());
+        when(usuarioRepository.findById("otro-usuario")).thenReturn(Optional.empty());
+
+        FeedResponseDTO respuesta = feedService.obtenerFeed("user-1", 0, 10);
+
+        assertThat(respuesta.recetas().get(0).modoFallback()).isTrue();
+    }
+
+    @Test
+    @DisplayName("obtenerFeed no usa modoFallback cuando el usuario ya tiene un perfil de gustos suficiente")
+    void obtenerFeed_no_marca_modoFallback_con_perfil_suficiente() {
+        when(recetaDescartadaRepository.findByUsuarioId("user-1")).thenReturn(List.of());
+        PerfilGustos perfilSuficiente = PerfilGustos.builder().usuarioId("user-1").totalInteracciones(15).build();
+        when(perfilGustosRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(perfilSuficiente));
+
+        Receta r = receta("receta-1", "otro-usuario", 0);
+        when(recetaRepository.findByEstadoAndAutorIdNotAndIdNotIn(
+                anyString(), anyString(), anyList(), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(r)));
+        when(ingredienteRepository.findByRecetaId("receta-1")).thenReturn(List.of());
+        when(despensaService.listarProductos("user-1")).thenReturn(List.of());
+        when(usuarioRepository.findById("otro-usuario")).thenReturn(Optional.empty());
+
+        FeedResponseDTO respuesta = feedService.obtenerFeed("user-1", 0, 10);
+
+        assertThat(respuesta.recetas().get(0).modoFallback()).isFalse();
+    }
+
+    // ===== inicializarPerfilDesdeOnboarding =====
+
+    @Test
+    @DisplayName("inicializarPerfilDesdeOnboarding crea y guarda un perfil nuevo a partir de las preferencias del onboarding")
+    void inicializarPerfilDesdeOnboarding_crea_perfil_si_no_existe() {
+        when(perfilGustosRepository.findByUsuarioId("user-1")).thenReturn(Optional.empty());
+        InicializarPerfilRequestDTO dto = new InicializarPerfilRequestDTO(List.of("Italiana"), "menos_30");
+
+        feedService.inicializarPerfilDesdeOnboarding("user-1", dto);
+
+        ArgumentCaptor<PerfilGustos> captor = ArgumentCaptor.forClass(PerfilGustos.class);
+        verify(perfilGustosRepository).save(captor.capture());
+        assertThat(captor.getValue().getCategoriasPreferidas()).containsEntry("Italiana", 50);
+        assertThat(captor.getValue().getTiempoMaximoHabitual()).isEqualTo(30);
+    }
+
+    @Test
+    @DisplayName("inicializarPerfilDesdeOnboarding no sobrescribe un perfil que ya existe")
+    void inicializarPerfilDesdeOnboarding_no_hace_nada_si_ya_existe_perfil() {
+        when(perfilGustosRepository.findByUsuarioId("user-1"))
+                .thenReturn(Optional.of(PerfilGustos.builder().usuarioId("user-1").build()));
+        InicializarPerfilRequestDTO dto = new InicializarPerfilRequestDTO(List.of("Italiana"), "menos_30");
+
+        feedService.inicializarPerfilDesdeOnboarding("user-1", dto);
+
+        verify(perfilGustosRepository, org.mockito.Mockito.never()).save(any());
     }
 }
