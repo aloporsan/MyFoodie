@@ -6,6 +6,9 @@ import com.myfoodie.application.dto.carrito.ItemCarritoRequestDTO;
 import com.myfoodie.application.dto.carrito.ItemCompradoAjusteDTO;
 import com.myfoodie.application.dto.carrito.ItemCarritoResponseDTO;
 import com.myfoodie.application.dto.carrito.ListaCompraResponseDTO;
+import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
+import com.myfoodie.application.dto.matching.MatchProductoDTO;
+import com.myfoodie.application.dto.matching.ResultadoAñadirDespensaDTO;
 import com.myfoodie.application.dto.unidad.UnidadConvertidaDTO;
 import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.IngredienteReceta;
@@ -16,6 +19,7 @@ import com.myfoodie.domain.model.Preferencias;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.model.Receta;
 import com.myfoodie.domain.model.RecetaGuardada;
+import com.myfoodie.domain.model.TipoMatch;
 import com.myfoodie.domain.repository.DespensaRepository;
 import com.myfoodie.domain.repository.IngredienteRecetaRepository;
 import com.myfoodie.domain.repository.ItemCarritoRepository;
@@ -99,6 +103,7 @@ public class CarritoInteligenteService {
     private final IngredienteRecetaRepository ingredienteRecetaRepository;
     private final RecetaRepository recetaRepository;
     private final UnidadNormalizadorService unidadNormalizadorService;
+    private final MatchingService matchingService;
 
     // -------------------------------------------------------------------------
     // Generación de recomendaciones
@@ -304,7 +309,7 @@ public class CarritoInteligenteService {
         return toItemDTO(itemCarritoRepository.save(item), nombresEnDespensa(usuarioId));
     }
 
-    public void añadirProductosCompradosADespensa(String usuarioId, String listaId,
+    public List<ResultadoAñadirDespensaDTO> añadirProductosCompradosADespensa(String usuarioId, String listaId,
                                                    List<ItemCompradoAjusteDTO> ajustes) {
         ListaCompra lista = getListaDeUsuario(usuarioId, listaId);
         Despensa despensa = despensaRepository.findByUsuarioId(usuarioId)
@@ -320,21 +325,40 @@ public class CarritoInteligenteService {
         Map<String, ItemCompradoAjusteDTO> ajustesPorItemId = ajustes == null ? Map.of()
                 : ajustes.stream().collect(Collectors.toMap(ItemCompradoAjusteDTO::itemId, a -> a));
 
+        int globalUmbral = obtenerGlobalUmbral(usuarioId);
+        List<ResultadoAñadirDespensaDTO> resultados = new ArrayList<>();
+
         for (ItemCarrito item : comprados) {
             ItemCompradoAjusteDTO ajuste = ajustesPorItemId.get(item.getId());
             Float cantidad = ajuste != null && ajuste.cantidad() != null ? ajuste.cantidad() : item.getCantidad();
             String unidad = ajuste != null && ajuste.unidad() != null ? ajuste.unidad() : item.getUnidad();
             LocalDate fechaCaducidad = ajuste != null ? ajuste.fechaCaducidad() : null;
 
-            productoRepository.save(Producto.builder()
-                    .despensaId(despensa.getId())
-                    .nombre(item.getNombre())
-                    .cantidad(cantidad != null ? cantidad : 0)
-                    .unidad(unidad)
-                    .categoria(item.getCategoria())
-                    .fechaCaducidad(fechaCaducidad)
-                    .fechaCompra(LocalDate.now())
-                    .build());
+            List<MatchProductoDTO> matches = matchingService.buscarProductoSimilarEnDespensa(
+                    usuarioId, item.getNombre());
+            MatchProductoDTO mejorMatch = matches.isEmpty() ? null : matches.get(0);
+
+            if (mejorMatch != null && mejorMatch.tipoMatch() == TipoMatch.AUTOMATICO) {
+                ProductoResponseDTO actualizado = actualizarCantidadProducto(
+                        usuarioId, mejorMatch.producto().id(), cantidad != null ? cantidad : 0f, globalUmbral);
+                resultados.add(new ResultadoAñadirDespensaDTO(
+                        item.getNombre(), "actualizado", actualizado, null, mejorMatch.similitud()));
+            } else if (mejorMatch != null && mejorMatch.tipoMatch() == TipoMatch.PROPONER) {
+                resultados.add(new ResultadoAñadirDespensaDTO(
+                        item.getNombre(), "sugerencia", mejorMatch.producto(), null, mejorMatch.similitud()));
+            } else {
+                Producto nuevo = productoRepository.save(Producto.builder()
+                        .despensaId(despensa.getId())
+                        .nombre(item.getNombre())
+                        .cantidad(cantidad != null ? cantidad : 0)
+                        .unidad(unidad)
+                        .categoria(item.getCategoria())
+                        .fechaCaducidad(fechaCaducidad)
+                        .fechaCompra(LocalDate.now())
+                        .build());
+                resultados.add(new ResultadoAñadirDespensaDTO(
+                        item.getNombre(), "creado", null, toProductoResponseDTO(nuevo, globalUmbral), null));
+            }
         }
         despensa.setUpdatedAt(LocalDateTime.now());
         despensaRepository.save(despensa);
@@ -342,6 +366,73 @@ public class CarritoInteligenteService {
         lista.setEstado("completada");
         lista.setUpdatedAt(LocalDateTime.now());
         listaCompraRepository.save(lista);
+
+        return resultados;
+    }
+
+    // actualiza sumando el delta directamente vía productoRepository: no se puede inyectar DespensaService
+    // aquí porque DespensaService ya depende de CarritoInteligenteService (dependencia circular)
+    private ProductoResponseDTO actualizarCantidadProducto(String usuarioId, String productoId,
+                                                             float delta, int globalUmbral) {
+        Producto p = productoRepository.findById(productoId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Producto no encontrado"));
+        double cantidadAnterior = p.getCantidad();
+        double cantidadNueva = cantidadAnterior + delta;
+        p.setCantidad(cantidadNueva);
+        p.setUpdatedAt(LocalDateTime.now());
+        Producto guardado = productoRepository.save(p);
+
+        movimientoRepository.save(MovimientoProducto.builder()
+                .productoId(guardado.getId())
+                .despensaId(guardado.getDespensaId())
+                .usuarioId(usuarioId)
+                .nombre(guardado.getNombre())
+                .tipo("cantidad_actualizada")
+                .descripcion("Añadido desde lista de compra")
+                .cantidadAnterior(cantidadAnterior)
+                .cantidadNueva(cantidadNueva)
+                .build());
+
+        return toProductoResponseDTO(guardado, globalUmbral);
+    }
+
+    private String calcularEstado(Producto p, int umbral) {
+        if (p.getCantidad() <= 0) {
+            return "sin_stock";
+        }
+        Integer dias = diasHastaCaducidad(p);
+        if (dias != null && dias < 0) return "caducado";
+        if (dias != null && dias == 0) return "caduca_hoy";
+        if (dias != null && dias <= 3) return "caduca_pronto";
+        if (p.getCantidad() <= umbral) return "bajoStock";
+        if (dias != null && dias <= 7) return "caduca_semana";
+        if (dias != null && dias <= 30) return "caduca_mes";
+        return "normal";
+    }
+
+    private ProductoResponseDTO toProductoResponseDTO(Producto p, int globalUmbral) {
+        int umbralEfectivo = p.getStockMinimo() != null ? p.getStockMinimo() : globalUmbral;
+        boolean alertaCompra = p.getCantidad() <= umbralEfectivo;
+        return new ProductoResponseDTO(
+                p.getId(),
+                p.getDespensaId(),
+                p.getNombre(),
+                p.getCantidad(),
+                p.getUnidad(),
+                p.getUnidadOriginal(),
+                p.getCategoria(),
+                p.getFechaCaducidad(),
+                p.getFechaCompra(),
+                p.getMarca(),
+                p.getNotas(),
+                p.getStockMinimo(),
+                alertaCompra,
+                calcularEstado(p, umbralEfectivo),
+                diasHastaCaducidad(p),
+                null,
+                p.getCreatedAt(),
+                p.getUpdatedAt()
+        );
     }
 
     // -------------------------------------------------------------------------
