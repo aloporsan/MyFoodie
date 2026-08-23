@@ -30,9 +30,19 @@ public class FusionService {
     private final MovimientoProductoRepository movimientoRepository;
     private final FusionIgnoradaRepository fusionIgnoradaRepository;
     private final MatchingService matchingService;
+    private final UnidadNormalizadorService unidadNormalizadorService;
 
     public ProductoResponseDTO fusionarProductos(String usuarioId, String productoMantenerId,
                                                   String productoEliminarId) {
+        return fusionarProductos(usuarioId, productoMantenerId, productoEliminarId, null, null);
+    }
+
+    // unidadElegida y fechaCaducidadElegida son overrides opcionales: cuando los productos
+    // difieren en unidad o caducidad, el usuario elige cuál conservar en vez de que el
+    // sistema decida automáticamente (siempre la fecha más próxima, la unidad del que se mantiene).
+    public ProductoResponseDTO fusionarProductos(String usuarioId, String productoMantenerId,
+                                                  String productoEliminarId, String unidadElegida,
+                                                  LocalDate fechaCaducidadElegida) {
         if (productoMantenerId.equals(productoEliminarId)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "No se puede fusionar un producto consigo mismo");
         }
@@ -42,8 +52,22 @@ public class FusionService {
         Producto eliminar = getProductoValidado(despensa, productoEliminarId);
 
         double cantidadAnterior = mantener.getCantidad();
-        mantener.setCantidad(mantener.getCantidad() + eliminar.getCantidad());
-        mantener.setFechaCaducidad(fechaMasProxima(mantener.getFechaCaducidad(), eliminar.getFechaCaducidad()));
+        String unidadResultante = unidadElegida != null ? unidadElegida : mantener.getUnidad();
+
+        // Convierte ambas cantidades a la unidad resultante antes de sumar (p.ej. 2 l + 500 ml = 2.5 l,
+        // no "502 l"). Si las unidades no son de la misma familia (peso/volumen), suma en crudo como fallback.
+        double cantidadMantener = unidadNormalizadorService
+                .convertirCantidad(mantener.getCantidad(), mantener.getUnidad(), unidadResultante)
+                .orElse(mantener.getCantidad());
+        double cantidadEliminar = unidadNormalizadorService
+                .convertirCantidad(eliminar.getCantidad(), eliminar.getUnidad(), unidadResultante)
+                .orElse(eliminar.getCantidad());
+
+        mantener.setCantidad(cantidadMantener + cantidadEliminar);
+        mantener.setUnidad(unidadResultante);
+        mantener.setFechaCaducidad(fechaCaducidadElegida != null
+                ? fechaCaducidadElegida
+                : fechaMasProxima(mantener.getFechaCaducidad(), eliminar.getFechaCaducidad()));
         mantener.setStockMinimo(stockMinimoMasAlto(mantener.getStockMinimo(), eliminar.getStockMinimo()));
         mantener.setUpdatedAt(LocalDateTime.now());
 

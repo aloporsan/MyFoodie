@@ -11,7 +11,12 @@ interface FusionState {
 
 interface FusionActions {
   cargarDuplicados: () => Promise<void>;
-  fusionarProductos: (productoMantenerId: string, productoEliminarId: string) => Promise<void>;
+  fusionarProductos: (
+    productoMantenerId: string,
+    productoEliminarId: string,
+    unidadElegida?: string,
+    fechaCaducidadElegida?: string
+  ) => Promise<void>;
   ignorarFusion: (productoAId: string, productoBId: string) => Promise<void>;
   clearError: () => void;
 }
@@ -40,10 +45,15 @@ export const useFusionStore = create<FusionState & FusionActions>()((set, get) =
     }
   },
 
-  fusionarProductos: async (productoMantenerId, productoEliminarId) => {
+  fusionarProductos: async (productoMantenerId, productoEliminarId, unidadElegida, fechaCaducidadElegida) => {
     set({ isLoading: true, error: null });
     try {
-      await matchingService.fusionarProductos(productoMantenerId, productoEliminarId);
+      await matchingService.fusionarProductos(
+        productoMantenerId,
+        productoEliminarId,
+        unidadElegida,
+        fechaCaducidadElegida
+      );
       set({
         duplicados: quitarPar(get().duplicados, productoMantenerId, productoEliminarId),
         isLoading: false,

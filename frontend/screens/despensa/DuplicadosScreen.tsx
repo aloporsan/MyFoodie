@@ -55,9 +55,7 @@ export function DuplicadosScreen() {
               style={styles.producto}
               onPress={() => router.push(`/despensa/${item.productoA.id}`)}
             >
-              <Text style={styles.productoNombre} numberOfLines={1}>
-                {item.productoA.nombre}
-              </Text>
+              <Text style={styles.productoNombre}>{item.productoA.nombre}</Text>
               <Text style={styles.productoCantidad}>
                 {item.productoA.cantidad} {item.productoA.unidad}
               </Text>
@@ -66,9 +64,7 @@ export function DuplicadosScreen() {
               style={styles.producto}
               onPress={() => router.push(`/despensa/${item.productoB.id}`)}
             >
-              <Text style={styles.productoNombre} numberOfLines={1}>
-                {item.productoB.nombre}
-              </Text>
+              <Text style={styles.productoNombre}>{item.productoB.nombre}</Text>
               <Text style={styles.productoCantidad}>
                 {item.productoB.cantidad} {item.productoB.unidad}
               </Text>

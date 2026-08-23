@@ -119,7 +119,8 @@ public class DespensaController {
             @Valid @RequestBody FusionarProductosRequestDTO dto,
             Principal principal) {
         return ResponseEntity.ok(fusionService.fusionarProductos(
-                getUsuarioId(principal), dto.productoMantenerId(), dto.productoEliminarId()));
+                getUsuarioId(principal), dto.productoMantenerId(), dto.productoEliminarId(),
+                dto.unidadElegida(), dto.fechaCaducidadElegida()));
     }
 
     @PostMapping("/ignorar-fusion")

@@ -32,11 +32,15 @@ export const matchingService = {
 
   fusionarProductos: async (
     productoMantenerId: string,
-    productoEliminarId: string
+    productoEliminarId: string,
+    unidadElegida?: string,
+    fechaCaducidadElegida?: string
   ): Promise<Producto> => {
     const { data } = await apiClient.post<Producto>('/despensa/productos/fusionar', {
       productoMantenerId,
       productoEliminarId,
+      unidadElegida,
+      fechaCaducidadElegida,
     });
     return data;
   },
