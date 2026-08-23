@@ -40,5 +40,8 @@ public class PerfilGustos {
     private List<String> ingredientesHabituales = new java.util.ArrayList<>();
 
     @Builder.Default
+    private Integer totalInteracciones = 0;
+
+    @Builder.Default
     private Date updatedAt = new Date();
 }

@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { despensaService } from '@/services/despensaService';
 import { useDespensaStore } from '@/store/despensaStore';
+import { useFusionStore } from '@/store/fusionStore';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
@@ -79,6 +80,16 @@ it('añadirProducto_agrega_producto_a_la_lista_existente', async () => {
   const productos = useDespensaStore.getState().productos;
   expect(productos).toHaveLength(2);
   expect(productos[1].nombre).toBe('Arroz');
+});
+
+it('añadirProducto_refresca_los_duplicados_de_la_despensa', async () => {
+  const spy = jest.spyOn(useFusionStore.getState(), 'cargarDuplicados').mockResolvedValue(undefined);
+  mockService.añadirProducto.mockResolvedValue({ ...mockProducto, id: 'prod-2', nombre: 'Arroz' });
+
+  await useDespensaStore.getState().añadirProducto({ nombre: 'Arroz', cantidad: 1, unidad: 'kg' });
+
+  expect(spy).toHaveBeenCalledTimes(1);
+  spy.mockRestore();
 });
 
 // -------------------------------------------------------------------------

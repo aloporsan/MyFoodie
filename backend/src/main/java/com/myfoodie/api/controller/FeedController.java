@@ -1,6 +1,7 @@
 package com.myfoodie.api.controller;
 
 import com.myfoodie.application.dto.feed.FeedResponseDTO;
+import com.myfoodie.application.dto.feed.InicializarPerfilRequestDTO;
 import com.myfoodie.application.dto.feed.PerfilGustosResponseDTO;
 import com.myfoodie.application.dto.receta.RecetaResponseDTO;
 import com.myfoodie.application.service.FeedAccionService;
@@ -8,6 +9,7 @@ import com.myfoodie.application.service.FeedService;
 import com.myfoodie.application.service.RecetaService;
 import com.myfoodie.domain.repository.UsuarioRepository;
 import com.myfoodie.exception.ApiException;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -82,6 +84,14 @@ public class FeedController {
     public ResponseEntity<Void> limpiarDescartadas(Principal principal) {
         feedAccionService.limpiarDescartadas(getUsuarioId(principal));
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/inicializar-perfil")
+    public ResponseEntity<Void> inicializarPerfil(
+            @Valid @RequestBody InicializarPerfilRequestDTO dto,
+            Principal principal) {
+        feedService.inicializarPerfilDesdeOnboarding(getUsuarioId(principal), dto);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/perfil-gustos")

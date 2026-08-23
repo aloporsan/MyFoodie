@@ -3,6 +3,7 @@ package com.myfoodie.application.service;
 import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.feed.ContextoSocialDTO;
 import com.myfoodie.application.dto.feed.FeedResponseDTO;
+import com.myfoodie.application.dto.feed.InicializarPerfilRequestDTO;
 import com.myfoodie.application.dto.feed.PerfilGustosResponseDTO;
 import com.myfoodie.application.dto.feed.RecetaFeedDTO;
 import com.myfoodie.application.dto.recomendacion.CandidatoRecetaDTO;
@@ -90,6 +91,15 @@ public class FeedService {
 
     public void resetearPerfilGustos(String usuarioId) {
         perfilGustosRepository.deleteByUsuarioId(usuarioId);
+    }
+
+    public void inicializarPerfilDesdeOnboarding(String usuarioId, InicializarPerfilRequestDTO dto) {
+        if (perfilGustosRepository.findByUsuarioId(usuarioId).isPresent()) {
+            return;
+        }
+        PerfilGustos perfil = recomendacionService.inicializarPerfilDesdeOnboarding(
+                usuarioId, dto.tiposCocinaPreferidos(), dto.tiempoDisponible());
+        perfilGustosRepository.save(perfil);
     }
 
     public PerfilGustosResponseDTO obtenerPerfilGustos(String usuarioId) {
@@ -320,7 +330,8 @@ public class FeedService {
                 recetaPuntuada.motivoRecomendacion(),
                 publicadaPorSeguido,
                 likesDeSeguidosCount,
-                contextoSocial);
+                contextoSocial,
+                recetaPuntuada.modoFallback());
     }
 
     private String construirTextoContexto(List<String> nombresLikers, int totalLikesDeSeguidos,

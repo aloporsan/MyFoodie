@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import {
+  AlertaDuplicados,
   BuscadorDespensa,
   CantidadMotivoSheet,
   FiltrosBar,
@@ -23,6 +24,7 @@ import {
 import { useToast } from '@/hooks/useToast';
 import { EstadoProducto, MotivoEliminacion } from '@/services/despensaService';
 import { useDespensaStore } from '@/store/despensaStore';
+import { useFusionStore } from '@/store/fusionStore';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -56,6 +58,7 @@ export function DespensaScreen() {
     setOrden,
     inicializarOrden,
   } = useDespensaStore();
+  const { duplicados, cargarDuplicados } = useFusionStore();
 
   const [filtroActivo, setFiltroActivo] = useState<FiltroId>('todos');
   const [categoriaActiva, setCategoriaActiva] = useState('');
@@ -87,6 +90,7 @@ export function DespensaScreen() {
       cargarProductos();
     };
     iniciar();
+    cargarDuplicados();
   }, []);
 
   useEffect(() => {
@@ -97,10 +101,10 @@ export function DespensaScreen() {
   }, [productos, busquedaActiva]);
 
   const handleSearch = useCallback((texto: string) => {
-    setBusqueda(texto);
+    limpiarFiltros();
     setFiltroActivo('todos');
     setCategoriaActiva('');
-    limpiarFiltros();
+    setBusqueda(texto);
     setTimeout(() => cargarProductos(), 0);
   }, []);
 
@@ -234,9 +238,17 @@ export function DespensaScreen() {
         refreshControl={
           <RefreshControl
             refreshing={isLoading}
-            onRefresh={cargarProductos}
+            onRefresh={() => { cargarProductos(); cargarDuplicados(); }}
             tintColor={colors.primary}
           />
+        }
+        ListHeaderComponent={
+          duplicados.length > 0 ? (
+            <AlertaDuplicados
+              cantidad={duplicados.length}
+              onRevisar={() => router.push('/despensa/duplicados')}
+            />
+          ) : null
         }
         renderItem={({ item }) => (
           <ProductoCard

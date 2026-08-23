@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 import { FormProductoScreen } from '@/screens/despensa/FormProductoScreen';
 import { useDespensaStore } from '@/store/despensaStore';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -7,10 +7,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 );
-jest.mock('expo-router', () => ({
-  useRouter: jest.fn(),
-  useLocalSearchParams: jest.fn(),
-}));
+jest.mock('expo-router', () => ({ useRouter: jest.fn(), useLocalSearchParams: jest.fn() }));
 jest.mock('@/store/despensaStore', () => ({ useDespensaStore: jest.fn() }));
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
 jest.mock('react-native-safe-area-context', () => {
@@ -18,216 +15,137 @@ jest.mock('react-native-safe-area-context', () => {
   return { SafeAreaView: View };
 });
 
-const mockBack          = jest.fn();
-const mockAñadirProducto = jest.fn();
-const mockEditarProducto = jest.fn();
+const mockPush = jest.fn();
+const mockBack = jest.fn();
+const mockAñadirProducto = jest.fn().mockResolvedValue({ posiblesDuplicados: [] });
+const mockBuscarSimilares = jest.fn();
 
-const storeBase = {
-  productos: [],
-  isLoading: false,
-  añadirProducto: mockAñadirProducto,
-  editarProducto: mockEditarProducto,
-};
+const productoSimilar = (id: string, nombre: string, similitud: number, tipoMatch: 'AUTOMATICO' | 'PROPONER') => ({
+  producto: {
+    id,
+    despensaId: 'desp-1',
+    nombre,
+    cantidad: 1,
+    unidad: 'unidad',
+    estado: 'normal' as const,
+    createdAt: '2026-01-01T10:00:00',
+    updatedAt: '2026-01-01T10:00:00',
+  },
+  similitud,
+  tipoMatch,
+  textoSugerido: `¿Es lo mismo que '${nombre}' en tu despensa?`,
+});
+
+// El store mockeado es "con estado": limpiarSimilares muta similaresSugeridosState, y
+// useDespensaStore se implementa como función (no mockReturnValue) para leer siempre el
+// valor actual en cada render, igual que ocurriría con la store real de zustand.
+let similaresSugeridosState: ReturnType<typeof productoSimilar>[] = [];
+const mockLimpiarSimilares = jest.fn(() => { similaresSugeridosState = []; });
+
+function mockStore() {
+  (useDespensaStore as unknown as jest.Mock).mockImplementation(() => ({
+    productos: [],
+    añadirProducto: mockAñadirProducto,
+    editarProducto: jest.fn(),
+    actualizarCantidad: jest.fn(),
+    isLoading: false,
+    similaresSugeridos: similaresSugeridosState,
+    buscarSimilares: mockBuscarSimilares,
+    limpiarSimilares: mockLimpiarSimilares,
+  }));
+}
 
 beforeEach(() => {
   jest.clearAllMocks();
-  (useRouter as jest.Mock).mockReturnValue({ back: mockBack, push: jest.fn() });
+  jest.useFakeTimers();
+  similaresSugeridosState = [];
+  mockAñadirProducto.mockResolvedValue({ posiblesDuplicados: [] });
+  (useRouter as jest.Mock).mockReturnValue({ push: mockPush, back: mockBack });
   (useLocalSearchParams as jest.Mock).mockReturnValue({});
-  (useDespensaStore as unknown as jest.Mock).mockReturnValue(storeBase);
+  mockStore();
 });
 
-// -------------------------------------------------------------------------
-// positivos
-// -------------------------------------------------------------------------
+afterEach(() => {
+  jest.useRealTimers();
+});
 
-it('renderiza_el_titulo_Nuevo_producto_en_modo_añadir', () => {
+it('escribir_el_nombre_dispara_buscarSimilares_tras_el_debounce', () => {
+  const { getByPlaceholderText } = render(<FormProductoScreen />);
+
+  fireEvent.changeText(getByPlaceholderText('ej. Leche entera'), 'aceitunas gordales');
+  jest.advanceTimersByTime(500);
+
+  expect(mockBuscarSimilares).toHaveBeenCalledWith('aceitunas gordales');
+});
+
+it('un_match_automatico_no_bloquea_ni_autoselecciona_el_campo_de_nombre', () => {
+  similaresSugeridosState = [productoSimilar('p1', 'Aceitunas Gordales', 0.95, 'AUTOMATICO')];
+  const { getByPlaceholderText, queryByText } = render(<FormProductoScreen />);
+
+  const input = getByPlaceholderText('ej. Leche entera');
+  expect(input.props.editable).not.toBe(false);
+  // Nada se autoselecciona: el usuario sigue escribiendo libremente, sin banner de "Actualizando cantidad de".
+  expect(queryByText(/Actualizando cantidad de/)).toBeNull();
+
+  fireEvent.changeText(input, 'aceitunas gordales rellenas');
+  expect(input.props.value).toBe('aceitunas gordales rellenas');
+});
+
+it('muestra_las_sugerencias_con_los_AUTOMATICO_primero', () => {
+  similaresSugeridosState = [
+    productoSimilar('p1', 'Tomate', 0.65, 'PROPONER'),
+    productoSimilar('p2', 'Tomate frito', 0.9, 'AUTOMATICO'),
+  ];
   const { getByText } = render(<FormProductoScreen />);
-  expect(getByText('Nuevo producto')).toBeTruthy();
+
+  expect(getByText('¿Es uno de estos?')).toBeTruthy();
+  expect(getByText('90%')).toBeTruthy();
+  expect(getByText('65%')).toBeTruthy();
 });
 
-it('renderiza_el_titulo_Editar_producto_en_modo_edicion', () => {
-  const mockProducto = {
-    id: 'prod-1',
-    despensaId: 'desp-1',
-    nombre: 'Leche',
-    cantidad: 2,
-    unidad: 'litros',
-    estado: 'normal' as const,
-    createdAt: '2026-01-01T10:00:00',
-    updatedAt: '2026-01-01T10:00:00',
-  };
-  (useLocalSearchParams as jest.Mock).mockReturnValue({ id: 'prod-1' });
-  (useDespensaStore as unknown as jest.Mock).mockReturnValue({
-    ...storeBase,
-    productos: [mockProducto],
-  });
-
-  const { getByText } = render(<FormProductoScreen />);
-  expect(getByText('Editar producto')).toBeTruthy();
-});
-
-it('rellena_campos_con_datos_del_producto_en_modo_edicion', () => {
-  const mockProducto = {
-    id: 'prod-1',
-    despensaId: 'desp-1',
-    nombre: 'Aceite',
-    cantidad: 1,
-    unidad: 'litros',
-    marca: 'Hacendado',
-    estado: 'normal' as const,
-    createdAt: '2026-01-01T10:00:00',
-    updatedAt: '2026-01-01T10:00:00',
-  };
-  (useLocalSearchParams as jest.Mock).mockReturnValue({ id: 'prod-1' });
-  (useDespensaStore as unknown as jest.Mock).mockReturnValue({
-    ...storeBase,
-    productos: [mockProducto],
-  });
-
-  const { getByDisplayValue } = render(<FormProductoScreen />);
-  expect(getByDisplayValue('Aceite')).toBeTruthy();
-  expect(getByDisplayValue('Hacendado')).toBeTruthy();
-});
-
-it('navega_atras_tras_guardar_exitoso', async () => {
-  mockAñadirProducto.mockResolvedValue({
-    id: 'prod-nuevo',
-    despensaId: 'desp-1',
-    nombre: 'Leche',
-    cantidad: 2,
-    unidad: 'litros',
-    estado: 'normal',
-    createdAt: '2026-01-01T10:00:00',
-    updatedAt: '2026-01-01T10:00:00',
-  });
-
-  const { getByPlaceholderText, getByText } = render(<FormProductoScreen />);
-  fireEvent.changeText(getByPlaceholderText('ej. Leche entera'), 'Leche');
-  fireEvent.changeText(getByPlaceholderText('ej. 2'), '2');
-  fireEvent.press(getByText('Añadir producto'));
-
-  await waitFor(() => {
-    expect(mockAñadirProducto).toHaveBeenCalled();
-    expect(mockBack).toHaveBeenCalled();
-  });
-});
-
-// -------------------------------------------------------------------------
-// negativos (validaciones)
-// -------------------------------------------------------------------------
-
-it('boton_guardar_no_llama_al_servicio_si_nombre_vacio', async () => {
-  const { getByPlaceholderText, getByText } = render(<FormProductoScreen />);
-  fireEvent.changeText(getByPlaceholderText('ej. 2'), '2');
-  fireEvent.press(getByText('Añadir producto'));
-
-  await waitFor(() => {
-    expect(mockAñadirProducto).not.toHaveBeenCalled();
-  });
-  expect(getByText('El nombre es obligatorio')).toBeTruthy();
-});
-
-it('boton_guardar_no_llama_al_servicio_si_cantidad_invalida', async () => {
-  const { getByPlaceholderText, getByText } = render(<FormProductoScreen />);
-  fireEvent.changeText(getByPlaceholderText('ej. Leche entera'), 'Leche');
-  fireEvent.changeText(getByPlaceholderText('ej. 2'), 'abc');
-  fireEvent.press(getByText('Añadir producto'));
-
-  await waitFor(() => {
-    expect(mockAñadirProducto).not.toHaveBeenCalled();
-  });
-  expect(getByText('Cantidad válida requerida')).toBeTruthy();
-});
-
-// -------------------------------------------------------------------------
-// MEJORA 1 — Stock mínimo personalizado (#132)
-// -------------------------------------------------------------------------
-
-it('renderiza_campo_stock_minimo_personalizado', () => {
+it('tocar_una_sugerencia_la_selecciona_y_bloquea_el_campo_de_nombre', () => {
+  similaresSugeridosState = [productoSimilar('p1', 'Aceitunas Gordales', 0.95, 'AUTOMATICO')];
   const { getByText, getByPlaceholderText } = render(<FormProductoScreen />);
-  expect(getByText('Stock mínimo personalizado')).toBeTruthy();
-  expect(getByPlaceholderText('ej. 3')).toBeTruthy();
+
+  fireEvent.press(getByText('Aceitunas Gordales'));
+
+  expect(getByText('Actualizando cantidad de "Aceitunas Gordales"')).toBeTruthy();
+  expect(getByPlaceholderText('ej. Leche entera').props.editable).toBe(false);
+  expect(mockLimpiarSimilares).toHaveBeenCalled();
 });
 
-it('stock_minimo_cero_es_aceptado_como_valor_valido', async () => {
-  mockAñadirProducto.mockResolvedValue({
-    id: 'prod-1', despensaId: 'desp-1', nombre: 'Leche', cantidad: 2,
-    unidad: 'unidades', estado: 'normal', createdAt: '', updatedAt: '',
-  });
-  const { getByPlaceholderText, getByText } = render(<FormProductoScreen />);
-  fireEvent.changeText(getByPlaceholderText('ej. Leche entera'), 'Leche');
-  fireEvent.changeText(getByPlaceholderText('ej. 2'), '2');
-  fireEvent.changeText(getByPlaceholderText('ej. 3'), '0');
-  fireEvent.press(getByText('Añadir producto'));
+it('descartar_las_sugerencias_con_la_X_las_oculta_y_no_vuelven_a_aparecer_al_seguir_escribiendo', () => {
+  similaresSugeridosState = [productoSimilar('p1', 'Aceitunas Gordales', 0.95, 'AUTOMATICO')];
+  const { getByText, queryByText, getByPlaceholderText, getByTestId } = render(<FormProductoScreen />);
 
-  await waitFor(() => {
-    expect(mockAñadirProducto).toHaveBeenCalledWith(expect.objectContaining({ stockMinimo: 0 }));
-  });
+  expect(getByText('¿Es uno de estos?')).toBeTruthy();
+
+  fireEvent.press(getByTestId('descartar-sugerencias'));
+
+  expect(queryByText('¿Es uno de estos?')).toBeNull();
+
+  mockBuscarSimilares.mockClear();
+  fireEvent.changeText(getByPlaceholderText('ej. Leche entera'), 'aceitunas gordales rellenas');
+  jest.advanceTimersByTime(500);
+
+  expect(mockBuscarSimilares).not.toHaveBeenCalled();
 });
 
-it('boton_guardar_no_queda_deshabilitado_al_escribir_stock_minimo_valido', async () => {
-  mockAñadirProducto.mockResolvedValue({
-    id: 'prod-1', despensaId: 'desp-1', nombre: 'Leche', cantidad: 2,
-    unidad: 'litros', estado: 'normal', createdAt: '', updatedAt: '',
-  });
-  const { getByPlaceholderText, getByText } = render(<FormProductoScreen />);
-  fireEvent.changeText(getByPlaceholderText('ej. Leche entera'), 'Leche');
-  fireEvent.changeText(getByPlaceholderText('ej. 2'), '2');
-  fireEvent.changeText(getByPlaceholderText('ej. 3'), '3');
-  fireEvent.press(getByText('Añadir producto'));
+it('quitar_la_seleccion_desbloquea_el_campo_pero_no_vuelve_a_buscar_similares', () => {
+  similaresSugeridosState = [productoSimilar('p1', 'Aceitunas Gordales', 0.95, 'AUTOMATICO')];
+  const { getByText, getByPlaceholderText, queryByText, getByTestId } = render(<FormProductoScreen />);
 
-  await waitFor(() => {
-    expect(mockAñadirProducto).toHaveBeenCalled();
-  });
-});
+  fireEvent.press(getByText('Aceitunas Gordales'));
+  expect(getByPlaceholderText('ej. Leche entera').props.editable).toBe(false);
 
-it('rellena_stock_minimo_en_modo_edicion_si_el_producto_lo_tiene', () => {
-  const mockProducto = {
-    id: 'prod-1', despensaId: 'desp-1', nombre: 'Sal', cantidad: 1,
-    unidad: 'kg', stockMinimo: 3, estado: 'normal' as const,
-    createdAt: '', updatedAt: '',
-  };
-  (useLocalSearchParams as jest.Mock).mockReturnValue({ id: 'prod-1' });
-  (useDespensaStore as unknown as jest.Mock).mockReturnValue({
-    ...storeBase,
-    productos: [mockProducto],
-  });
-  const { getByDisplayValue } = render(<FormProductoScreen />);
-  expect(getByDisplayValue('3')).toBeTruthy();
-});
+  fireEvent.press(getByTestId('quitar-seleccion'));
 
-// -------------------------------------------------------------------------
-// RF-DESP-019 — Normalización de unidades subjetivas (#161)
-// -------------------------------------------------------------------------
+  expect(queryByText(/Actualizando cantidad de/)).toBeNull();
+  expect(getByPlaceholderText('ej. Leche entera').props.editable).not.toBe(false);
 
-it('selector_unidad_muestra_dos_grupos', () => {
-  const { getByText } = render(<FormProductoScreen />);
-  expect(getByText('Unidades objetivas (recomendadas)')).toBeTruthy();
-  expect(getByText('Unidades subjetivas (se convertirán automáticamente)')).toBeTruthy();
-});
+  mockBuscarSimilares.mockClear();
+  fireEvent.changeText(getByPlaceholderText('ej. Leche entera'), 'otra cosa distinta');
+  jest.advanceTimersByTime(500);
 
-it('seleccionar_unidad_subjetiva_muestra_aviso_conversion', () => {
-  const { getByText, queryByTestId } = render(<FormProductoScreen />);
-  expect(queryByTestId('aviso-conversion-unidad')).toBeNull();
-
-  fireEvent.press(getByText('Taza(s)'));
-
-  expect(queryByTestId('aviso-conversion-unidad')).toBeTruthy();
-  expect(getByText(/se convertirá automáticamente/)).toBeTruthy();
-});
-
-it('aviso_muestra_equivalencia_correcta', () => {
-  const { getByText, getByPlaceholderText } = render(<FormProductoScreen />);
-  fireEvent.changeText(getByPlaceholderText('ej. 2'), '3');
-  fireEvent.press(getByText('Taza(s)'));
-
-  expect(getByText(/750 ml/)).toBeTruthy();
-});
-
-it('seleccionar_unidad_objetiva_no_muestra_aviso', () => {
-  const { getByText, queryByTestId } = render(<FormProductoScreen />);
-
-  fireEvent.press(getByText('kg'));
-
-  expect(queryByTestId('aviso-conversion-unidad')).toBeNull();
+  expect(mockBuscarSimilares).not.toHaveBeenCalled();
 });

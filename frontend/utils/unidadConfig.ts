@@ -44,3 +44,23 @@ export function unidadDeCompra(cantidad: number, unidad: string): { cantidad: nu
   const cantidadDestino = Math.round((totalBase / 1000) * 100) / 100;
   return { cantidad: cantidadDestino, unidad: destino };
 }
+
+// Conversión entre unidades objetivas de la misma familia (peso: g/kg/oz/lb, volumen: ml/l).
+// Espejo de UnidadNormalizadorService.convertirCantidad en el backend, para que el preview
+// de fusión muestre el mismo resultado que calculará el servidor.
+const FACTOR_A_GRAMOS: Record<string, number> = { g: 1, kg: 1000, oz: 28.3495, lb: 453.592 };
+const FACTOR_A_MILILITROS: Record<string, number> = { ml: 1, l: 1000 };
+
+export function convertirCantidad(cantidad: number, unidadOrigen: string, unidadDestino: string): number | null {
+  const origen = unidadOrigen.toLowerCase();
+  const destino = unidadDestino.toLowerCase();
+  if (origen === destino) return cantidad;
+
+  if (origen in FACTOR_A_GRAMOS && destino in FACTOR_A_GRAMOS) {
+    return Math.round((cantidad * FACTOR_A_GRAMOS[origen]) / FACTOR_A_GRAMOS[destino] * 100) / 100;
+  }
+  if (origen in FACTOR_A_MILILITROS && destino in FACTOR_A_MILILITROS) {
+    return Math.round((cantidad * FACTOR_A_MILILITROS[origen]) / FACTOR_A_MILILITROS[destino] * 100) / 100;
+  }
+  return null;
+}

@@ -4,6 +4,8 @@ import com.myfoodie.application.dto.unidad.UnidadConvertidaDTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("UnidadNormalizadorService — conversión de unidades subjetivas")
@@ -148,5 +150,64 @@ class UnidadNormalizadorServiceTest {
         assertThat(resultado.cantidadConvertida()).isEqualTo(2.0);
         assertThat(resultado.unidadConvertida()).isEqualTo("kg");
         assertThat(resultado.fueConvertida()).isFalse();
+    }
+
+    // -------------------------------------------------------------------------
+    // convertirCantidad — RF-DESP-022, fusión de duplicados con unidades distintas
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("convertirCantidad convierte litros a mililitros dentro de la familia de volumen")
+    void convertirCantidad_litros_a_mililitros() {
+        Optional<Double> resultado = service.convertirCantidad(2, "l", "ml");
+
+        assertThat(resultado).contains(2000.0);
+    }
+
+    @Test
+    @DisplayName("convertirCantidad convierte mililitros a litros dentro de la familia de volumen")
+    void convertirCantidad_mililitros_a_litros() {
+        Optional<Double> resultado = service.convertirCantidad(500, "ml", "l");
+
+        assertThat(resultado).contains(0.5);
+    }
+
+    @Test
+    @DisplayName("convertirCantidad convierte kilos a gramos dentro de la familia de peso")
+    void convertirCantidad_kilos_a_gramos() {
+        Optional<Double> resultado = service.convertirCantidad(1.5, "kg", "g");
+
+        assertThat(resultado).contains(1500.0);
+    }
+
+    @Test
+    @DisplayName("convertirCantidad convierte onzas y libras a gramos")
+    void convertirCantidad_onzas_y_libras_a_gramos() {
+        assertThat(service.convertirCantidad(1, "oz", "g")).contains(28.35);
+        assertThat(service.convertirCantidad(1, "lb", "g")).contains(453.59);
+    }
+
+    @Test
+    @DisplayName("convertirCantidad devuelve la misma cantidad si origen y destino son iguales")
+    void convertirCantidad_misma_unidad_devuelve_igual() {
+        assertThat(service.convertirCantidad(3, "kg", "kg")).contains(3.0);
+    }
+
+    @Test
+    @DisplayName("convertirCantidad es insensible a mayúsculas y espacios en las unidades")
+    void convertirCantidad_ignora_mayusculas_y_espacios() {
+        assertThat(service.convertirCantidad(2, " L ", "ML")).contains(2000.0);
+    }
+
+    @Test
+    @DisplayName("convertirCantidad devuelve empty si las unidades pertenecen a familias distintas")
+    void convertirCantidad_familias_distintas_devuelve_empty() {
+        assertThat(service.convertirCantidad(1, "l", "kg")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("convertirCantidad devuelve empty para unidades no objetivas como 'unidad'")
+    void convertirCantidad_unidad_no_convertible_devuelve_empty() {
+        assertThat(service.convertirCantidad(3, "unidad", "kg")).isEmpty();
     }
 }
