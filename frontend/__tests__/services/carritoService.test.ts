@@ -182,14 +182,14 @@ it('marcarComprado_devuelve_item_con_estado_comprado', async () => {
 });
 
 it('añadirCompradosADespensa_sin_ajustes_envia_array_vacio', async () => {
-  mockPost.mockResolvedValue({ data: { ...mockLista, estado: 'completada' } });
+  mockPost.mockResolvedValue({ data: { resultados: [], lista: { ...mockLista, estado: 'completada' } } });
   const result = await carritoService.añadirCompradosADespensa('lista-1');
-  expect(result.estado).toBe('completada');
+  expect(result.lista.estado).toBe('completada');
   expect(mockPost).toHaveBeenCalledWith('/carrito/listas/lista-1/añadir-despensa', []);
 });
 
 it('añadirCompradosADespensa_con_ajustes_los_envia_en_el_body', async () => {
-  mockPost.mockResolvedValue({ data: { ...mockLista, estado: 'completada' } });
+  mockPost.mockResolvedValue({ data: { resultados: [], lista: { ...mockLista, estado: 'completada' } } });
   const ajustes = [{ itemId: 'item-1', cantidad: 500, unidad: 'g' }];
   await carritoService.añadirCompradosADespensa('lista-1', ajustes);
   expect(mockPost).toHaveBeenCalledWith('/carrito/listas/lista-1/añadir-despensa', ajustes);
