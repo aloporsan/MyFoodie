@@ -148,6 +148,28 @@ class MatchingServiceTest {
         assertThat(resultado.puntuacion()).isEqualTo(1.0);
     }
 
+    @Test
+    @DisplayName("calcularSimilitud penaliza fuerte productos sin ninguna palabra completa en común")
+    void calcularSimilitud_penaliza_productos_sin_palabras_en_comun() {
+        // Jaro-Winkler en crudo da ~0.6 para estas dos cadenas por puro solape de letras
+        // sueltas, aunque son productos completamente distintos (bug real reportado en
+        // producción). El factor de solape de palabras debe tirar la puntuación por debajo
+        // del umbral de PROPONER (0.60).
+        SimilitudResultDTO resultado = matchingService.calcularSimilitud("La Barraca Pimiento D", "Carne boloñesa");
+
+        assertThat(resultado.puntuacion()).isLessThan(0.60);
+    }
+
+    @Test
+    @DisplayName("calcularSimilitud no penaliza cuando comparten al menos una palabra completa")
+    void calcularSimilitud_no_penaliza_si_comparten_una_palabra() {
+        // "Leche Pascual Entera" vs "Leche": comparten la palabra "leche" -> no se penaliza,
+        // debe seguir clasificando como AUTOMATICO (>=0.85) igual que antes del fix.
+        SimilitudResultDTO resultado = matchingService.calcularSimilitud("Leche Pascual Entera", "Leche");
+
+        assertThat(resultado.puntuacion()).isGreaterThanOrEqualTo(0.85);
+    }
+
     // -------------------------------------------------------------------------
     // clasificarMatch
     // -------------------------------------------------------------------------
