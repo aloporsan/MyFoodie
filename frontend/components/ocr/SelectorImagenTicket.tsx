@@ -7,6 +7,7 @@ import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
+import { RecortadorTicket } from './RecortadorTicket';
 
 export interface ImagenTicketSeleccionada {
   uri: string;
@@ -31,17 +32,30 @@ const mensajePermisoDenegado = (recurso: string) =>
     { icon: 'settings-outline', variant: 'warning' }
   );
 
+interface ImagenPendienteDeRecorte {
+  uri: string;
+  ancho: number;
+  alto: number;
+  nombre: string;
+}
+
 export function SelectorImagenTicket({ imagen, onSeleccionarImagen, disabled = false }: Props) {
   const [cargando, setCargando] = useState(false);
+  const [pendienteDeRecorte, setPendienteDeRecorte] = useState<ImagenPendienteDeRecorte | null>(null);
 
+  // El editor de recorte nativo del picker (allowsEditing) es poco fiable entre
+  // dispositivos/versiones de Android e iOS (a veces no muestra el botón de confirmar,
+  // o fuerza una proporción fija). Por eso tomamos la imagen sin recortar y usamos
+  // nuestro propio recortador (RecortadorTicket) a continuación.
   const procesarResultado = (result: ImagePicker.ImagePickerResult) => {
     if (result.canceled || !result.assets[0]) return;
     const asset = result.assets[0];
     const extension = asset.uri.split('.').pop()?.toLowerCase() ?? 'jpg';
-    onSeleccionarImagen({
+    setPendienteDeRecorte({
       uri: asset.uri,
+      ancho: asset.width,
+      alto: asset.height,
       nombre: asset.fileName ?? `ticket.${extension}`,
-      tipo: asset.mimeType ?? `image/${extension === 'jpg' ? 'jpeg' : extension}`,
     });
   };
 
@@ -55,7 +69,9 @@ export function SelectorImagenTicket({ imagen, onSeleccionarImagen, disabled = f
       }
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'] as ImagePicker.MediaType[],
-        quality: 0.8,
+        // Calidad máxima: el texto de un ticket es pequeño y denso, y la compresión
+        // perjudica bastante la precisión del OCR.
+        quality: 1,
       });
       procesarResultado(result);
     } finally {
@@ -71,11 +87,17 @@ export function SelectorImagenTicket({ imagen, onSeleccionarImagen, disabled = f
         mensajePermisoDenegado('cámara');
         return;
       }
-      const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+      const result = await ImagePicker.launchCameraAsync({ quality: 1 });
       procesarResultado(result);
     } finally {
       setCargando(false);
     }
+  };
+
+  const handleConfirmarRecorte = (uriRecortada: string) => {
+    if (!pendienteDeRecorte) return;
+    onSeleccionarImagen({ uri: uriRecortada, nombre: pendienteDeRecorte.nombre, tipo: 'image/jpeg' });
+    setPendienteDeRecorte(null);
   };
 
   const ocupado = cargando || disabled;
@@ -88,7 +110,13 @@ export function SelectorImagenTicket({ imagen, onSeleccionarImagen, disabled = f
         ) : (
           <View style={styles.placeholder}>
             <Ionicons name="receipt-outline" size={48} color={colors.grayMid} />
-            <Text style={styles.placeholderText}>Toca para escanear un ticket</Text>
+            <Text style={styles.placeholderText}>
+              Haz una foto o elige una imagen de tu ticket
+            </Text>
+            <Text style={styles.placeholderSubtexto}>
+              Al recortar, deja solo la parte de los alimentos: evita el nombre y
+              dirección de la tienda y cualquier otro dato
+            </Text>
           </View>
         )}
         {cargando && (
@@ -106,9 +134,19 @@ export function SelectorImagenTicket({ imagen, onSeleccionarImagen, disabled = f
         <View style={styles.separador} />
         <Pressable style={styles.btn} onPress={abrirGaleria} disabled={ocupado}>
           <Ionicons name="images-outline" size={18} color={colors.primary} />
-          <Text style={styles.btnText}>{imagen ? 'Cambiar imagen' : 'Seleccionar de galería'}</Text>
+          <Text style={styles.btnText}>{imagen ? 'Cambiar\nimagen' : 'Seleccionar\nde galería'}</Text>
         </Pressable>
       </View>
+
+      {pendienteDeRecorte && (
+        <RecortadorTicket
+          uri={pendienteDeRecorte.uri}
+          anchoNatural={pendienteDeRecorte.ancho}
+          altoNatural={pendienteDeRecorte.alto}
+          onConfirmar={handleConfirmarRecorte}
+          onCancelar={() => setPendienteDeRecorte(null)}
+        />
+      )}
     </View>
   );
 }
@@ -129,8 +167,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
   },
-  placeholderText: { ...typography.body, color: colors.grayMid },
+  placeholderText: { ...typography.body, color: colors.grayMid, textAlign: 'center' },
+  placeholderSubtexto: {
+    ...typography.caption,
+    color: colors.grayMid,
+    textAlign: 'center',
+  },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.4)',
@@ -151,6 +195,6 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingVertical: spacing.sm,
   },
-  btnText: { ...typography.label, color: colors.primary },
+  btnText: { ...typography.label, color: colors.primary, textAlign: 'center' },
   separador: { width: 1, backgroundColor: colors.gray },
 });

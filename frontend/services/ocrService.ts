@@ -27,6 +27,10 @@ export interface ProductoConfirmadoOCR {
   fechaCaducidad?: string | null;
   accion: AccionConfirmacionOCR;
   productoExistenteId?: string | null;
+  marca?: string | null;
+  notas?: string | null;
+  stockMinimo?: number | null;
+  categoria?: string | null;
 }
 
 export interface ResumenConfirmacionOCR {

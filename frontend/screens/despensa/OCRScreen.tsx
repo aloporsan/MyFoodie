@@ -88,6 +88,10 @@ export function OCRScreen() {
       ...base,
       accion,
       productoExistenteId: debeActualizar ? (resultado.productoExistente?.id ?? null) : null,
+      marca: accion === 'nuevo' ? (ajuste?.marca ?? null) : null,
+      notas: accion === 'nuevo' ? (ajuste?.notas ?? null) : null,
+      stockMinimo: accion === 'nuevo' ? (ajuste?.stockMinimo ?? null) : null,
+      categoria: accion === 'nuevo' ? (ajuste?.categoria ?? null) : null,
     };
   };
 

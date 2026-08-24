@@ -5,8 +5,15 @@ import { Platform, Pressable, StyleSheet, Switch, Text, TextInput, View } from '
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { ResultadoOCR } from '@/services/ocrService';
+import { getCategoriaConfig } from '@/utils/categoriaConfig';
 import { etiquetaUnidad, UNIDADES_OBJETIVAS } from '@/utils/unidadConfig';
 import { borderRadius, colors, spacing, typography } from '@/theme';
+
+const CATEGORIAS = [
+  'Frutas y verduras', 'Carnes', 'Pescados', 'Lácteos',
+  'Bebidas', 'Congelados', 'Condimentos', 'Cereales',
+  'Conservas', 'Snacks', 'Otros',
+];
 
 export interface AjusteOCR {
   nombre: string;
@@ -16,6 +23,11 @@ export interface AjusteOCR {
   ignorado: boolean;
   // Solo relevante cuando resultado.accion === 'sugerencia'. null = el usuario aún no ha respondido.
   confirmaSugerencia: boolean | null;
+  // Solo aplicables a productos nuevos (no hay nada que editar en uno ya existente en despensa).
+  marca: string | null;
+  notas: string | null;
+  stockMinimo: number | null;
+  categoria: string | null;
 }
 
 interface Props {
@@ -51,6 +63,12 @@ export function OCRResultadoCard({ resultado, onChange }: Props) {
   const [mostrarFecha, setMostrarFecha] = useState(false);
   const [ignorado, setIgnorado] = useState(false);
   const [confirmaSugerencia, setConfirmaSugerencia] = useState<boolean | null>(null);
+  const [marca, setMarca] = useState('');
+  const [notas, setNotas] = useState('');
+  const [stockMinimoTexto, setStockMinimoTexto] = useState('');
+  const [categoria, setCategoria] = useState('');
+
+  const esNuevo = accion === 'nuevo';
 
   const notify = (overrides: Partial<AjusteOCR> = {}) => {
     onChange({
@@ -60,6 +78,10 @@ export function OCRResultadoCard({ resultado, onChange }: Props) {
       fechaCaducidad: fechaCaducidad || null,
       ignorado,
       confirmaSugerencia,
+      marca: marca.trim() || null,
+      notas: notas.trim() || null,
+      stockMinimo: stockMinimoTexto ? parseInt(stockMinimoTexto, 10) : null,
+      categoria: categoria || null,
       ...overrides,
     });
   };
@@ -100,10 +122,54 @@ export function OCRResultadoCard({ resultado, onChange }: Props) {
     notify({ ignorado: valor });
   };
 
+  const handleMarcaChange = (t: string) => {
+    setMarca(t);
+    notify({ marca: t.trim() || null });
+  };
+
+  const handleNotasChange = (t: string) => {
+    setNotas(t);
+    notify({ notas: t.trim() || null });
+  };
+
+  const handleStockMinimoChange = (t: string) => {
+    setStockMinimoTexto(t);
+    notify({ stockMinimo: t ? parseInt(t, 10) : null });
+  };
+
+  const handleCategoriaChange = (c: string) => {
+    const nueva = categoria === c ? '' : c;
+    setCategoria(nueva);
+    notify({ categoria: nueva || null });
+  };
+
   const handleResponderSugerencia = (esLoMismo: boolean) => {
     setConfirmaSugerencia(esLoMismo);
     notify({ confirmaSugerencia: esLoMismo });
   };
+
+  // Colapsado a una sola línea: deja más sitio en pantalla para el resto de productos
+  // cuando ya se ha decidido que este no se va a añadir.
+  if (ignorado) {
+    return (
+      <Card style={styles.cardIgnorada}>
+        <View style={styles.filaIgnorada}>
+          <Ionicons name="eye-off-outline" size={16} color={colors.grayMid} />
+          <Text style={styles.filaIgnoradaTexto} numberOfLines={1}>
+            {nombre || productoTicket.nombreDetectado}
+          </Text>
+          <Switch
+            testID="toggle-ignorar"
+            value={ignorado}
+            onValueChange={handleToggleIgnorar}
+            trackColor={{ false: colors.gray, true: colors.grayMid }}
+            thumbColor={colors.white}
+            ios_backgroundColor={colors.gray}
+          />
+        </View>
+      </Card>
+    );
+  }
 
   return (
     <Card style={styles.card}>
@@ -111,14 +177,17 @@ export function OCRResultadoCard({ resultado, onChange }: Props) {
         <Text style={styles.lineaOriginal} numberOfLines={1}>
           {productoTicket.lineaOriginal}
         </Text>
-        <Switch
-          testID="toggle-ignorar"
-          value={ignorado}
-          onValueChange={handleToggleIgnorar}
-          trackColor={{ false: colors.gray, true: colors.grayMid }}
-          thumbColor={colors.white}
-          ios_backgroundColor={colors.gray}
-        />
+        <View style={styles.toggleIgnorar}>
+          <Text style={styles.toggleIgnorarTexto}>Ignorar</Text>
+          <Switch
+            testID="toggle-ignorar"
+            value={ignorado}
+            onValueChange={handleToggleIgnorar}
+            trackColor={{ false: colors.gray, true: colors.grayMid }}
+            thumbColor={colors.white}
+            ios_backgroundColor={colors.gray}
+          />
+        </View>
       </View>
 
       {accion === 'actualizado' && productoExistente && (
@@ -166,13 +235,12 @@ export function OCRResultadoCard({ resultado, onChange }: Props) {
         </View>
       )}
 
-      <View style={[styles.campos, ignorado && styles.camposDeshabilitados]} pointerEvents={ignorado ? 'none' : 'auto'}>
+      <View style={styles.campos}>
         <Campo label="Nombre">
           <TextInput
             style={styles.input}
             value={nombre}
             onChangeText={handleNombreChange}
-            editable={!ignorado}
           />
         </Campo>
 
@@ -184,7 +252,6 @@ export function OCRResultadoCard({ resultado, onChange }: Props) {
                 value={cantidadTexto}
                 onChangeText={handleCantidadChange}
                 keyboardType="decimal-pad"
-                editable={!ignorado}
               />
             </Campo>
           </View>
@@ -199,7 +266,6 @@ export function OCRResultadoCard({ resultado, onChange }: Props) {
                       key={op}
                       style={[styles.chip, activo && styles.chipActivo]}
                       onPress={() => handleUnidadChange(op)}
-                      disabled={ignorado}
                     >
                       <Text style={[styles.chipTexto, activo && styles.chipTextoActivo]}>
                         {etiquetaUnidad(op)}
@@ -213,7 +279,7 @@ export function OCRResultadoCard({ resultado, onChange }: Props) {
         </View>
 
         <Campo label="Fecha de caducidad (opcional)">
-          <Pressable style={styles.fechaRow} onPress={() => setMostrarFecha(true)} disabled={ignorado}>
+          <Pressable style={styles.fechaRow} onPress={() => setMostrarFecha(true)}>
             <Ionicons
               name="calendar-outline"
               size={18}
@@ -237,6 +303,63 @@ export function OCRResultadoCard({ resultado, onChange }: Props) {
             />
           )}
         </Campo>
+
+        {esNuevo && (
+          <>
+            <Campo label="Categoría (opcional)">
+              <View style={styles.chips}>
+                {CATEGORIAS.map((op) => {
+                  const activo = categoria === op;
+                  const config = getCategoriaConfig(op);
+                  return (
+                    <Pressable
+                      key={op}
+                      style={[
+                        styles.chip,
+                        activo && { backgroundColor: config.bg, borderColor: config.fg },
+                      ]}
+                      onPress={() => handleCategoriaChange(op)}
+                    >
+                      <Text style={[styles.chipTexto, activo && { color: config.fg, fontWeight: '700' }]}>
+                        {op}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </Campo>
+
+            <View style={styles.fila}>
+              <View style={styles.campoCantidad}>
+                <Campo label="Marca (opcional)">
+                  <TextInput
+                    style={styles.input}
+                    value={marca}
+                    onChangeText={handleMarcaChange}
+                  />
+                </Campo>
+              </View>
+              <View style={styles.campoCantidad}>
+                <Campo label="Stock mínimo (opcional)">
+                  <TextInput
+                    style={styles.input}
+                    value={stockMinimoTexto}
+                    onChangeText={handleStockMinimoChange}
+                    keyboardType="number-pad"
+                  />
+                </Campo>
+              </View>
+            </View>
+
+            <Campo label="Notas (opcional)">
+              <TextInput
+                style={styles.input}
+                value={notas}
+                onChangeText={handleNotasChange}
+              />
+            </Campo>
+          </>
+        )}
       </View>
     </Card>
   );
@@ -253,6 +376,14 @@ function Campo({ label, children }: { label: string; children: React.ReactNode }
 
 const styles = StyleSheet.create({
   card: { gap: spacing.sm },
+  cardIgnorada: { paddingVertical: spacing.md, borderRadius: borderRadius.sm },
+  filaIgnorada: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  filaIgnoradaTexto: {
+    ...typography.body,
+    color: colors.grayMid,
+    flex: 1,
+    textDecorationLine: 'line-through',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -265,6 +396,8 @@ const styles = StyleSheet.create({
     flex: 1,
     fontStyle: 'italic',
   },
+  toggleIgnorar: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  toggleIgnorarTexto: { ...typography.caption, color: colors.text.secondary },
   banner: {
     backgroundColor: '#FEF3E0',
     borderRadius: borderRadius.md,
@@ -287,7 +420,6 @@ const styles = StyleSheet.create({
   bannerRespuestaTexto: { ...typography.caption, color: colors.text.primary, flex: 1 },
   bannerCambiar: { ...typography.caption, color: colors.secondary, fontWeight: '700' },
   campos: { gap: spacing.sm },
-  camposDeshabilitados: { opacity: 0.4 },
   campo: { gap: spacing.xs },
   campoLabel: { ...typography.caption, color: colors.text.secondary },
   input: {
