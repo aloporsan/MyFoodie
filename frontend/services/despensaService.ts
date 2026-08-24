@@ -111,12 +111,14 @@ export const despensaService = {
     id: string,
     delta: number,
     motivo?: MotivoEliminacion,
-    motivoDetalle?: string
+    motivoDetalle?: string,
+    descripcion?: string
   ): Promise<Producto> => {
     const { data } = await apiClient.patch<Producto>(`/despensa/productos/${id}/cantidad`, {
       delta,
       motivo,
       motivoDetalle,
+      descripcion,
     });
     return data;
   },

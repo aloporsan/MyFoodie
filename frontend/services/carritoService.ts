@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { Producto } from './despensaService';
 
 export const UNIDADES_CARRITO = [
   'unidades', 'kg', 'g', 'litros', 'ml', 'packs', 'latas', 'bolsas',
@@ -63,6 +64,21 @@ export interface ListaCompra {
   estado: EstadoListaCompra;
   createdAt: string;
   updatedAt: string;
+}
+
+export type AccionAñadirDespensa = 'actualizado' | 'sugerencia' | 'creado';
+
+export interface ResultadoAñadirDespensa {
+  itemNombre: string;
+  accion: AccionAñadirDespensa;
+  productoExistente: Producto | null;
+  producto: Producto | null;
+  similitud: number | null;
+}
+
+export interface AñadirCompradosResultado {
+  resultados: ResultadoAñadirDespensa[];
+  lista: ListaCompra;
 }
 
 export const carritoService = {
@@ -149,8 +165,8 @@ export const carritoService = {
   añadirCompradosADespensa: async (
     listaId: string,
     ajustes?: ItemCompradoAjuste[]
-  ): Promise<ListaCompra> => {
-    const { data } = await apiClient.post<ListaCompra>(
+  ): Promise<AñadirCompradosResultado> => {
+    const { data } = await apiClient.post<AñadirCompradosResultado>(
       `/carrito/listas/${listaId}/añadir-despensa`,
       ajustes ?? []
     );
