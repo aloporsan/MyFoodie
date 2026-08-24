@@ -11,6 +11,7 @@ import com.myfoodie.application.dto.matching.MatchProductoDTO;
 import com.myfoodie.application.dto.ocr.ProductoTicketDTO;
 import com.myfoodie.application.dto.ocr.ResultadoOCRDTO;
 import com.myfoodie.exception.ApiException;
+import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.model.TipoMatch;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -138,9 +139,14 @@ public class OCRService {
     public List<ResultadoOCRDTO> procesarProductosTicket(String usuarioId, List<ProductoTicketDTO> productos) {
         List<ResultadoOCRDTO> resultados = new ArrayList<>();
 
+        // Despensa y umbral se cargan una única vez fuera del bucle (evita repetir las
+        // mismas consultas a Mongo por cada línea detectada del ticket).
+        List<Producto> productosDespensa = matchingService.productosDeDespensa(usuarioId);
+        int globalUmbral = matchingService.umbralGlobal(usuarioId);
+
         for (ProductoTicketDTO producto : productos) {
             List<MatchProductoDTO> matches = matchingService.buscarProductoSimilarEnDespensa(
-                    usuarioId, producto.nombreDetectado());
+                    productosDespensa, globalUmbral, producto.nombreDetectado());
 
             if (matches.isEmpty()) {
                 resultados.add(new ResultadoOCRDTO(producto, "nuevo", null, null, null));

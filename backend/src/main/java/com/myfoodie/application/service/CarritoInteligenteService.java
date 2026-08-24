@@ -328,6 +328,13 @@ public class CarritoInteligenteService {
         int globalUmbral = obtenerGlobalUmbral(usuarioId);
         List<ResultadoAñadirDespensaDTO> resultados = new ArrayList<>();
 
+        // Se cargan los productos de la despensa UNA vez y se van actualizando en memoria
+        // (en vez de volver a consultar Mongo por cada item, como hacía buscarProductoSimilarEnDespensa
+        // al llamarla dentro del bucle): con N items comprados eso eran 3*N consultas evitables.
+        // Se sigue actualizando esta copia local para que dos items iguales dentro del mismo lote
+        // (p. ej. dos líneas de "Leche") se sigan detectando entre sí.
+        List<Producto> productosActuales = new ArrayList<>(productoRepository.findByDespensaId(despensa.getId()));
+
         for (ItemCarrito item : comprados) {
             ItemCompradoAjusteDTO ajuste = ajustesPorItemId.get(item.getId());
             Float cantidad = ajuste != null && ajuste.cantidad() != null ? ajuste.cantidad() : item.getCantidad();
@@ -335,12 +342,16 @@ public class CarritoInteligenteService {
             LocalDate fechaCaducidad = ajuste != null ? ajuste.fechaCaducidad() : null;
 
             List<MatchProductoDTO> matches = matchingService.buscarProductoSimilarEnDespensa(
-                    usuarioId, item.getNombre());
+                    productosActuales, globalUmbral, item.getNombre());
             MatchProductoDTO mejorMatch = matches.isEmpty() ? null : matches.get(0);
 
             if (mejorMatch != null && mejorMatch.tipoMatch() == TipoMatch.AUTOMATICO) {
+                Producto existente = productosActuales.stream()
+                        .filter(p -> p.getId().equals(mejorMatch.producto().id()))
+                        .findFirst()
+                        .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Producto no encontrado"));
                 ProductoResponseDTO actualizado = actualizarCantidadProducto(
-                        usuarioId, mejorMatch.producto().id(), cantidad != null ? cantidad : 0f, globalUmbral);
+                        usuarioId, existente, cantidad != null ? cantidad : 0f, globalUmbral);
                 resultados.add(new ResultadoAñadirDespensaDTO(
                         item.getNombre(), "actualizado", actualizado, null, mejorMatch.similitud()));
             } else if (mejorMatch != null && mejorMatch.tipoMatch() == TipoMatch.PROPONER) {
@@ -356,6 +367,7 @@ public class CarritoInteligenteService {
                         .fechaCaducidad(fechaCaducidad)
                         .fechaCompra(LocalDate.now())
                         .build());
+                productosActuales.add(nuevo);
                 resultados.add(new ResultadoAñadirDespensaDTO(
                         item.getNombre(), "creado", null, toProductoResponseDTO(nuevo, globalUmbral), null));
             }
@@ -372,10 +384,8 @@ public class CarritoInteligenteService {
 
     // actualiza sumando el delta directamente vía productoRepository: no se puede inyectar DespensaService
     // aquí porque DespensaService ya depende de CarritoInteligenteService (dependencia circular)
-    private ProductoResponseDTO actualizarCantidadProducto(String usuarioId, String productoId,
+    private ProductoResponseDTO actualizarCantidadProducto(String usuarioId, Producto p,
                                                              float delta, int globalUmbral) {
-        Producto p = productoRepository.findById(productoId)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Producto no encontrado"));
         double cantidadAnterior = p.getCantidad();
         double cantidadNueva = cantidadAnterior + delta;
         p.setCantidad(cantidadNueva);

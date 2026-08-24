@@ -188,7 +188,26 @@ public class MatchingService {
         Despensa despensa = getDespensaDeUsuario(usuarioId);
         int globalUmbral = obtenerGlobalUmbral(usuarioId);
         List<Producto> productos = productoRepository.findByDespensaId(despensa.getId());
+        return buscarProductoSimilarEnDespensa(productos, globalUmbral, nombreBuscado);
+    }
 
+    // Para llamantes que van a evaluar varios nombres contra la misma despensa de golpe
+    // (p. ej. OCRService por cada línea de ticket): cargar esto una vez fuera del bucle y
+    // pasarlo a la variante de arriba con lista evita repetir las mismas consultas a Mongo.
+    public List<Producto> productosDeDespensa(String usuarioId) {
+        Despensa despensa = getDespensaDeUsuario(usuarioId);
+        return productoRepository.findByDespensaId(despensa.getId());
+    }
+
+    public int umbralGlobal(String usuarioId) {
+        return obtenerGlobalUmbral(usuarioId);
+    }
+
+    // Variante sin consultas a Mongo: para cuando el llamante ya tiene los productos de la
+    // despensa cargados (p. ej. al resolver varios items de golpe) y evaluar uno a uno con
+    // la versión de arriba dispararía una consulta repetida por cada item (N+1).
+    public List<MatchProductoDTO> buscarProductoSimilarEnDespensa(
+            List<Producto> productos, int globalUmbral, String nombreBuscado) {
         return productos.stream()
                 .map(p -> Map.entry(p, calcularSimilitud(nombreBuscado, p.getNombre())))
                 .filter(entry -> entry.getValue().puntuacion() >= UMBRAL_PROPONER)
