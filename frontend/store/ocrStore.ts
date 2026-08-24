@@ -15,7 +15,7 @@ interface OCRState {
 }
 
 interface OCRActions {
-  procesarTicket: (imagen: FormData) => Promise<void>;
+  procesarTicket: (imagen: FormData) => Promise<ResultadoOCR[]>;
   confirmarProductos: (productosAjustados: ProductoConfirmadoOCR[]) => Promise<ResumenConfirmacionOCR>;
   limpiarResultados: () => void;
 }
@@ -35,6 +35,7 @@ export const useOCRStore = create<OCRState & OCRActions>()((set) => ({
     try {
       const resultados = await ocrService.procesarTicket(imagen);
       set({ resultados, isProcessing: false });
+      return resultados;
     } catch (e) {
       set({ error: handleApiError(e), isProcessing: false });
       throw e;

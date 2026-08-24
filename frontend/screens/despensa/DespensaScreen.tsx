@@ -192,7 +192,7 @@ export function DespensaScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerSide}>
+        <View style={[styles.headerSide, styles.headerSideLeft]}>
           <Pressable
             style={styles.escanearBtn}
             onPress={() => router.push('/despensa/ocr')}
@@ -409,6 +409,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   headerSide: { flex: 1, alignItems: 'flex-end' },
+  headerSideLeft: { alignItems: 'flex-start' },
   titulo: { ...typography.heading1, color: colors.text.primary, textAlign: 'center', flex: 2 },
   addBtn: {
     backgroundColor: colors.primary,

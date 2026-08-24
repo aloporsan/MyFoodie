@@ -68,7 +68,7 @@ export function CarritoScreen() {
     marcarNoVolver,
     recuperarItem,
     modificarCantidad,
-    añadirItemManual,
+    añadirYAceptarItemManual,
   } = useCarritoStore();
 
   const [tab, setTab] = useState<TabId>('recomendaciones');
@@ -90,7 +90,7 @@ export function CarritoScreen() {
   const handleAñadirManual = async (datos: ItemCarritoInput) => {
     setAñadiendoManual(true);
     try {
-      await añadirItemManual(datos);
+      await añadirYAceptarItemManual(datos);
       setModalManual(false);
     } finally {
       setAñadiendoManual(false);
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: spacing.lg,
-    bottom: 88,
+    bottom: 116,
     width: 56,
     height: 56,
     borderRadius: 28,

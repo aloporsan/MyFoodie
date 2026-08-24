@@ -13,7 +13,7 @@ import { borderRadius, colors, spacing, typography } from '@/theme';
 
 export function OCRScreen() {
   const router = useRouter();
-  const { showSuccess } = useToast();
+  const { showSuccess, showError, showInfo } = useToast();
   const {
     resultados,
     isProcessing,
@@ -46,10 +46,13 @@ export function OCRScreen() {
       type: imagen.tipo,
     } as unknown as Blob);
     try {
-      await procesarTicket(formData);
+      const detectados = await procesarTicket(formData);
       setAjustes({});
+      if (detectados.length === 0) {
+        showInfo('No hemos detectado ningún producto en esta imagen. Prueba con otra foto más nítida.');
+      }
     } catch {
-      // el error ya queda reflejado en ocrStore.error
+      showError(useOCRStore.getState().error ?? 'No se pudo procesar el ticket. Inténtalo de nuevo.');
     }
   };
 
@@ -103,7 +106,7 @@ export function OCRScreen() {
       );
       router.replace('/despensa');
     } catch {
-      // el error ya queda reflejado en ocrStore.error
+      showError(useOCRStore.getState().error ?? 'No se pudieron añadir los productos. Inténtalo de nuevo.');
     }
   };
 

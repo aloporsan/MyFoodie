@@ -28,7 +28,7 @@ const mensajePermisoDenegado = (recurso: string) =>
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Ir a ajustes', onPress: () => Linking.openSettings() },
     ],
-    { icon: 'settings-outline' }
+    { icon: 'settings-outline', variant: 'warning' }
   );
 
 export function SelectorImagenTicket({ imagen, onSeleccionarImagen, disabled = false }: Props) {
@@ -119,10 +119,13 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
     backgroundColor: colors.grayLight,
+    // Los tickets se fotografían casi siempre en vertical: una proporción alta
+    // aprovecha mejor la preview antes de procesar.
+    aspectRatio: 0.68,
   },
-  imagen: { width: '100%', height: 260 },
+  imagen: { width: '100%', height: '100%' },
   placeholder: {
-    height: 220,
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,

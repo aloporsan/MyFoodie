@@ -237,27 +237,44 @@ export function AñadirCompradosScreen() {
 
               {info?.match?.tipoMatch === 'PROPONER' && (
                 <View style={styles.banner}>
-                  <Text style={styles.bannerTexto}>
-                    ¿Es lo mismo que {info.match.producto.nombre}?
-                  </Text>
-                  <View style={styles.bannerBotones}>
-                    <Pressable
-                      style={[styles.bannerBtn, styles.bannerBtnSi]}
-                      onPress={() => handleResponderSugerencia(item.id, true)}
-                    >
-                      <Text style={styles.bannerBtnSiTexto}>
-                        {info.respuesta === true ? '✓ Sí' : 'Sí'}
+                  {info.respuesta === null ? (
+                    <>
+                      <Text style={styles.bannerTexto}>
+                        ¿Es lo mismo que {info.match.producto.nombre}?
                       </Text>
-                    </Pressable>
+                      <View style={styles.bannerBotones}>
+                        <Pressable
+                          style={[styles.bannerBtn, styles.bannerBtnSi]}
+                          onPress={() => handleResponderSugerencia(item.id, true)}
+                        >
+                          <Text style={styles.bannerBtnSiTexto}>Sí, es lo mismo</Text>
+                        </Pressable>
+                        <Pressable
+                          style={[styles.bannerBtn, styles.bannerBtnNo]}
+                          onPress={() => handleResponderSugerencia(item.id, false)}
+                        >
+                          <Text style={styles.bannerBtnNoTexto}>No, es distinto</Text>
+                        </Pressable>
+                      </View>
+                    </>
+                  ) : (
                     <Pressable
-                      style={[styles.bannerBtn, styles.bannerBtnNo]}
-                      onPress={() => handleResponderSugerencia(item.id, false)}
+                      style={styles.bannerRespuesta}
+                      onPress={() => handleResponderSugerencia(item.id, !info.respuesta)}
                     >
-                      <Text style={styles.bannerBtnNoTexto}>
-                        {info.respuesta === false ? '✓ No' : 'No'}
+                      <Ionicons
+                        name={info.respuesta ? 'checkmark-circle' : 'add-circle'}
+                        size={16}
+                        color={info.respuesta ? colors.primary : colors.error}
+                      />
+                      <Text style={styles.bannerRespuestaTexto}>
+                        {info.respuesta
+                          ? `Se fusionará con ${info.match.producto.nombre}`
+                          : 'Se añadirá como producto nuevo'}
                       </Text>
+                      <Text style={styles.bannerCambiar}>Cambiar</Text>
                     </Pressable>
-                  </View>
+                  )}
                 </View>
               )}
 
@@ -414,10 +431,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     alignItems: 'center',
   },
-  bannerBtnSi: { backgroundColor: colors.secondary },
+  bannerBtnSi: { backgroundColor: colors.primary },
   bannerBtnSiTexto: { ...typography.label, color: colors.white },
-  bannerBtnNo: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.secondary },
-  bannerBtnNoTexto: { ...typography.label, color: colors.secondary },
+  bannerBtnNo: { backgroundColor: colors.error },
+  bannerBtnNoTexto: { ...typography.label, color: colors.white },
+  bannerRespuesta: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  bannerRespuestaTexto: { ...typography.caption, color: colors.text.primary, flex: 1 },
+  bannerCambiar: { ...typography.caption, color: colors.secondary, fontWeight: '700' },
   fila: { flexDirection: 'row', gap: spacing.md },
   cantidadGroup: { width: 100 },
   flexGrow: { flex: 1 },

@@ -153,7 +153,7 @@ export function OCRResultadoCard({ resultado, onChange }: Props) {
               <Ionicons
                 name={confirmaSugerencia ? 'checkmark-circle' : 'add-circle'}
                 size={16}
-                color={colors.secondary}
+                color={confirmaSugerencia ? colors.primary : colors.error}
               />
               <Text style={styles.bannerRespuestaTexto}>
                 {confirmaSugerencia
@@ -279,10 +279,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     alignItems: 'center',
   },
-  bannerBtnSi: { backgroundColor: colors.secondary },
+  bannerBtnSi: { backgroundColor: colors.primary },
   bannerBtnSiTexto: { ...typography.label, color: colors.white },
-  bannerBtnNo: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.secondary },
-  bannerBtnNoTexto: { ...typography.label, color: colors.secondary },
+  bannerBtnNo: { backgroundColor: colors.error },
+  bannerBtnNoTexto: { ...typography.label, color: colors.white },
   bannerRespuesta: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   bannerRespuestaTexto: { ...typography.caption, color: colors.text.primary, flex: 1 },
   bannerCambiar: { ...typography.caption, color: colors.secondary, fontWeight: '700' },
