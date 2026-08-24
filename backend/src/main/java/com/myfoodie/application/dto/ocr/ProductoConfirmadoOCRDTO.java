@@ -8,5 +8,9 @@ public record ProductoConfirmadoOCRDTO(
         String unidad,
         LocalDate fechaCaducidad,
         String accion,
-        String productoExistenteId
+        String productoExistenteId,
+        String marca,
+        String notas,
+        Integer stockMinimo,
+        String categoria
 ) {}

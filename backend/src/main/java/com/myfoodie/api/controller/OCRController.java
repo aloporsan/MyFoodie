@@ -87,10 +87,10 @@ public class OCRController {
                             producto.nombre(),
                             producto.cantidad() != null ? producto.cantidad() : 0,
                             producto.unidad(),
-                            null,
+                            producto.categoria(),
                             producto.fechaCaducidad(),
                             LocalDate.now(),
-                            null, null, null));
+                            producto.marca(), producto.notas(), producto.stockMinimo()));
                     añadidos++;
                 }
                 case "ignorado" -> ignorados++;

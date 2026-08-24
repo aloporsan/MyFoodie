@@ -19,8 +19,10 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -32,7 +34,7 @@ public class OCRService {
     private final MatchingService matchingService;
 
     private static final Set<String> PALABRAS_CLAVE_TICKET = Set.of(
-            "TOTAL", "IVA", "TICKET", "FECHA", "CAJERO", "GRACIAS", "IMPORTE");
+            "TOTAL", "IVA", "TICKET", "FECHA", "CAJERO", "GRACIAS", "IMPORTE", "BOLSA");
 
     private static final Pattern SOLO_NUMEROS = Pattern.compile("^[0-9.,\\s€$-]+$");
     private static final Pattern CODIGO_PRODUCTO = Pattern.compile("^\\d{4,8}\\s+");
@@ -40,6 +42,10 @@ public class OCRService {
             "^(\\d+(?:[.,]\\d+)?)\\s*[xX]\\s+");
     private static final Pattern CANTIDAD_UNIDADES = Pattern.compile(
             "^(\\d+(?:[.,]\\d+)?)\\s*(UN|UD|unidades?)\\.?\\s+", Pattern.CASE_INSENSITIVE);
+    // Algunos tickets ponen la cantidad suelta al principio, sin "x" ni "UD" detrás
+    // (p. ej. "2 TOMATE FRITO"). Se limita a 1-3 dígitos para no confundirla con un
+    // código de producto de 4-8 dígitos, que ya se elimina aparte con CODIGO_PRODUCTO.
+    private static final Pattern CANTIDAD_INICIAL = Pattern.compile("^(\\d{1,3}(?:[.,]\\d+)?)\\s+(?=\\D)");
     private static final Pattern PRECIO_FINAL = Pattern.compile(
             "\\s+\\d+[.,]\\d{2}\\s*(?:€|\\$)?\\s*$");
     private static final Pattern UNIDAD_MEDIDA = Pattern.compile(
@@ -50,7 +56,10 @@ public class OCRService {
         try (ImageAnnotatorClient client = ImageAnnotatorClient.create()) {
             ByteString contenido = ByteString.copyFrom(imagenBytes);
             Image imagen = Image.newBuilder().setContent(contenido).build();
-            Feature feature = Feature.newBuilder().setType(Feature.Type.TEXT_DETECTION).build();
+            // DOCUMENT_TEXT_DETECTION (no TEXT_DETECTION) está pensado para texto denso y
+            // estructurado como documentos y tickets: da un orden de lectura mucho más fiable
+            // que el modo genérico, que está optimizado para texto suelto en fotos.
+            Feature feature = Feature.newBuilder().setType(Feature.Type.DOCUMENT_TEXT_DETECTION).build();
             AnnotateImageRequest request = AnnotateImageRequest.newBuilder()
                     .addFeatures(feature)
                     .setImage(imagen)
@@ -66,7 +75,8 @@ public class OCRService {
 
             return resultado.getFullTextAnnotation().getText();
         } catch (IOException e) {
-            throw new ApiException(HttpStatus.BAD_GATEWAY, "No se pudo conectar con Google Vision API");
+            throw new ApiException(HttpStatus.BAD_GATEWAY,
+                    "No se pudo conectar con Google Vision API: " + e.getMessage());
         }
     }
 
@@ -112,6 +122,12 @@ public class OCRService {
             if (matcherCantidad.find()) {
                 cantidadDetectada = parseFloat(matcherCantidad.group(1));
                 resto = matcherCantidad.replaceFirst("");
+            } else {
+                matcherCantidad = CANTIDAD_INICIAL.matcher(resto);
+                if (matcherCantidad.find()) {
+                    cantidadDetectada = parseFloat(matcherCantidad.group(1));
+                    resto = matcherCantidad.replaceFirst("");
+                }
             }
         }
 
@@ -136,7 +152,32 @@ public class OCRService {
         return Float.parseFloat(valor.replace(",", "."));
     }
 
-    public List<ResultadoOCRDTO> procesarProductosTicket(String usuarioId, List<ProductoTicketDTO> productos) {
+    // Un mismo producto puede pasar dos veces por caja (p. ej. se coge una segunda unidad
+    // a mitad de la compra) y aparecer como dos líneas distintas del ticket. Las unificamos
+    // antes de comparar contra la despensa, sumando cantidades, para no proponerlas como
+    // dos productos nuevos separados.
+    private List<ProductoTicketDTO> fusionarLineasDuplicadas(List<ProductoTicketDTO> productos) {
+        Map<String, ProductoTicketDTO> fusionados = new LinkedHashMap<>();
+        for (ProductoTicketDTO producto : productos) {
+            String clave = matchingService.aplicarSinonimos(matchingService.normalizar(producto.nombreDetectado()));
+            ProductoTicketDTO existente = fusionados.get(clave);
+            if (existente == null) {
+                fusionados.put(clave, producto);
+                continue;
+            }
+            float cantidadExistente = existente.cantidadDetectada() != null ? existente.cantidadDetectada() : 1f;
+            float cantidadNueva = producto.cantidadDetectada() != null ? producto.cantidadDetectada() : 1f;
+            fusionados.put(clave, new ProductoTicketDTO(
+                    existente.nombreDetectado(),
+                    cantidadExistente + cantidadNueva,
+                    existente.unidadDetectada() != null ? existente.unidadDetectada() : producto.unidadDetectada(),
+                    existente.lineaOriginal() + " + " + producto.lineaOriginal()));
+        }
+        return new ArrayList<>(fusionados.values());
+    }
+
+    public List<ResultadoOCRDTO> procesarProductosTicket(String usuarioId, List<ProductoTicketDTO> productosDetectados) {
+        List<ProductoTicketDTO> productos = fusionarLineasDuplicadas(productosDetectados);
         List<ResultadoOCRDTO> resultados = new ArrayList<>();
 
         // Despensa y umbral se cargan una única vez fuera del bucle (evita repetir las

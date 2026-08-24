@@ -168,10 +168,32 @@ public class MatchingService {
         String textoA = aplicarSinonimos(normalizadoA);
         String textoB = aplicarSinonimos(normalizadoB);
 
-        double puntuacion = calcularSimilitudJaroWinkler(textoA, textoB);
+        double puntuacion = calcularSimilitudJaroWinkler(textoA, textoB) * factorSolapePalabras(textoA, textoB);
         boolean fueronSinonimos = !textoA.equals(normalizadoA) || !textoB.equals(normalizadoB);
 
         return new SimilitudResultDTO(puntuacion, textoA, textoB, fueronSinonimos);
+    }
+
+    // Jaro-Winkler puntúa alto textos largos que comparten muchas letras sueltas aunque
+    // sean palabras completamente distintas (p. ej. "barraca pimiento" y "carne boloñesa").
+    // Si ninguna palabra completa (>=3 letras) de un nombre aparece en el otro, penalizamos
+    // fuerte la puntuación para que ese ruido no llegue a proponerse como el mismo producto.
+    // Si comparten al menos una palabra completa, no se toca nada: así no se rompen
+    // coincidencias legítimas como "Leche Pascual Entera" -> "Leche".
+    private double factorSolapePalabras(String textoA, String textoB) {
+        Set<String> palabrasA = palabrasSignificativas(textoA);
+        Set<String> palabrasB = palabrasSignificativas(textoB);
+        if (palabrasA.isEmpty() || palabrasB.isEmpty()) {
+            return 1.0;
+        }
+        boolean comparten = palabrasA.stream().anyMatch(palabrasB::contains);
+        return comparten ? 1.0 : 0.3;
+    }
+
+    private Set<String> palabrasSignificativas(String texto) {
+        return Arrays.stream(texto.split(" "))
+                .filter(p -> p.length() >= 3)
+                .collect(Collectors.toSet());
     }
 
     public TipoMatch clasificarMatch(double puntuacion) {
