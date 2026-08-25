@@ -20,6 +20,9 @@ web-build/
 application-local.properties
 application-dev.properties
 
+# Google Cloud credentials (Vision API, etc.)
+backend/credentials/
+
 # Logs
 *.log
 logs/

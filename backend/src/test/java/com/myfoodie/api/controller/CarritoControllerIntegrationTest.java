@@ -338,7 +338,7 @@ class CarritoControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(List.of())))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.estado").value("completada"));
+                .andExpect(jsonPath("$.lista.estado").value("completada"));
 
         mockMvc.perform(get("/api/carrito/listas/activa").header("Authorization", "Bearer " + tokenA))
                 .andExpect(status().isNoContent());

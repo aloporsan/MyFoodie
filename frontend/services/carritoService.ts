@@ -1,9 +1,10 @@
 import { apiClient } from './apiClient';
+import { Producto } from './despensaService';
 
-export const UNIDADES_CARRITO = [
-  'unidades', 'kg', 'g', 'litros', 'ml', 'packs', 'latas', 'bolsas',
-  'cucharada', 'cucharadita', 'taza',
-];
+// Unidades "de compra": lo que realmente se pide en una tienda. Las subjetivas de receta
+// (cucharada, taza...) no tienen sentido aquí — para eso está la conversión automática
+// a unidad de compra (unidadDeCompra) al generar o marcar como comprado un item.
+export const UNIDADES_CARRITO = ['unidades', 'kg', 'g', 'litros', 'ml', 'packs', 'latas', 'bolsas'];
 
 export type PrioridadCarrito = 'alta' | 'media' | 'baja';
 
@@ -63,6 +64,21 @@ export interface ListaCompra {
   estado: EstadoListaCompra;
   createdAt: string;
   updatedAt: string;
+}
+
+export type AccionAñadirDespensa = 'actualizado' | 'sugerencia' | 'creado';
+
+export interface ResultadoAñadirDespensa {
+  itemNombre: string;
+  accion: AccionAñadirDespensa;
+  productoExistente: Producto | null;
+  producto: Producto | null;
+  similitud: number | null;
+}
+
+export interface AñadirCompradosResultado {
+  resultados: ResultadoAñadirDespensa[];
+  lista: ListaCompra;
 }
 
 export const carritoService = {
@@ -149,8 +165,8 @@ export const carritoService = {
   añadirCompradosADespensa: async (
     listaId: string,
     ajustes?: ItemCompradoAjuste[]
-  ): Promise<ListaCompra> => {
-    const { data } = await apiClient.post<ListaCompra>(
+  ): Promise<AñadirCompradosResultado> => {
+    const { data } = await apiClient.post<AñadirCompradosResultado>(
       `/carrito/listas/${listaId}/añadir-despensa`,
       ajustes ?? []
     );

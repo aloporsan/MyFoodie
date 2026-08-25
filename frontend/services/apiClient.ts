@@ -24,8 +24,12 @@ const getServerHost = (): string => {
  */
 export const getServerBaseUrl = (): string => getServerHost();
 
+const BASE_URL = `${getServerHost()}/api`;
+// eslint-disable-next-line no-console
+console.log(`[apiClient] baseURL resuelta: ${BASE_URL}`);
+
 export const apiClient = axios.create({
-  baseURL: `${getServerHost()}/api`,
+  baseURL: BASE_URL,
   timeout: 10000,
 });
 
@@ -34,6 +38,8 @@ let _getToken: () => string | null = () => null;
 export const setTokenGetter = (fn: () => string | null) => {
   _getToken = fn;
 };
+
+export const getAuthToken = (): string | null => _getToken();
 
 apiClient.interceptors.request.use((config) => {
   const token = _getToken();
@@ -46,12 +52,23 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    // eslint-disable-next-line no-console
+    console.log('[apiClient] error en', error.config?.method?.toUpperCase(), error.config?.url, {
+      code: error.code,
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data,
+    });
+
     const serverMessage: string | undefined = error.response?.data?.message;
     if (serverMessage) {
       return Promise.reject(new Error(serverMessage));
     }
 
     if (!error.response) {
+      if (error.code === 'ECONNABORTED') {
+        return Promise.reject(new Error('La operación ha tardado demasiado. Inténtalo de nuevo.'));
+      }
       return Promise.reject(new Error('Sin conexión. Comprueba tu red e inténtalo de nuevo.'));
     }
 

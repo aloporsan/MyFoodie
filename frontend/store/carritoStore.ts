@@ -6,6 +6,7 @@ import {
   ItemCarritoInput,
   ItemCompradoAjuste,
   ListaCompra,
+  ResultadoAñadirDespensa,
   carritoService,
 } from '@/services/carritoService';
 import { handleApiError } from '@/utils/errorHandler';
@@ -16,6 +17,7 @@ interface CarritoState {
   listas: ListaCompra[];
   listaActiva: ListaCompra | null;
   listaEnCurso: ListaCompra | null;
+  resultadosAñadir: ResultadoAñadirDespensa[];
   isLoading: boolean;
   isGenerando: boolean;
   error: string | null;
@@ -38,7 +40,10 @@ interface CarritoActions {
   cargarListaEnCurso: () => Promise<void>;
   cancelarListaCompra: (id: string) => Promise<void>;
   alternarComprado: (listaId: string, itemId: string) => Promise<void>;
-  añadirCompradosADespensa: (listaId: string, ajustes?: ItemCompradoAjuste[]) => Promise<void>;
+  añadirCompradosADespensa: (
+    listaId: string,
+    ajustes?: ItemCompradoAjuste[]
+  ) => Promise<ResultadoAñadirDespensa[]>;
   clearError: () => void;
   reset: () => void;
 }
@@ -49,6 +54,7 @@ const ESTADO_INICIAL: CarritoState = {
   listas: [],
   listaActiva: null,
   listaEnCurso: null,
+  resultadosAñadir: [],
   isLoading: false,
   isGenerando: false,
   error: null,
@@ -362,12 +368,14 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
   añadirCompradosADespensa: async (listaId, ajustes) => {
     set({ error: null });
     try {
-      const lista = await carritoService.añadirCompradosADespensa(listaId, ajustes);
+      const { resultados, lista } = await carritoService.añadirCompradosADespensa(listaId, ajustes);
       set((s) => ({
         listas: s.listas.map((l) => (l.id === listaId ? lista : l)),
         listaActiva: s.listaActiva && s.listaActiva.id === listaId ? lista : s.listaActiva,
         listaEnCurso: s.listaEnCurso && s.listaEnCurso.id === listaId ? null : s.listaEnCurso,
+        resultadosAñadir: resultados,
       }));
+      return resultados;
     } catch (e) {
       set({ error: handleApiError(e) });
       throw e;

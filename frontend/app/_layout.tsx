@@ -73,6 +73,7 @@ function RootLayoutNav() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding-preferencias"    options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="despensa/form"              options={{ headerShown: false }} />
+        <Stack.Screen name="despensa/ocr"               options={{ headerShown: false }} />
         <Stack.Screen name="despensa/[id]"              options={{ headerShown: false }} />
         <Stack.Screen name="despensa/filtrada"          options={{ headerShown: false }} />
         <Stack.Screen name="despensa/duplicados"        options={{ headerShown: false }} />

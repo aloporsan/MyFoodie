@@ -192,7 +192,15 @@ export function DespensaScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerSide} />
+        <View style={[styles.headerSide, styles.headerSideLeft]}>
+          <Pressable
+            style={styles.escanearBtn}
+            onPress={() => router.push('/despensa/ocr')}
+            testID="btn-escanear-ticket"
+          >
+            <Ionicons name="camera-outline" size={22} color={colors.text.primary} />
+          </Pressable>
+        </View>
         <Text style={styles.titulo}>Mi despensa</Text>
         <View style={styles.headerSide}>
           <Pressable style={styles.addBtn} onPress={() => router.push('/despensa/form')}>
@@ -401,9 +409,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   headerSide: { flex: 1, alignItems: 'flex-end' },
+  headerSideLeft: { alignItems: 'flex-start' },
   titulo: { ...typography.heading1, color: colors.text.primary, textAlign: 'center', flex: 2 },
   addBtn: {
     backgroundColor: colors.primary,
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  escanearBtn: {
+    backgroundColor: colors.grayLight,
     borderRadius: 20,
     width: 40,
     height: 40,

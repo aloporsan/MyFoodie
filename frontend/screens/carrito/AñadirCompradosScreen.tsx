@@ -16,11 +16,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { useToast } from '@/hooks/useToast';
 import { ItemCompradoAjuste, UNIDADES_CARRITO } from '@/services/carritoService';
+import { despensaService } from '@/services/despensaService';
+import { MatchProducto, matchingService } from '@/services/matchingService';
 import { useCarritoStore } from '@/store/carritoStore';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
+
+interface PreviewMatching {
+  match: MatchProducto | null;
+  // Solo relevante cuando match.tipoMatch === 'PROPONER'. null = el usuario aún no ha respondido.
+  respuesta: boolean | null;
+}
 
 function dateToApi(d: Date): string {
   return d.toISOString().split('T')[0];
@@ -46,6 +54,8 @@ export function AñadirCompradosScreen() {
 
   const { listaActiva, isLoading, cargarLista, añadirCompradosADespensa } = useCarritoStore();
   const [ediciones, setEdiciones] = useState<Record<string, EdicionItem>>({});
+  const [preview, setPreview] = useState<Record<string, PreviewMatching>>({});
+  const [cargandoPreview, setCargandoPreview] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
@@ -68,6 +78,40 @@ export function AñadirCompradosScreen() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comprados.length]);
+
+  // Preview de matching: comprueba en paralelo si cada item comprado se parece a algo que
+  // ya hay en la despensa, solo para mostrar el aviso mientras se revisa la lista. La decisión
+  // real (fusionar, crear o actualizar) la toma el backend al pulsar "Añadir todos".
+  useEffect(() => {
+    if (comprados.length === 0 || Object.keys(preview).length > 0) return;
+    let cancelado = false;
+    setCargandoPreview(true);
+    Promise.all(
+      comprados.map(async (item) => {
+        const matches = await matchingService.buscarSimilares(item.nombre);
+        return [item.id, matches[0] ?? null] as const;
+      })
+    ).then((resultados) => {
+      if (cancelado) return;
+      const siguiente: Record<string, PreviewMatching> = {};
+      for (const [itemId, match] of resultados) {
+        siguiente[itemId] = { match, respuesta: null };
+      }
+      setPreview(siguiente);
+      setCargandoPreview(false);
+    });
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comprados.length]);
+
+  const handleResponderSugerencia = (itemId: string, esLoMismo: boolean) => {
+    setPreview((prev) => ({
+      ...prev,
+      [itemId]: { ...prev[itemId], respuesta: esLoMismo },
+    }));
+  };
 
   const handleCantidadChange = (itemId: string, texto: string) => {
     setEdiciones((prev) => ({
@@ -92,21 +136,54 @@ export function AñadirCompradosScreen() {
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/carrito/listas'));
 
+  const cantidadFinalDe = (item: (typeof comprados)[number]): number => {
+    const edicion = ediciones[item.id];
+    const cantidad = edicion ? parseFloat(edicion.cantidad) : item.cantidad;
+    return !isNaN(cantidad) && cantidad > 0 ? cantidad : item.cantidad;
+  };
+
   const handleAñadirTodos = async () => {
     if (!id) return;
     setGuardando(true);
     try {
-      const ajustes: ItemCompradoAjuste[] = comprados.map((item) => {
-        const edicion = ediciones[item.id];
-        const cantidad = edicion ? parseFloat(edicion.cantidad) : item.cantidad;
-        return {
-          itemId: item.id,
-          cantidad: !isNaN(cantidad) && cantidad > 0 ? cantidad : item.cantidad,
-          unidad: edicion?.unidad || item.unidad,
-          fechaCaducidad: edicion?.fechaCaducidad || undefined,
-        };
-      });
-      await añadirCompradosADespensa(id, ajustes);
+      const ajustes: ItemCompradoAjuste[] = comprados.map((item) => ({
+        itemId: item.id,
+        cantidad: cantidadFinalDe(item),
+        unidad: ediciones[item.id]?.unidad || item.unidad,
+        fechaCaducidad: ediciones[item.id]?.fechaCaducidad || undefined,
+      }));
+
+      // El backend ya resuelve los AUTOMATICO (>=85%, actualiza cantidad) y los que no
+      // se parecen a nada (crea nuevo). Las "sugerencia" (60-84%) las deja sin persistir
+      // a propósito, así que aquí se resuelven según lo que el usuario respondió en el
+      // aviso: "Sí" fusiona con el existente, "No" (o si no respondió) crea uno nuevo.
+      const resultados = await añadirCompradosADespensa(id, ajustes);
+
+      for (const resultado of resultados) {
+        if (resultado.accion !== 'sugerencia' || !resultado.productoExistente) continue;
+        const item = comprados.find((i) => i.nombre === resultado.itemNombre);
+        const respuesta = item ? preview[item.id]?.respuesta : null;
+        const cantidad = item ? cantidadFinalDe(item) : 1;
+
+        if (respuesta === true) {
+          await despensaService.actualizarCantidad(
+            resultado.productoExistente.id,
+            cantidad,
+            undefined,
+            undefined,
+            'Añadido desde lista de compra'
+          );
+        } else {
+          await despensaService.añadirProducto({
+            nombre: resultado.itemNombre,
+            cantidad,
+            unidad: (item && ediciones[item.id]?.unidad) || item?.unidad || 'unidad',
+            categoria: item?.categoria ?? undefined,
+            fechaCaducidad: (item && ediciones[item.id]?.fechaCaducidad) || undefined,
+          });
+        }
+      }
+
       showSuccess('Productos añadidos a tu despensa');
       router.replace('/despensa');
     } finally {
@@ -130,6 +207,13 @@ export function AñadirCompradosScreen() {
         <View style={{ width: 24 }} />
       </View>
 
+      {cargandoPreview && (
+        <View style={styles.previewAviso}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={styles.previewAvisoTexto}>Comprobando coincidencias con tu despensa...</Text>
+        </View>
+      )}
+
       <ScrollView contentContainerStyle={styles.scroll}>
         {comprados.map((item) => {
           const edicion = ediciones[item.id] ?? {
@@ -137,9 +221,63 @@ export function AñadirCompradosScreen() {
             unidad: item.unidad,
             fechaCaducidad: '',
           };
+          const info = preview[item.id];
           return (
             <View key={item.id} style={styles.card}>
               <Text style={styles.nombre}>{item.nombre}</Text>
+
+              {info?.match?.tipoMatch === 'AUTOMATICO' && (
+                <View style={styles.badgeAutomatico}>
+                  <Ionicons name="checkmark-circle" size={14} color={colors.primaryDark} />
+                  <Text style={styles.badgeAutomaticoTexto}>
+                    Se actualizará la cantidad de {info.match.producto.nombre}
+                  </Text>
+                </View>
+              )}
+
+              {info?.match?.tipoMatch === 'PROPONER' && (
+                <View style={styles.banner}>
+                  {info.respuesta === null ? (
+                    <>
+                      <Text style={styles.bannerTexto}>
+                        ¿Es lo mismo que {info.match.producto.nombre}?
+                      </Text>
+                      <View style={styles.bannerBotones}>
+                        <Pressable
+                          style={[styles.bannerBtn, styles.bannerBtnSi]}
+                          onPress={() => handleResponderSugerencia(item.id, true)}
+                        >
+                          <Text style={styles.bannerBtnSiTexto}>Sí, es lo mismo</Text>
+                        </Pressable>
+                        <Pressable
+                          style={[styles.bannerBtn, styles.bannerBtnNo]}
+                          onPress={() => handleResponderSugerencia(item.id, false)}
+                        >
+                          <Text style={styles.bannerBtnNoTexto}>No, es distinto</Text>
+                        </Pressable>
+                      </View>
+                    </>
+                  ) : (
+                    <Pressable
+                      style={styles.bannerRespuesta}
+                      onPress={() => handleResponderSugerencia(item.id, !info.respuesta)}
+                    >
+                      <Ionicons
+                        name={info.respuesta ? 'checkmark-circle' : 'add-circle'}
+                        size={16}
+                        color={info.respuesta ? colors.primary : colors.error}
+                      />
+                      <Text style={styles.bannerRespuestaTexto}>
+                        {info.respuesta
+                          ? `Se fusionará con ${info.match.producto.nombre}`
+                          : 'Se añadirá como producto nuevo'}
+                      </Text>
+                      <Text style={styles.bannerCambiar}>Cambiar</Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
+
               <View style={styles.fila}>
                 <View style={styles.cantidadGroup}>
                   <Text style={styles.campoLabel}>Cantidad</Text>
@@ -251,6 +389,14 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.gray,
   },
   headerTitulo: { ...typography.heading3, color: colors.text.primary, flex: 1, textAlign: 'center' },
+  previewAviso: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  previewAvisoTexto: { ...typography.caption, color: colors.text.secondary },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.md },
   card: {
     backgroundColor: colors.white,
@@ -260,6 +406,38 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   nombre: { ...typography.label, color: colors.text.primary },
+  badgeAutomatico: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    alignSelf: 'flex-start',
+    backgroundColor: '#EBF6D6',
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  badgeAutomaticoTexto: { ...typography.caption, color: colors.primaryDark, fontWeight: '600' },
+  banner: {
+    backgroundColor: '#FEF3E0',
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    gap: spacing.sm,
+  },
+  bannerTexto: { ...typography.body, color: colors.text.primary },
+  bannerBotones: { flexDirection: 'row', gap: spacing.sm },
+  bannerBtn: {
+    flex: 1,
+    borderRadius: borderRadius.sm,
+    paddingVertical: spacing.xs,
+    alignItems: 'center',
+  },
+  bannerBtnSi: { backgroundColor: colors.primary },
+  bannerBtnSiTexto: { ...typography.label, color: colors.white },
+  bannerBtnNo: { backgroundColor: colors.error },
+  bannerBtnNoTexto: { ...typography.label, color: colors.white },
+  bannerRespuesta: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  bannerRespuestaTexto: { ...typography.caption, color: colors.text.primary, flex: 1 },
+  bannerCambiar: { ...typography.caption, color: colors.secondary, fontWeight: '700' },
   fila: { flexDirection: 'row', gap: spacing.md },
   cantidadGroup: { width: 100 },
   flexGrow: { flex: 1 },

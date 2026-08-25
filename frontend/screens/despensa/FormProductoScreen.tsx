@@ -14,20 +14,13 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AvisoConversionUnidad } from '@/components/common/AvisoConversionUnidad';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { DuplicadosAlert } from '@/components/despensa';
 import { Producto, ProductoInput } from '@/services/despensaService';
 import { MatchProducto } from '@/services/matchingService';
 import { useDespensaStore } from '@/store/despensaStore';
 import { getCategoriaConfig } from '@/utils/categoriaConfig';
-import {
-  equivalenciaMetrica,
-  esUnidadSubjetiva,
-  etiquetaUnidad,
-  UNIDADES_OBJETIVAS,
-  UNIDADES_SUBJETIVAS,
-} from '@/utils/unidadConfig';
+import { etiquetaUnidad, UNIDADES_OBJETIVAS } from '@/utils/unidadConfig';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -298,15 +291,7 @@ export function FormProductoScreen() {
 
           {/* Unidad */}
           <Campo label="Unidad *" error={errores.unidad}>
-            <Text style={styles.grupoUnidadLabel}>Unidades objetivas (recomendadas)</Text>
             <ChipSelector opciones={UNIDADES_OBJETIVAS} valor={unidad} onSelect={setUnidad} getLabel={etiquetaUnidad} />
-            <Text style={[styles.grupoUnidadLabel, styles.grupoUnidadLabelSubjetiva]}>
-              Unidades subjetivas (se convertirán automáticamente)
-            </Text>
-            <ChipSelector opciones={UNIDADES_SUBJETIVAS} valor={unidad} onSelect={setUnidad} getLabel={etiquetaUnidad} />
-            {esUnidadSubjetiva(unidad) && (
-              <AvisoConversionUnidad equivalencia={equivalenciaMetrica(parseFloat(cantidad), unidad) ?? ''} />
-            )}
           </Campo>
 
           {/* Categoría */}
@@ -532,8 +517,6 @@ const styles = StyleSheet.create({
   },
   inputError: { borderColor: colors.error },
   textarea: { minHeight: 80, textAlignVertical: 'top' },
-  grupoUnidadLabel: { ...typography.caption, color: colors.text.secondary },
-  grupoUnidadLabelSubjetiva: { marginTop: spacing.sm },
   btnGuardar: {
     backgroundColor: colors.primary,
     borderRadius: borderRadius.xl,

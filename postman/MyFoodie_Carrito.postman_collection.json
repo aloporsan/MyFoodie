@@ -369,7 +369,8 @@
           "event": [{ "listen": "test", "script": { "exec": [
             "const json = pm.response.json();",
             "pm.test('Status 200', () => pm.response.to.have.status(200));",
-            "pm.test('Lista completada', () => pm.expect(json.estado).to.eql('completada'));"
+            "pm.test('Lista completada', () => pm.expect(json.lista.estado).to.eql('completada'));",
+            "pm.test('Incluye resultados por producto', () => pm.expect(json.resultados).to.be.an('array'));"
           ] } }],
           "request": {
             "method": "POST",

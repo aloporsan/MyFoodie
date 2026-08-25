@@ -63,6 +63,7 @@ class CarritoInteligenteServiceTest {
     @Mock private IngredienteRecetaRepository ingredienteRecetaRepository;
     @Mock private RecetaRepository recetaRepository;
     @Mock private UnidadNormalizadorService unidadNormalizadorService;
+    @Mock private MatchingService matchingService;
 
     @InjectMocks private CarritoInteligenteService carritoInteligenteService;
 

@@ -324,7 +324,7 @@ it('añadirCompradosADespensa_actualiza_la_lista_y_limpia_listaEnCurso_si_coinci
     listaActiva: mockLista,
     listaEnCurso: mockLista,
   });
-  mockService.añadirCompradosADespensa.mockResolvedValue(listaCompletada);
+  mockService.añadirCompradosADespensa.mockResolvedValue({ resultados: [], lista: listaCompletada });
 
   await useCarritoStore.getState().añadirCompradosADespensa('lista-1');
 
@@ -336,7 +336,10 @@ it('añadirCompradosADespensa_actualiza_la_lista_y_limpia_listaEnCurso_si_coinci
 it('añadirCompradosADespensa_no_limpia_listaEnCurso_si_pertenece_a_otra_lista', async () => {
   const otraListaEnCurso = { ...mockLista, id: 'lista-2' };
   useCarritoStore.setState({ ...estadoInicial, listaEnCurso: otraListaEnCurso });
-  mockService.añadirCompradosADespensa.mockResolvedValue({ ...mockLista, estado: 'completada' as const });
+  mockService.añadirCompradosADespensa.mockResolvedValue({
+    resultados: [],
+    lista: { ...mockLista, estado: 'completada' as const },
+  });
 
   await useCarritoStore.getState().añadirCompradosADespensa('lista-1');
 
