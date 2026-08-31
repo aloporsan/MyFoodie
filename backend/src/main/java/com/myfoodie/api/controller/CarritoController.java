@@ -9,8 +9,10 @@ import com.myfoodie.application.dto.carrito.ItemCarritoResponseDTO;
 import com.myfoodie.application.dto.carrito.ItemCompradoAjusteDTO;
 import com.myfoodie.application.dto.carrito.ListaCompraRequestDTO;
 import com.myfoodie.application.dto.carrito.ListaCompraResponseDTO;
+import com.myfoodie.application.dto.matching.MatchItemCarritoDTO;
 import com.myfoodie.application.dto.matching.ResultadoAñadirDespensaDTO;
 import com.myfoodie.application.service.CarritoInteligenteService;
+import com.myfoodie.application.service.MatchingService;
 import com.myfoodie.domain.repository.UsuarioRepository;
 import com.myfoodie.exception.ApiException;
 import jakarta.validation.Valid;
@@ -28,6 +30,7 @@ import java.util.List;
 public class CarritoController {
 
     private final CarritoInteligenteService carritoInteligenteService;
+    private final MatchingService matchingService;
     private final UsuarioRepository usuarioRepository;
 
     @GetMapping
@@ -77,6 +80,13 @@ public class CarritoController {
             Principal principal) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(carritoInteligenteService.añadirItemManual(getUsuarioId(principal), dto));
+    }
+
+    @GetMapping("/items/similares")
+    public ResponseEntity<List<MatchItemCarritoDTO>> similares(
+            @RequestParam String nombre,
+            Principal principal) {
+        return ResponseEntity.ok(matchingService.buscarItemSimilarEnCarrito(getUsuarioId(principal), nombre));
     }
 
     @DeleteMapping("/items/{id}")

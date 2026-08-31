@@ -11,6 +11,12 @@ import {
 } from '@/services/carritoService';
 import { handleApiError } from '@/utils/errorHandler';
 
+export interface SugerenciaMatchCarrito {
+  item: ItemCarrito;
+  itemExistente: ItemCarrito;
+  similitud: number | null;
+}
+
 interface CarritoState {
   items: ItemCarrito[];
   resumen: CarritoResumen | null;
@@ -18,6 +24,7 @@ interface CarritoState {
   listaActiva: ListaCompra | null;
   listaEnCurso: ListaCompra | null;
   resultadosAñadir: ResultadoAñadirDespensa[];
+  sugerenciaCarrito: SugerenciaMatchCarrito | null;
   isLoading: boolean;
   isGenerando: boolean;
   error: string | null;
@@ -44,6 +51,7 @@ interface CarritoActions {
     listaId: string,
     ajustes?: ItemCompradoAjuste[]
   ) => Promise<ResultadoAñadirDespensa[]>;
+  descartarSugerenciaCarrito: () => void;
   clearError: () => void;
   reset: () => void;
 }
@@ -55,6 +63,7 @@ const ESTADO_INICIAL: CarritoState = {
   listaActiva: null,
   listaEnCurso: null,
   resultadosAñadir: [],
+  sugerenciaCarrito: null,
   isLoading: false,
   isGenerando: false,
   error: null,
@@ -207,10 +216,20 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
   añadirItemManual: async (datos) => {
     set({ error: null });
     try {
-      const nuevo = await carritoService.añadirItemManual(datos);
+      const resultado = await carritoService.añadirItemManual(datos);
       set((s) => {
-        const items = [...s.items, nuevo];
-        return { items, resumen: calcularResumen(items) };
+        // "actualizado" (match automático, >=85%) sustituye el item existente al que se le
+        // sumó la cantidad; "creado" y "sugerencia" (match parcial, 60-84%) siempre crean uno nuevo.
+        const items = resultado.accion === 'actualizado'
+          ? s.items.map((i) => (i.id === resultado.item.id ? resultado.item : i))
+          : [...s.items, resultado.item];
+        return {
+          items,
+          resumen: calcularResumen(items),
+          sugerenciaCarrito: resultado.accion === 'sugerencia' && resultado.itemExistente
+            ? { item: resultado.item, itemExistente: resultado.itemExistente, similitud: resultado.similitud }
+            : null,
+        };
       });
     } catch (e) {
       set({ error: handleApiError(e) });
@@ -221,11 +240,19 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
   añadirYAceptarItemManual: async (datos) => {
     set({ error: null });
     try {
-      const creado = await carritoService.añadirItemManual(datos);
-      const aceptado = await carritoService.aceptarItem(creado.id);
+      const resultado = await carritoService.añadirItemManual(datos);
+      const aceptado = await carritoService.aceptarItem(resultado.item.id);
       set((s) => {
-        const items = [...s.items, aceptado];
-        return { items, resumen: calcularResumen(items) };
+        const items = resultado.accion === 'actualizado'
+          ? s.items.map((i) => (i.id === aceptado.id ? aceptado : i))
+          : [...s.items, aceptado];
+        return {
+          items,
+          resumen: calcularResumen(items),
+          sugerenciaCarrito: resultado.accion === 'sugerencia' && resultado.itemExistente
+            ? { item: aceptado, itemExistente: resultado.itemExistente, similitud: resultado.similitud }
+            : null,
+        };
       });
     } catch (e) {
       set({ error: handleApiError(e) });
@@ -381,6 +408,8 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
       throw e;
     }
   },
+
+  descartarSugerenciaCarrito: () => set({ sugerenciaCarrito: null }),
 
   clearError: () => set({ error: null }),
 

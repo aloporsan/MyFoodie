@@ -81,6 +81,15 @@ export interface AñadirCompradosResultado {
   lista: ListaCompra;
 }
 
+export type AccionAñadirItemCarrito = 'creado' | 'actualizado' | 'sugerencia';
+
+export interface AñadirItemCarritoResultado {
+  accion: AccionAñadirItemCarrito;
+  item: ItemCarrito;
+  itemExistente: ItemCarrito | null;
+  similitud: number | null;
+}
+
 export const carritoService = {
   obtenerCarrito: async (): Promise<Carrito> => {
     const { data } = await apiClient.get<Carrito>('/carrito');
@@ -120,8 +129,8 @@ export const carritoService = {
     return data;
   },
 
-  añadirItemManual: async (datos: ItemCarritoInput): Promise<ItemCarrito> => {
-    const { data } = await apiClient.post<ItemCarrito>('/carrito/items', datos);
+  añadirItemManual: async (datos: ItemCarritoInput): Promise<AñadirItemCarritoResultado> => {
+    const { data } = await apiClient.post<AñadirItemCarritoResultado>('/carrito/items', datos);
     return data;
   },
 

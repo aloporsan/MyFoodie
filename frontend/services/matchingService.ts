@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { ItemCarrito } from './carritoService';
 import { Producto } from './despensaService';
 
 export type TipoMatch = 'AUTOMATICO' | 'PROPONER' | 'NUEVO';
@@ -17,9 +18,23 @@ export interface MatchProducto {
   textoSugerido: string;
 }
 
+export interface MatchItemCarrito {
+  item: ItemCarrito;
+  similitud: number;
+  tipoMatch: TipoMatch;
+  mensajeSugerencia: string;
+}
+
 export const matchingService = {
   buscarSimilares: async (nombre: string): Promise<MatchProducto[]> => {
     const { data } = await apiClient.get<MatchProducto[]>('/despensa/productos/similares', {
+      params: { nombre },
+    });
+    return data;
+  },
+
+  buscarItemSimilarEnCarrito: async (nombre: string): Promise<MatchItemCarrito[]> => {
+    const { data } = await apiClient.get<MatchItemCarrito[]>('/carrito/items/similares', {
       params: { nombre },
     });
     return data;
