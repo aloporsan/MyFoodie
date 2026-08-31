@@ -339,7 +339,9 @@ public class RecetaService {
 
         return new IngredienteConsumoDTO(
                 ingrediente.getNombre(), cantidadCalculada, normalizado.unidadConvertida(),
-                enDespensa, disponible, suficiente, noComparable, match.tipoMatch());
+                enDespensa, disponible, suficiente, noComparable, match.tipoMatch(),
+                producto != null ? producto.getId() : null,
+                producto != null ? producto.getNombre() : null);
     }
 
     private boolean unidadesCompatibles(String unidadIngrediente, String unidadProducto) {
