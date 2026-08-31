@@ -30,11 +30,13 @@ interface Props {
   modo: 'sumar' | 'restar';
   /** Cantidad disponible en despensa. Al restar, no se puede pedir más de esto. */
   maxCantidad?: number;
+  /** Aviso informativo opcional (p. ej. qué lote se va a consumir primero). */
+  aviso?: string;
   onConfirm: (cantidad: number, motivo?: MotivoEliminacion, motivoDetalle?: string) => void;
   onCancelar: () => void;
 }
 
-export function CantidadMotivoSheet({ visible, unidad, modo, maxCantidad, onConfirm, onCancelar }: Props) {
+export function CantidadMotivoSheet({ visible, unidad, modo, maxCantidad, aviso, onConfirm, onCancelar }: Props) {
   const [cantidadTexto, setCantidadTexto] = useState('1');
   const [motivoSeleccionado, setMotivoSeleccionado] = useState<MotivoEliminacion | null>(null);
   const [motivoDetalleTexto, setMotivoDetalleTexto] = useState('');
@@ -78,6 +80,13 @@ export function CantidadMotivoSheet({ visible, unidad, modo, maxCantidad, onConf
           <Text style={styles.titulo}>
             {esRestar ? '¿Cuánto has usado?' : '¿Cuánto añades?'}
           </Text>
+
+          {aviso && (
+            <View style={styles.avisoBox}>
+              <Ionicons name="information-circle-outline" size={16} color={colors.text.secondary} />
+              <Text style={styles.avisoText}>{aviso}</Text>
+            </View>
+          )}
 
           {/* Input de cantidad */}
           <View style={styles.cantidadRow}>
@@ -226,6 +235,16 @@ const styles = StyleSheet.create({
     minWidth: 40,
   },
   cantidadBtnDisabled: { backgroundColor: colors.grayLight },
+  avisoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.xs,
+    backgroundColor: colors.background.surface,
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  avisoText: { ...typography.caption, color: colors.text.secondary, flex: 1 },
   maxHint: {
     ...typography.caption,
     color: colors.text.secondary,

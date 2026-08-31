@@ -1,18 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { LoteProducto, OrigenLote } from '@/services/loteService';
+import { LoteProducto } from '@/services/loteService';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 import { ProductoEstadoBadge } from './ProductoEstadoBadge';
-
-const ORIGEN_LABEL: Record<OrigenLote, string> = {
-  manual: 'Manual',
-  ocr: 'Ticket escaneado',
-  carrito: 'Carrito',
-  receta: 'Receta',
-};
 
 function formatFecha(fecha?: string): string | null {
   if (!fecha) return null;
@@ -29,22 +22,24 @@ function formatDias(dias: number | null | undefined): string | null {
 
 interface Props {
   lote: LoteProducto;
-  onEditar: () => void;
-  onEliminar: () => void;
+  onEditar?: () => void;
+  onEliminar?: () => void;
+  /** Modo selección (p. ej. elegir a qué lote sumar cantidad): toda la tarjeta es pulsable
+   *  y no muestra los iconos de editar/eliminar. */
+  onPress?: () => void;
 }
 
-export function LoteCard({ lote, onEditar, onEliminar }: Props) {
+export function LoteCard({ lote, onEditar, onEliminar, onPress }: Props) {
   const fechaCaducidadText = formatFecha(lote.fechaCaducidad);
   const diasText = formatDias(lote.diasHastaCaducidad);
 
   return (
-    <View style={styles.card}>
+    <Pressable style={styles.card} onPress={onPress} disabled={!onPress}>
       <View style={styles.row}>
         <View style={styles.info}>
           <Text style={styles.cantidad}>
             {lote.cantidad} {lote.unidad}
           </Text>
-          <Text style={styles.origen}>{ORIGEN_LABEL[lote.origen] ?? lote.origen}</Text>
           {fechaCaducidadText && (
             <View style={styles.fechaRow}>
               <Ionicons name="calendar-outline" size={14} color={colors.text.secondary} />
@@ -61,15 +56,21 @@ export function LoteCard({ lote, onEditar, onEliminar }: Props) {
         </View>
       </View>
 
-      <View style={styles.actions}>
-        <Pressable style={styles.iconBtn} onPress={onEditar} hitSlop={8}>
-          <Ionicons name="pencil" size={18} color={colors.primary} />
-        </Pressable>
-        <Pressable style={styles.iconBtn} onPress={onEliminar} hitSlop={8}>
-          <Ionicons name="trash-outline" size={18} color={colors.error} />
-        </Pressable>
-      </View>
-    </View>
+      {(onEditar || onEliminar) && (
+        <View style={styles.actions}>
+          {onEditar && (
+            <Pressable style={styles.iconBtn} onPress={onEditar} hitSlop={8}>
+              <Ionicons name="pencil" size={18} color={colors.primary} />
+            </Pressable>
+          )}
+          {onEliminar && (
+            <Pressable style={styles.iconBtn} onPress={onEliminar} hitSlop={8}>
+              <Ionicons name="trash-outline" size={18} color={colors.error} />
+            </Pressable>
+          )}
+        </View>
+      )}
+    </Pressable>
   );
 }
 
@@ -90,7 +91,6 @@ const styles = StyleSheet.create({
   },
   info: { flex: 1, gap: 2 },
   cantidad: { ...typography.label, color: colors.text.primary },
-  origen: { ...typography.caption, color: colors.text.secondary },
   fechaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   fechaText: { ...typography.caption, color: colors.text.secondary },
   badgeCol: { alignItems: 'flex-end' },

@@ -39,6 +39,13 @@ export const loteService = {
     return data;
   },
 
+  // Envuelve el stock actual del producto en su primer lote (misma cantidad/fecha que ya
+  // tenía) en vez de partir de cero al activar la gestión por lotes.
+  activar: async (productoId: string): Promise<LoteProducto> => {
+    const { data } = await apiClient.post<LoteProducto>(`/despensa/productos/${productoId}/lotes/activar`);
+    return data;
+  },
+
   añadir: async (productoId: string, datos: LoteProductoInput): Promise<LoteProducto> => {
     const { data } = await apiClient.post<LoteProducto>(`/despensa/productos/${productoId}/lotes`, datos);
     return data;

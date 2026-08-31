@@ -10,6 +10,14 @@ export type EstadoProducto =
   | 'caduca_semana'
   | 'caduca_mes';
 
+export interface ConsumoLote {
+  loteId: string;
+  fechaCaducidad?: string;
+  cantidadConsumida: number;
+  cantidadRestante: number;
+  loteEliminado: boolean;
+}
+
 export interface Producto {
   id: string;
   despensaId: string;
@@ -29,6 +37,9 @@ export interface Producto {
   mostrarFechaCaducidad?: boolean;
   tieneLotes?: boolean;
   posiblesDuplicados?: Producto[];
+  // Solo viene informado cuando esta respuesta procede de restar cantidad a un producto con
+  // lotes (consumo FIFO): de qué lote(s) concreto(s) se descontó.
+  consumosFifo?: ConsumoLote[] | null;
   createdAt: string;
   updatedAt: string;
 }
