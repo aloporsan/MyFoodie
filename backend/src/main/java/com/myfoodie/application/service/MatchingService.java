@@ -37,9 +37,16 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MatchingService {
 
-    private static final double UMBRAL_AUTOMATICO = 0.85;
+    private static final double UMBRAL_AUTOMATICO = 0.99;
     private static final double UMBRAL_PROPONER = 0.60;
     private static final double UMBRAL_DUPLICADO = 0.75;
+
+    // Un sinónimo homologa "familias" de producto (tomate ~ tomate frito, aceite de oliva ~
+    // aceite de girasol) para que recetas/duplicados no exijan texto idéntico, pero nunca debe
+    // bastar por sí solo para fusionar o actualizar algo en automático: por muy exacta que
+    // quede la coincidencia tras sustituir el sinónimo, se limita a este techo, por debajo de
+    // UMBRAL_AUTOMATICO, así que siempre pasa por confirmación del usuario (PROPONER).
+    private static final double TECHO_SINONIMO = 0.90;
 
     private final DespensaRepository despensaRepository;
     private final ProductoRepository productoRepository;
@@ -175,6 +182,9 @@ public class MatchingService {
 
         double puntuacion = calcularSimilitudJaroWinkler(textoA, textoB) * factorSolapePalabras(textoA, textoB);
         boolean fueronSinonimos = !textoA.equals(normalizadoA) || !textoB.equals(normalizadoB);
+        if (fueronSinonimos) {
+            puntuacion = Math.min(puntuacion, TECHO_SINONIMO);
+        }
 
         return new SimilitudResultDTO(puntuacion, textoA, textoB, fueronSinonimos);
     }
@@ -390,7 +400,8 @@ public class MatchingService {
                 p.getCreatedAt(),
                 p.getUpdatedAt(),
                 p.getTieneLotes(),
-                !"sin_stock".equals(estado)
+                !"sin_stock".equals(estado),
+                null
         );
     }
 }
