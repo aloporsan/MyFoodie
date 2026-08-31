@@ -26,6 +26,7 @@ export interface Producto {
   alertaCompra?: boolean;
   estado: EstadoProducto;
   diasHastaCaducidad?: number | null;
+  mostrarFechaCaducidad?: boolean;
   posiblesDuplicados?: Producto[];
   createdAt: string;
   updatedAt: string;
