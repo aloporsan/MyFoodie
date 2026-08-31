@@ -387,7 +387,8 @@ public class MatchingService {
                 calcularDiasHastaCaducidad(p),
                 null,
                 p.getCreatedAt(),
-                p.getUpdatedAt()
+                p.getUpdatedAt(),
+                p.getTieneLotes()
         );
     }
 }

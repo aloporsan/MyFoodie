@@ -198,7 +198,58 @@ public class DespensaService {
     public LoteProductoResponseDTO añadirLote(String usuarioId, String productoId, LoteProductoRequestDTO dto) {
         Despensa despensa = getDespensaDeUsuario(usuarioId);
         Producto producto = getProductoDeUsuario(despensa.getId(), productoId);
+        LoteProducto lote = crearLoteYRecalcular(usuarioId, despensa, producto, dto);
+        return toLoteDTO(lote);
+    }
 
+    public LoteProductoResponseDTO editarLote(String usuarioId, String productoId, String loteId,
+                                               LoteProductoRequestDTO dto) {
+        Despensa despensa = getDespensaDeUsuario(usuarioId);
+        Producto producto = getProductoDeUsuario(despensa.getId(), productoId);
+        LoteProducto lote = getLoteDeProducto(producto.getId(), loteId);
+
+        lote.setCantidad(dto.cantidad());
+        lote.setUnidad(dto.unidad());
+        lote.setFechaCaducidad(dto.fechaCaducidad());
+        lote.setFechaCompra(dto.fechaCompra());
+        if (dto.origen() != null) {
+            lote.setOrigen(dto.origen());
+        }
+        lote.setUpdatedAt(LocalDateTime.now());
+        LoteProducto guardado = loteProductoRepository.save(lote);
+
+        recalcularAgregadoDesdeLotes(producto);
+        productoRepository.save(producto);
+        actualizarDespensa(despensa);
+        carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
+        notificacionService.generarNotificacionesCaducidad(usuarioId);
+
+        return toLoteDTO(guardado);
+    }
+
+    public void eliminarLote(String usuarioId, String productoId, String loteId) {
+        Despensa despensa = getDespensaDeUsuario(usuarioId);
+        Producto producto = getProductoDeUsuario(despensa.getId(), productoId);
+        LoteProducto lote = getLoteDeProducto(producto.getId(), loteId);
+
+        loteProductoRepository.delete(lote);
+        recalcularAgregadoDesdeLotes(producto);
+        productoRepository.save(producto);
+        actualizarDespensa(despensa);
+        carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
+    }
+
+    private LoteProducto getLoteDeProducto(String productoId, String loteId) {
+        LoteProducto lote = loteProductoRepository.findById(loteId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Lote no encontrado"));
+        if (!lote.getProductoId().equals(productoId)) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "Lote no encontrado");
+        }
+        return lote;
+    }
+
+    private LoteProducto crearLoteYRecalcular(String usuarioId, Despensa despensa, Producto producto,
+                                               LoteProductoRequestDTO dto) {
         producto.setTieneLotes(true);
 
         LoteProducto lote = loteProductoRepository.save(LoteProducto.builder()
@@ -221,7 +272,94 @@ public class DespensaService {
         carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
         notificacionService.generarNotificacionesCaducidad(usuarioId);
 
-        return toLoteDTO(lote);
+        return lote;
+    }
+
+    // Usado por flujos de entrada de producto (OCR, carrito → despensa) donde ya se sabe
+    // cantidad/unidad/fecha de la compra: decide si sumar directo, crear un lote nuevo
+    // (producto ya trackeado por lotes) o migrar el producto a lotes porque esta entrada
+    // trae una fecha de caducidad distinta a la que ya tenía.
+    public ProductoResponseDTO registrarEntradaProducto(String usuarioId, String productoId, Float cantidad,
+                                                         String unidad, LocalDate fechaCaducidad, String origen) {
+        Despensa despensa = getDespensaDeUsuario(usuarioId);
+        int globalUmbral = obtenerGlobalUmbral(usuarioId);
+        Producto producto = getProductoDeUsuario(despensa.getId(), productoId);
+        float cantidadEntrada = cantidad != null ? cantidad : 0f;
+        String unidadEntrada = unidad != null ? unidad : producto.getUnidad();
+
+        if (Boolean.TRUE.equals(producto.getTieneLotes())) {
+            crearLoteYRecalcular(usuarioId, despensa, producto,
+                    new LoteProductoRequestDTO(cantidadEntrada, unidadEntrada, fechaCaducidad, LocalDate.now(), origen));
+            Producto actualizado = getProductoDeUsuario(despensa.getId(), productoId);
+            return toDTO(actualizado, null, resolverUmbral(actualizado, globalUmbral));
+        }
+
+        if (fechaCaducidad != null && producto.getFechaCaducidad() != null
+                && !fechaCaducidad.equals(producto.getFechaCaducidad())) {
+            loteProductoRepository.save(LoteProducto.builder()
+                    .productoId(producto.getId())
+                    .despensaId(despensa.getId())
+                    .usuarioId(usuarioId)
+                    .cantidad((float) producto.getCantidad())
+                    .unidad(producto.getUnidad())
+                    .fechaCaducidad(producto.getFechaCaducidad())
+                    .fechaCompra(producto.getFechaCompra() != null ? producto.getFechaCompra() : LocalDate.now())
+                    .origen("manual")
+                    .build());
+            crearLoteYRecalcular(usuarioId, despensa, producto,
+                    new LoteProductoRequestDTO(cantidadEntrada, unidadEntrada, fechaCaducidad, LocalDate.now(), origen));
+            Producto actualizado = getProductoDeUsuario(despensa.getId(), productoId);
+            return toDTO(actualizado, null, resolverUmbral(actualizado, globalUmbral));
+        }
+
+        return actualizarCantidad(usuarioId, productoId,
+                new ProductoUpdateCantidadDTO((double) cantidadEntrada, null, null,
+                        "Añadido desde " + (origen != null ? origen : "compra")));
+    }
+
+    // Contraparte de registrarEntradaProducto para productos nuevos: si el flujo de entrada
+    // ya conoce cantidad/fecha de caducidad de la compra, el producto nace con lotes desde
+    // el principio en vez de crearse "plano" y tener que migrarse luego.
+    public ProductoResponseDTO añadirProductoConLote(String usuarioId, ProductoRequestDTO dto, String origenLote) {
+        Despensa despensa = getDespensaDeUsuario(usuarioId);
+        int globalUmbral = obtenerGlobalUmbral(usuarioId);
+
+        UnidadConvertidaDTO normalizado = unidadNormalizadorService.normalizarUnidades(dto.cantidad(), dto.unidad());
+
+        Producto producto = Producto.builder()
+                .despensaId(despensa.getId())
+                .nombre(dto.nombre())
+                .cantidad(normalizado.cantidadConvertida())
+                .unidad(normalizado.unidadConvertida())
+                .unidadOriginal(dto.unidad())
+                .categoria(dto.categoria())
+                .fechaCaducidad(dto.fechaCaducidad())
+                .fechaCompra(dto.fechaCompra())
+                .marca(dto.marca())
+                .notas(dto.notas())
+                .stockMinimo(dto.stockMinimo())
+                .tieneLotes(true)
+                .build();
+        Producto guardado = productoRepository.save(producto);
+
+        loteProductoRepository.save(LoteProducto.builder()
+                .productoId(guardado.getId())
+                .despensaId(despensa.getId())
+                .usuarioId(usuarioId)
+                .cantidad((float) normalizado.cantidadConvertida())
+                .unidad(normalizado.unidadConvertida())
+                .fechaCaducidad(dto.fechaCaducidad())
+                .fechaCompra(dto.fechaCompra() != null ? dto.fechaCompra() : LocalDate.now())
+                .origen(origenLote != null ? origenLote : "manual")
+                .build());
+
+        actualizarDespensa(despensa);
+        registrarMovimiento(guardado, usuarioId, "añadido", "Producto añadido a la despensa",
+                null, guardado.getCantidad(), null, null);
+        carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
+        notificacionService.generarNotificacionesCaducidad(usuarioId);
+
+        return toDTO(guardado, null, resolverUmbral(guardado, globalUmbral));
     }
 
     public void consumirStockFIFO(String usuarioId, String productoId, float cantidadAConsumir) {
@@ -508,7 +646,8 @@ public class DespensaService {
                 calcularDiasHastaCaducidad(p),
                 duplicados,
                 p.getCreatedAt(),
-                p.getUpdatedAt()
+                p.getUpdatedAt(),
+                p.getTieneLotes()
         );
     }
 }

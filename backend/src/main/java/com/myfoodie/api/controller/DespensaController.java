@@ -1,6 +1,8 @@
 package com.myfoodie.api.controller;
 
 import com.myfoodie.application.dto.despensa.EliminarProductoRequestDTO;
+import com.myfoodie.application.dto.despensa.LoteProductoRequestDTO;
+import com.myfoodie.application.dto.despensa.LoteProductoResponseDTO;
 import com.myfoodie.application.dto.despensa.MovimientoProductoResponseDTO;
 import com.myfoodie.application.dto.despensa.ProductoFiltroDTO;
 import com.myfoodie.application.dto.despensa.ProductoRequestDTO;
@@ -100,6 +102,40 @@ public class DespensaController {
             @Valid @RequestBody ProductoUpdateCantidadDTO dto,
             Principal principal) {
         return ResponseEntity.ok(despensaService.actualizarCantidad(getUsuarioId(principal), id, dto));
+    }
+
+    @GetMapping("/{id}/lotes")
+    public ResponseEntity<List<LoteProductoResponseDTO>> obtenerLotes(
+            @PathVariable String id,
+            Principal principal) {
+        return ResponseEntity.ok(despensaService.obtenerLotes(getUsuarioId(principal), id));
+    }
+
+    @PostMapping("/{id}/lotes")
+    public ResponseEntity<LoteProductoResponseDTO> añadirLote(
+            @PathVariable String id,
+            @Valid @RequestBody LoteProductoRequestDTO dto,
+            Principal principal) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(despensaService.añadirLote(getUsuarioId(principal), id, dto));
+    }
+
+    @PutMapping("/{id}/lotes/{loteId}")
+    public ResponseEntity<LoteProductoResponseDTO> editarLote(
+            @PathVariable String id,
+            @PathVariable String loteId,
+            @Valid @RequestBody LoteProductoRequestDTO dto,
+            Principal principal) {
+        return ResponseEntity.ok(despensaService.editarLote(getUsuarioId(principal), id, loteId, dto));
+    }
+
+    @DeleteMapping("/{id}/lotes/{loteId}")
+    public ResponseEntity<Void> eliminarLote(
+            @PathVariable String id,
+            @PathVariable String loteId,
+            Principal principal) {
+        despensaService.eliminarLote(getUsuarioId(principal), id, loteId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/similares")
