@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useToast } from '@/hooks/useToast';
+import { despensaService } from '@/services/despensaService';
 import { IngredienteConsumo, recetaService } from '@/services/recetaService';
 import { handleApiError } from '@/utils/errorHandler';
 import { borderRadius } from '@/theme/borderRadius';
@@ -29,13 +30,29 @@ export function ModalRecetaRealizada({ visible, recetaId, numPersonas, onClose }
   const [cargandoPreview, setCargandoPreview] = useState(false);
   const [descontando, setDescontando] = useState(false);
 
+  // Tras descontar, las coincidencias PROPONER (60-99%) no se descuentan solas — hace falta
+  // que el usuario confirme una a una si es el mismo producto antes de tocar su despensa.
+  const [fase, setFase] = useState<'form' | 'coincidencias'>('form');
+  const [coincidencias, setCoincidencias] = useState<IngredienteConsumo[]>([]);
+  const [procesandoCoincidencia, setProcesandoCoincidencia] = useState<string | null>(null);
+
   useEffect(() => {
     if (visible) {
       setRacionesTexto(String(numPersonas));
       setPreview(null);
       setRacionesEnPreview(null);
+      setFase('form');
+      setCoincidencias([]);
     }
   }, [visible, numPersonas]);
+
+  // Cuando ya se resolvieron todas las coincidencias pendientes, cierra el modal solo.
+  useEffect(() => {
+    if (fase === 'coincidencias' && coincidencias.length === 0) {
+      onClose();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fase, coincidencias]);
 
   const raciones = Math.max(MIN_RACIONES, parseFloat(racionesTexto.replace(',', '.')) || 0);
 
@@ -72,6 +89,7 @@ export function ModalRecetaRealizada({ visible, recetaId, numPersonas, onClose }
       const resultado = await recetaService.descontarStock(recetaId, raciones);
       const totalDescontados = resultado.descontados.length;
       const totalNoDisponibles = resultado.noDisponibles.length;
+      const totalCoincidencias = resultado.coincidenciasParciales.length;
 
       if (totalDescontados > 0) {
         const extra = totalNoDisponibles > 0
@@ -80,15 +98,40 @@ export function ModalRecetaRealizada({ visible, recetaId, numPersonas, onClose }
         showSuccess(
           `${totalDescontados} ingrediente${totalDescontados !== 1 ? 's' : ''} descontado${totalDescontados !== 1 ? 's' : ''} de tu despensa${extra}`
         );
-      } else {
+      } else if (totalCoincidencias === 0) {
         showWarning('Ningún ingrediente estaba disponible en tu despensa');
       }
-      onClose();
+
+      if (totalCoincidencias > 0) {
+        setCoincidencias(resultado.coincidenciasParciales);
+        setFase('coincidencias');
+      } else {
+        onClose();
+      }
     } catch (e) {
       showError(handleApiError(e));
     } finally {
       setDescontando(false);
     }
+  };
+
+  const responderCoincidencia = async (item: IngredienteConsumo, esLoMismo: boolean) => {
+    if (esLoMismo && item.productoId) {
+      setProcesandoCoincidencia(item.nombre);
+      try {
+        const aDescontar = Math.min(item.cantidadCalculada, item.cantidadDisponible);
+        await despensaService.actualizarCantidad(
+          item.productoId, -aDescontar, 'usado_en_receta', undefined,
+          `Usado en receta (confirmado): ${item.productoNombre}`
+        );
+      } catch (e) {
+        showError(handleApiError(e));
+        return;
+      } finally {
+        setProcesandoCoincidencia(null);
+      }
+    }
+    setCoincidencias((prev) => prev.filter((c) => c.nombre !== item.nombre));
   };
 
   return (
@@ -102,60 +145,81 @@ export function ModalRecetaRealizada({ visible, recetaId, numPersonas, onClose }
       <View style={styles.container}>
         <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
         <View style={styles.sheet}>
-          <Text style={styles.titulo}>¿Cuántas raciones has preparado?</Text>
-          <Text style={styles.subtitulo}>Esta receta es para {numPersonas} personas</Text>
+          {fase === 'coincidencias' ? (
+            <>
+              <Text style={styles.titulo}>¿Alguno de estos es lo que ya tienes?</Text>
+              <Text style={styles.subtitulo}>
+                Confirma antes de descontarlo de tu despensa — si no, no se toca nada.
+              </Text>
+              <View style={styles.previewLista}>
+                {coincidencias.map((item) => (
+                  <FilaCoincidencia
+                    key={`${item.nombre}-${item.productoId}`}
+                    item={item}
+                    procesando={procesandoCoincidencia === item.nombre}
+                    onResponder={(esLoMismo) => responderCoincidencia(item, esLoMismo)}
+                  />
+                ))}
+              </View>
+            </>
+          ) : (
+            <>
+              <Text style={styles.titulo}>¿Cuántas raciones has preparado?</Text>
+              <Text style={styles.subtitulo}>Esta receta es para {numPersonas} personas</Text>
 
-          <View style={styles.racionesRow}>
-            <Pressable style={styles.racionesBtn} onPress={() => ajustarRaciones(-PASO_RACIONES)} hitSlop={8}>
-              <Ionicons name="remove" size={22} color={colors.primary} />
-            </Pressable>
-            <TextInput
-              style={styles.racionesInput}
-              value={racionesTexto}
-              onChangeText={setRacionesTexto}
-              onBlur={() => setRacionesTexto(String(raciones))}
-              keyboardType="decimal-pad"
-              selectTextOnFocus
-            />
-            <Pressable style={styles.racionesBtn} onPress={() => ajustarRaciones(PASO_RACIONES)} hitSlop={8}>
-              <Ionicons name="add" size={22} color={colors.primary} />
-            </Pressable>
-          </View>
-          <Text style={styles.calculoTexto}>Has preparado para {raciones} personas</Text>
+              <View style={styles.racionesRow}>
+                <Pressable style={styles.racionesBtn} onPress={() => ajustarRaciones(-PASO_RACIONES)} hitSlop={8}>
+                  <Ionicons name="remove" size={22} color={colors.primary} />
+                </Pressable>
+                <TextInput
+                  style={styles.racionesInput}
+                  value={racionesTexto}
+                  onChangeText={setRacionesTexto}
+                  onBlur={() => setRacionesTexto(String(raciones))}
+                  keyboardType="decimal-pad"
+                  selectTextOnFocus
+                />
+                <Pressable style={styles.racionesBtn} onPress={() => ajustarRaciones(PASO_RACIONES)} hitSlop={8}>
+                  <Ionicons name="add" size={22} color={colors.primary} />
+                </Pressable>
+              </View>
+              <Text style={styles.calculoTexto}>Has preparado para {raciones} personas</Text>
 
-          <Pressable style={styles.btnPreview} onPress={verIngredientes} disabled={cargandoPreview}>
-            {cargandoPreview ? (
-              <ActivityIndicator size="small" color={colors.primaryDark} />
-            ) : (
-              <Ionicons name="list-outline" size={18} color={colors.primaryDark} />
-            )}
-            <Text style={styles.btnPreviewText}>Ver ingredientes a descontar</Text>
-          </Pressable>
+              <Pressable style={styles.btnPreview} onPress={verIngredientes} disabled={cargandoPreview}>
+                {cargandoPreview ? (
+                  <ActivityIndicator size="small" color={colors.primaryDark} />
+                ) : (
+                  <Ionicons name="list-outline" size={18} color={colors.primaryDark} />
+                )}
+                <Text style={styles.btnPreviewText}>Ver ingredientes a descontar</Text>
+              </Pressable>
 
-          {previewEscalado && (
-            <View style={styles.previewLista}>
-              {previewEscalado.map((item) => (
-                <FilaIngrediente key={item.nombre} item={item} />
-              ))}
-            </View>
-          )}
-
-          <View style={styles.botonesFinales}>
-            <Pressable style={styles.btnCerrar} onPress={onClose}>
-              <Text style={styles.btnCerrarText}>Cerrar sin descontar</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.btnDescontar, descontando && styles.btnDisabled]}
-              onPress={descontarDeDespensa}
-              disabled={descontando}
-            >
-              {descontando ? (
-                <ActivityIndicator size="small" color={colors.white} />
-              ) : (
-                <Text style={styles.btnDescontarText}>Descontar de despensa</Text>
+              {previewEscalado && (
+                <View style={styles.previewLista}>
+                  {previewEscalado.map((item) => (
+                    <FilaIngrediente key={item.nombre} item={item} />
+                  ))}
+                </View>
               )}
-            </Pressable>
-          </View>
+
+              <View style={styles.botonesFinales}>
+                <Pressable style={styles.btnCerrar} onPress={onClose}>
+                  <Text style={styles.btnCerrarText}>Cerrar sin descontar</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.btnDescontar, descontando && styles.btnDisabled]}
+                  onPress={descontarDeDespensa}
+                  disabled={descontando}
+                >
+                  {descontando ? (
+                    <ActivityIndicator size="small" color={colors.white} />
+                  ) : (
+                    <Text style={styles.btnDescontarText}>Descontar de despensa</Text>
+                  )}
+                </Pressable>
+              </View>
+            </>
+          )}
         </View>
       </View>
     </Modal>
@@ -179,6 +243,72 @@ function FilaIngrediente({ item }: { item: IngredienteConsumo }) {
     </View>
   );
 }
+
+function FilaCoincidencia({
+  item, procesando, onResponder,
+}: {
+  item: IngredienteConsumo;
+  procesando: boolean;
+  onResponder: (esLoMismo: boolean) => void;
+}) {
+  return (
+    <View style={coincidenciaStyles.card}>
+      <Text style={coincidenciaStyles.pregunta}>
+        ¿&quot;{item.productoNombre}&quot; de tu despensa es lo mismo que &quot;{item.nombre}&quot; de la receta?
+      </Text>
+      <View style={coincidenciaStyles.botones}>
+        <Pressable
+          style={[coincidenciaStyles.btnNo, procesando && styles.btnDisabled]}
+          onPress={() => onResponder(false)}
+          disabled={procesando}
+        >
+          <Text style={coincidenciaStyles.btnNoText}>No, es distinto</Text>
+        </Pressable>
+        <Pressable
+          style={[coincidenciaStyles.btnSi, procesando && styles.btnDisabled]}
+          onPress={() => onResponder(true)}
+          disabled={procesando}
+        >
+          {procesando ? (
+            <ActivityIndicator size="small" color={colors.white} />
+          ) : (
+            <Text style={coincidenciaStyles.btnSiText}>Sí, descontar</Text>
+          )}
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+const coincidenciaStyles = StyleSheet.create({
+  card: {
+    backgroundColor: colors.background.surface,
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    gap: spacing.sm,
+  },
+  pregunta: { ...typography.body, color: colors.text.primary },
+  botones: { flexDirection: 'row', gap: spacing.sm },
+  btnNo: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1.5,
+    borderColor: colors.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnNoText: { ...typography.label, color: colors.error },
+  btnSi: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  btnSiText: { ...typography.label, color: colors.white },
+});
 
 const styles = StyleSheet.create({
   container: {

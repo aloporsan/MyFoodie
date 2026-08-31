@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { TipoMatch } from './matchingService';
 
 export type EstadoReceta = 'borrador' | 'publicada';
 
@@ -84,11 +85,18 @@ export interface IngredienteConsumo {
   productoEnDespensa: boolean;
   cantidadDisponible: number;
   suficiente: boolean;
+  noComparable: boolean;
+  tipoMatch: TipoMatch;
+  // Solo presentes cuando hay un producto candidato en despensa (tipoMatch != 'NUEVO'):
+  // permiten confirmar el descuento contra este producto concreto ante una coincidencia parcial.
+  productoId: string | null;
+  productoNombre: string | null;
 }
 
 export interface DescuentoRecetaResponse {
   descontados: IngredienteConsumo[];
   noDisponibles: IngredienteConsumo[];
+  coincidenciasParciales: IngredienteConsumo[];
 }
 
 export const recetaService = {
