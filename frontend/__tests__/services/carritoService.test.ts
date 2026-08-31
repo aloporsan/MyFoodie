@@ -115,10 +115,12 @@ it('modificarCantidad_envia_unidad_undefined_si_no_se_especifica', async () => {
 // añadirItemManual / eliminarItem
 // -------------------------------------------------------------------------
 
-it('añadirItemManual_devuelve_item_creado', async () => {
-  mockPost.mockResolvedValue({ data: mockItem });
+it('añadirItemManual_devuelve_el_resultado_con_accion_e_item_creado', async () => {
+  const resultadoEsperado = { accion: 'creado' as const, item: mockItem, itemExistente: null, similitud: null };
+  mockPost.mockResolvedValue({ data: resultadoEsperado });
   const result = await carritoService.añadirItemManual({ nombre: 'Leche', cantidad: 2, unidad: 'litros' });
-  expect(result.nombre).toBe('Leche');
+  expect(result.accion).toBe('creado');
+  expect(result.item.nombre).toBe('Leche');
   expect(mockPost).toHaveBeenCalledWith('/carrito/items', { nombre: 'Leche', cantidad: 2, unidad: 'litros' });
 });
 

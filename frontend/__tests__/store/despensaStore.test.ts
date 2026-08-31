@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { despensaService } from '@/services/despensaService';
+import { loteService } from '@/services/loteService';
 import { useDespensaStore } from '@/store/despensaStore';
 import { useFusionStore } from '@/store/fusionStore';
 
@@ -11,8 +12,21 @@ jest.mock('@/services/apiClient', () => ({
   setTokenGetter: jest.fn(),
 }));
 jest.mock('@/services/despensaService');
+jest.mock('@/services/loteService');
 
 const mockService = despensaService as jest.Mocked<typeof despensaService>;
+const mockLoteService = loteService as jest.Mocked<typeof loteService>;
+
+const mockLote = {
+  id: 'lote-1',
+  cantidad: 2,
+  unidad: 'litros',
+  fechaCaducidad: '2026-02-01',
+  fechaCompra: '2026-01-01',
+  origen: 'manual' as const,
+  estado: 'normal' as const,
+  createdAt: '2026-01-01T10:00:00',
+};
 
 const mockProducto = {
   id: 'prod-1',
@@ -31,6 +45,7 @@ const estadoInicial = {
   error: null,
   filtrosActivos: {},
   busquedaActiva: '',
+  lotesProductoActual: [],
 };
 
 beforeEach(async () => {
@@ -247,4 +262,113 @@ it('eliminarProducto_no_modifica_la_lista_si_falla', async () => {
   ).rejects.toThrow();
 
   expect(useDespensaStore.getState().productos).toHaveLength(1);
+});
+
+// -------------------------------------------------------------------------
+// Gestión por lotes
+// -------------------------------------------------------------------------
+
+it('cargarLotes_guarda_los_lotes_del_producto', async () => {
+  mockLoteService.listar.mockResolvedValue([mockLote]);
+
+  await useDespensaStore.getState().cargarLotes('prod-1');
+
+  expect(mockLoteService.listar).toHaveBeenCalledWith('prod-1');
+  expect(useDespensaStore.getState().lotesProductoActual).toEqual([mockLote]);
+  expect(useDespensaStore.getState().isLoading).toBe(false);
+});
+
+it('cargarLotes_guarda_el_error_si_falla_el_servicio', async () => {
+  mockLoteService.listar.mockRejectedValue(new Error('Error de red'));
+
+  await useDespensaStore.getState().cargarLotes('prod-1');
+
+  expect(useDespensaStore.getState().error).toBe('Error de red');
+  expect(useDespensaStore.getState().isLoading).toBe(false);
+});
+
+it('activarLotes_activa_y_refresca_lotes_y_producto', async () => {
+  useDespensaStore.setState({ ...estadoInicial, productos: [mockProducto] });
+  mockLoteService.activar.mockResolvedValue(mockLote);
+  mockLoteService.listar.mockResolvedValue([mockLote]);
+  mockService.obtenerProducto.mockResolvedValue({ ...mockProducto, tieneLotes: true });
+
+  await useDespensaStore.getState().activarLotes('prod-1');
+
+  expect(mockLoteService.activar).toHaveBeenCalledWith('prod-1');
+  expect(useDespensaStore.getState().lotesProductoActual).toEqual([mockLote]);
+  expect(useDespensaStore.getState().productos[0].tieneLotes).toBe(true);
+});
+
+it('activarLotes_propaga_el_error_y_no_toca_el_estado_si_falla', async () => {
+  useDespensaStore.setState({ ...estadoInicial, productos: [mockProducto] });
+  mockLoteService.activar.mockRejectedValue(new Error('Ya tiene lotes'));
+
+  await expect(useDespensaStore.getState().activarLotes('prod-1')).rejects.toThrow();
+
+  expect(useDespensaStore.getState().error).toBe('Ya tiene lotes');
+  expect(useDespensaStore.getState().productos[0].tieneLotes).toBeUndefined();
+});
+
+it('añadirLote_llama_al_servicio_y_refresca_lotes_y_producto', async () => {
+  useDespensaStore.setState({ ...estadoInicial, productos: [mockProducto] });
+  mockLoteService.añadir.mockResolvedValue(mockLote);
+  mockLoteService.listar.mockResolvedValue([mockLote]);
+  mockService.obtenerProducto.mockResolvedValue({ ...mockProducto, cantidad: 2 });
+
+  await useDespensaStore.getState().añadirLote('prod-1', {
+    cantidad: 2, unidad: 'litros', fechaCaducidad: '2026-02-01',
+  });
+
+  expect(mockLoteService.añadir).toHaveBeenCalledWith('prod-1', {
+    cantidad: 2, unidad: 'litros', fechaCaducidad: '2026-02-01',
+  });
+  expect(useDespensaStore.getState().lotesProductoActual).toEqual([mockLote]);
+});
+
+it('editarLote_llama_al_servicio_con_productoId_y_loteId_y_refresca', async () => {
+  mockLoteService.editar.mockResolvedValue({ ...mockLote, cantidad: 5 });
+  mockLoteService.listar.mockResolvedValue([{ ...mockLote, cantidad: 5 }]);
+  mockService.obtenerProducto.mockResolvedValue({ ...mockProducto, cantidad: 5 });
+
+  await useDespensaStore.getState().editarLote('prod-1', 'lote-1', {
+    cantidad: 5, unidad: 'litros',
+  });
+
+  expect(mockLoteService.editar).toHaveBeenCalledWith('prod-1', 'lote-1', {
+    cantidad: 5, unidad: 'litros',
+  });
+  expect(useDespensaStore.getState().lotesProductoActual[0].cantidad).toBe(5);
+});
+
+it('eliminarLote_llama_al_servicio_y_refresca_lotes_y_producto', async () => {
+  mockLoteService.eliminar.mockResolvedValue(undefined);
+  mockLoteService.listar.mockResolvedValue([]);
+  mockService.obtenerProducto.mockResolvedValue({ ...mockProducto, cantidad: 0 });
+
+  await useDespensaStore.getState().eliminarLote('prod-1', 'lote-1');
+
+  expect(mockLoteService.eliminar).toHaveBeenCalledWith('prod-1', 'lote-1');
+  expect(useDespensaStore.getState().lotesProductoActual).toEqual([]);
+});
+
+it('compactarLotes_llama_al_servicio_con_el_criterio_y_refresca', async () => {
+  mockLoteService.compactar.mockResolvedValue(mockLote);
+  mockLoteService.listar.mockResolvedValue([mockLote]);
+  mockService.obtenerProducto.mockResolvedValue({ ...mockProducto, cantidad: 2 });
+
+  await useDespensaStore.getState().compactarLotes('prod-1', 'MAS_TEMPRANA');
+
+  expect(mockLoteService.compactar).toHaveBeenCalledWith('prod-1', 'MAS_TEMPRANA');
+  expect(useDespensaStore.getState().lotesProductoActual).toEqual([mockLote]);
+});
+
+it('compactarLotes_propaga_el_error_si_falla_el_servicio', async () => {
+  mockLoteService.compactar.mockRejectedValue(new Error('Sin lotes activos'));
+
+  await expect(
+    useDespensaStore.getState().compactarLotes('prod-1', 'MAS_TARDIA')
+  ).rejects.toThrow();
+
+  expect(useDespensaStore.getState().error).toBe('Sin lotes activos');
 });
