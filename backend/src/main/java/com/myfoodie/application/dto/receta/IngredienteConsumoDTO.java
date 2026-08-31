@@ -1,5 +1,7 @@
 package com.myfoodie.application.dto.receta;
 
+import com.myfoodie.domain.model.TipoMatch;
+
 public record IngredienteConsumoDTO(
         String nombre,
         double cantidadCalculada,
@@ -7,5 +9,6 @@ public record IngredienteConsumoDTO(
         boolean productoEnDespensa,
         double cantidadDisponible,
         boolean suficiente,
-        boolean noComparable
+        boolean noComparable,
+        TipoMatch tipoMatch
 ) {}

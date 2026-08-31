@@ -623,12 +623,20 @@ public class CarritoInteligenteService {
         UnidadConvertidaDTO normalizado = unidadNormalizadorService
                 .normalizarUnidades(ingrediente.getCantidad(), ingrediente.getUnidad());
         double disponible = productos.stream()
-                .filter(p -> normalizar(p.getNombre()).equals(normalizar(ingrediente.getNombre())))
+                .filter(p -> esCoincidenciaFuerte(ingrediente.getNombre(), p.getNombre()))
                 .filter(p -> unidadesCompatibles(normalizado.unidadConvertida(), p.getUnidad()))
                 .mapToDouble(Producto::getCantidad)
                 .sum();
         if (normalizado.cantidadConvertida() <= 0) return disponible > 0 ? 1 : 0;
         return disponible / normalizado.cantidadConvertida();
+    }
+
+    // Umbral AUTOMATICO (>= 0.85): evita, p. ej., recomendar comprar "Leche entera" cuando
+    // el usuario ya tiene "Leche" en la despensa, sin caer tan bajo (0.60) que ingredientes
+    // realmente distintos se den por disponibles y se pierdan recomendaciones útiles.
+    private boolean esCoincidenciaFuerte(String nombreIngrediente, String nombreProducto) {
+        double puntuacion = matchingService.calcularSimilitud(nombreIngrediente, nombreProducto).puntuacion();
+        return matchingService.clasificarMatch(puntuacion) == TipoMatch.AUTOMATICO;
     }
 
     private boolean unidadesCompatibles(String unidadIngrediente, String unidadProducto) {
