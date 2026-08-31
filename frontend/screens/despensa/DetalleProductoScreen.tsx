@@ -11,9 +11,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CantidadMotivoSheet, ProductoEstadoBadge } from '@/components/despensa';
+import { CantidadMotivoSheet, FormNuevoLote, ListaLotes, ProductoEstadoBadge } from '@/components/despensa';
+import { showConfirm } from '@/hooks/useConfirm';
 import { useToast } from '@/hooks/useToast';
 import { MotivoEliminacion, MovimientoProducto } from '@/services/despensaService';
+import { LoteProducto, LoteProductoInput } from '@/services/loteService';
 import { useDespensaStore } from '@/store/despensaStore';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
@@ -46,6 +48,11 @@ export function DetalleProductoScreen() {
     eliminarProducto,
     historialProducto,
     cargarHistorial,
+    lotesProductoActual,
+    cargarLotes,
+    añadirLote,
+    editarLote,
+    eliminarLote,
   } = useDespensaStore();
 
   // Modal eliminar
@@ -57,12 +64,24 @@ export function DetalleProductoScreen() {
   const [cantidadSheet, setCantidadSheet] = useState(false);
   const [cantidadModo, setCantidadModo] = useState<'sumar' | 'restar'>('restar');
 
-  const producto = productos.find((p) => p.id === id);
+  // Gestión por lotes: "Gestionar por lotes" solo hace falta para revelar la sección en un
+  // producto que aún no tiene lotes — el primer lote que se añade ya activa tieneLotes en el
+  // backend (crearLoteYRecalcular), así que a partir de ahí la sección queda siempre visible.
+  const [seccionLotesAbierta, setSeccionLotesAbierta] = useState(false);
+  const [modalLote, setModalLote] = useState(false);
+  const [loteEditando, setLoteEditando] = useState<LoteProducto | null>(null);
+  const [guardandoLote, setGuardandoLote] = useState(false);
 
-  // Recarga historial cada vez que la pantalla gana foco
+  const producto = productos.find((p) => p.id === id);
+  const mostrarSeccionLotes = producto?.tieneLotes || seccionLotesAbierta;
+
+  // Recarga historial y lotes cada vez que la pantalla gana foco
   useFocusEffect(
     useCallback(() => {
-      if (id) cargarHistorial(id);
+      if (id) {
+        cargarHistorial(id);
+        cargarLotes(id);
+      }
     }, [id])
   );
 
@@ -121,6 +140,53 @@ export function DetalleProductoScreen() {
     router.back();
   };
 
+  const handleNuevoLote = () => {
+    setLoteEditando(null);
+    setModalLote(true);
+  };
+
+  const handleEditarLote = (lote: LoteProducto) => {
+    setLoteEditando(lote);
+    setModalLote(true);
+  };
+
+  const handleGuardarLote = async (datos: LoteProductoInput) => {
+    setGuardandoLote(true);
+    try {
+      if (loteEditando) {
+        await editarLote(id, loteEditando.id, datos);
+      } else {
+        await añadirLote(id, datos);
+      }
+      setModalLote(false);
+    } catch {
+      showError('No se pudo guardar el lote');
+    } finally {
+      setGuardandoLote(false);
+    }
+  };
+
+  const handleEliminarLote = (lote: LoteProducto) => {
+    showConfirm(
+      'Eliminar lote',
+      `¿Eliminar este lote de ${lote.cantidad} ${lote.unidad}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await eliminarLote(id, lote.id);
+            } catch {
+              showError('No se pudo eliminar el lote');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
@@ -177,7 +243,7 @@ export function DetalleProductoScreen() {
           {producto.categoria && (
             <FilaDetalle icono="grid-outline" label="Categoría" valor={producto.categoria} />
           )}
-          {producto.mostrarFechaCaducidad !== false && producto.fechaCaducidad && (
+          {!producto.tieneLotes && producto.mostrarFechaCaducidad !== false && producto.fechaCaducidad && (
             <FilaDetalle icono="calendar-outline" label="Caduca" valor={producto.fechaCaducidad} />
           )}
           {producto.estado !== 'sin_stock' && producto.fechaCompra && (
@@ -192,6 +258,31 @@ export function DetalleProductoScreen() {
             valor={new Date(producto.updatedAt).toLocaleDateString('es-ES')}
           />
         </View>
+
+        {/* Gestión por lotes */}
+        {!producto.tieneLotes && !seccionLotesAbierta && (
+          <Pressable style={styles.btnGestionarLotes} onPress={() => setSeccionLotesAbierta(true)}>
+            <Ionicons name="layers-outline" size={18} color={colors.primary} />
+            <Text style={styles.btnGestionarLotesText}>Gestionar por lotes</Text>
+          </Pressable>
+        )}
+
+        {mostrarSeccionLotes && (
+          <View style={styles.lotesCard}>
+            <View style={styles.lotesHeader}>
+              <Text style={styles.lotesTitulo}>Lotes</Text>
+            </View>
+            <ListaLotes
+              lotes={lotesProductoActual}
+              onEditar={handleEditarLote}
+              onEliminar={handleEliminarLote}
+            />
+            <Pressable style={styles.btnNuevaCompra} onPress={handleNuevoLote}>
+              <Ionicons name="add" size={18} color={colors.primary} />
+              <Text style={styles.btnNuevaCompraText}>Añadir nueva compra</Text>
+            </Pressable>
+          </View>
+        )}
 
         {/* Historial de movimientos */}
         {historialProducto.length > 0 && (
@@ -278,6 +369,30 @@ export function DetalleProductoScreen() {
                 <Text style={styles.modalBtnConfirmarText}>Eliminar</Text>
               </Pressable>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de alta/edición de lote */}
+      <Modal
+        visible={modalLote}
+        transparent
+        statusBarTranslucent
+        animationType="slide"
+        onRequestClose={() => setModalLote(false)}
+      >
+        <View style={styles.modalContainer}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setModalLote(false)} />
+          <View style={styles.modalSheet}>
+            <Text style={styles.modalTitulo}>{loteEditando ? 'Editar lote' : 'Nueva compra'}</Text>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <FormNuevoLote
+                loteInicial={loteEditando ?? undefined}
+                onGuardar={handleGuardarLote}
+                onCancelar={() => setModalLote(false)}
+                isLoading={guardandoLote}
+              />
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -432,6 +547,47 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   historialTitulo: { ...typography.label, color: colors.text.secondary, marginBottom: spacing.xs },
+  btnGestionarLotes: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.xl,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    backgroundColor: colors.white,
+  },
+  btnGestionarLotesText: { ...typography.label, color: colors.primary },
+  lotesCard: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    gap: spacing.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  lotesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  lotesTitulo: { ...typography.label, color: colors.text.secondary },
+  btnNuevaCompra: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+  },
+  btnNuevaCompraText: { ...typography.label, color: colors.primary },
   btnEliminar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -456,6 +612,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.sm,
     paddingBottom: spacing.xxxl,
+    maxHeight: '85%',
   },
   modalTitulo: {
     ...typography.heading2,

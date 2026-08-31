@@ -27,6 +27,7 @@ export interface Producto {
   estado: EstadoProducto;
   diasHastaCaducidad?: number | null;
   mostrarFechaCaducidad?: boolean;
+  tieneLotes?: boolean;
   posiblesDuplicados?: Producto[];
   createdAt: string;
   updatedAt: string;
