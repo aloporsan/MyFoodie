@@ -84,9 +84,10 @@ class CarritoControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(itemJson("Café", 1, "paquetes")))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").exists())
-                .andExpect(jsonPath("$.nombre").value("Café"))
-                .andExpect(jsonPath("$.estado").value("pendiente"));
+                .andExpect(jsonPath("$.accion").value("creado"))
+                .andExpect(jsonPath("$.item.id").exists())
+                .andExpect(jsonPath("$.item.nombre").value("Café"))
+                .andExpect(jsonPath("$.item.estado").value("pendiente"));
     }
 
     @Test
@@ -392,7 +393,9 @@ class CarritoControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(itemJson(nombre, cantidad, unidad)))
                 .andReturn();
-        return idDe(result);
+        // POST /carrito/items ahora devuelve {accion, item, itemExistente, similitud}: el id
+        // del item creado vive en item.id, no en el nivel superior de la respuesta.
+        return objectMapper.readTree(result.getResponse().getContentAsString()).get("item").get("id").asText();
     }
 
     private void aceptarItem(String token, String itemId) throws Exception {

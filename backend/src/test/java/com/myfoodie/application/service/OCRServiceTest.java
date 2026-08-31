@@ -34,7 +34,7 @@ class OCRServiceTest {
     private ProductoResponseDTO producto(String id, String nombre) {
         return new ProductoResponseDTO(
                 id, "despensa-1", nombre, 1, "unidad", null, null,
-                null, null, null, null, null, false, "normal", null, null, null, null);
+                null, null, null, null, null, false, "normal", null, null, null, null, null, null, null);
     }
 
     // -------------------------------------------------------------------------

@@ -4,10 +4,12 @@ import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.feed.FeedResponseDTO;
 import com.myfoodie.application.dto.feed.InicializarPerfilRequestDTO;
 import com.myfoodie.application.dto.feed.RecetaFeedDTO;
+import com.myfoodie.application.dto.matching.SimilitudResultDTO;
 import com.myfoodie.domain.model.IngredienteReceta;
 import com.myfoodie.domain.model.PerfilGustos;
 import com.myfoodie.domain.model.Receta;
 import com.myfoodie.domain.model.RecetaDescartada;
+import com.myfoodie.domain.model.TipoMatch;
 import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.IngredienteRecetaRepository;
 import com.myfoodie.domain.repository.LikeRepository;
@@ -17,6 +19,7 @@ import com.myfoodie.domain.repository.RecetaDescartadaRepository;
 import com.myfoodie.domain.repository.RecetaGuardadaRepository;
 import com.myfoodie.domain.repository.RecetaRepository;
 import com.myfoodie.domain.repository.UsuarioRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,9 +38,11 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -55,9 +60,29 @@ class FeedServiceTest {
     @Mock private PerfilGustosRepository perfilGustosRepository;
     @Mock private DespensaService despensaService;
     @Mock private SocialService socialService;
+    @Mock private MatchingService matchingService;
     @Spy private RecomendacionService recomendacionService = new RecomendacionService();
 
     @InjectMocks private FeedService feedService;
+
+    // matchingService, al ser un mock, no reproduce el algoritmo real: para estos tests basta con
+    // que considere "coincidencia" cuando los nombres son iguales ignorando mayúsculas (el
+    // comportamiento que tenía este servicio antes de introducir MatchingService).
+    @BeforeEach
+    void configurarMatchingPorDefecto() {
+        lenient().when(matchingService.calcularSimilitud(anyString(), anyString())).thenAnswer(inv -> {
+            String a = inv.getArgument(0);
+            String b = inv.getArgument(1);
+            boolean iguales = a != null && b != null && a.trim().equalsIgnoreCase(b.trim());
+            return new SimilitudResultDTO(iguales ? 1.0 : 0.0, a, b, false);
+        });
+        lenient().when(matchingService.clasificarMatch(anyDouble())).thenAnswer(inv -> {
+            double puntuacion = inv.getArgument(0);
+            if (puntuacion >= 0.99) return TipoMatch.AUTOMATICO;
+            if (puntuacion >= 0.60) return TipoMatch.PROPONER;
+            return TipoMatch.NUEVO;
+        });
+    }
 
     private Receta receta(String id, String autorId, int numIngredientes) {
         return Receta.builder()
@@ -76,7 +101,7 @@ class FeedServiceTest {
     private ProductoResponseDTO productoDespensa(String nombre) {
         return new ProductoResponseDTO(
                 "p-1", "desp-1", nombre, 1, "unidades", null, null, null, null, null, null,
-                null, false, "normal", null, null, null, null);
+                null, false, "normal", null, null, null, null, null, null, null);
     }
 
     @Test

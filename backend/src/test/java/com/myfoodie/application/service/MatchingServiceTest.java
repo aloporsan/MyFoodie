@@ -131,12 +131,17 @@ class MatchingServiceTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @DisplayName("calcularSimilitud detecta que dos variantes de leche son el mismo producto vía sinónimo")
+    @DisplayName("calcularSimilitud detecta el sinónimo pero nunca lo deja llegar a automático")
     void calcularSimilitud_detecta_sinonimo_de_leche() {
+        // Un sinónimo homologa la "familia" del producto (aquí, dos variantes de leche), pero
+        // nunca debe bastar por sí solo para fusionar/actualizar en automático: se limita a
+        // TECHO_SINONIMO (0.90), por debajo de UMBRAL_AUTOMATICO (0.99), así que esto siempre
+        // termina en PROPONER (confirmación del usuario), nunca en AUTOMATICO.
         SimilitudResultDTO resultado = matchingService.calcularSimilitud("Leche Entera", "Leche Desnatada");
 
         assertThat(resultado.fueronSinonimos()).isTrue();
-        assertThat(resultado.puntuacion()).isEqualTo(1.0);
+        assertThat(resultado.puntuacion()).isEqualTo(0.90);
+        assertThat(matchingService.clasificarMatch(resultado.puntuacion())).isEqualTo(TipoMatch.PROPONER);
     }
 
     @Test
@@ -163,11 +168,13 @@ class MatchingServiceTest {
     @Test
     @DisplayName("calcularSimilitud no penaliza cuando comparten al menos una palabra completa")
     void calcularSimilitud_no_penaliza_si_comparten_una_palabra() {
-        // "Leche Pascual Entera" vs "Leche": comparten la palabra "leche" -> no se penaliza,
-        // debe seguir clasificando como AUTOMATICO (>=0.85) igual que antes del fix.
+        // "Leche Pascual Entera" vs "Leche": comparten la palabra "leche" -> el factor de
+        // solape no penaliza (sigue en ~0.85). Con el umbral en 0.99 esto ya no basta para ser
+        // AUTOMATICO — cae en PROPONER, que es justo lo deseado: "se parece pero no es igual".
         SimilitudResultDTO resultado = matchingService.calcularSimilitud("Leche Pascual Entera", "Leche");
 
         assertThat(resultado.puntuacion()).isGreaterThanOrEqualTo(0.85);
+        assertThat(matchingService.clasificarMatch(resultado.puntuacion())).isEqualTo(TipoMatch.PROPONER);
     }
 
     // -------------------------------------------------------------------------
@@ -175,17 +182,18 @@ class MatchingServiceTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @DisplayName("clasificarMatch devuelve AUTOMATICO desde 0.85")
-    void clasificarMatch_automatico_desde_0_85() {
-        assertThat(matchingService.clasificarMatch(0.85)).isEqualTo(TipoMatch.AUTOMATICO);
+    @DisplayName("clasificarMatch devuelve AUTOMATICO solo desde 0.99")
+    void clasificarMatch_automatico_desde_0_99() {
         assertThat(matchingService.clasificarMatch(0.99)).isEqualTo(TipoMatch.AUTOMATICO);
+        assertThat(matchingService.clasificarMatch(1.0)).isEqualTo(TipoMatch.AUTOMATICO);
     }
 
     @Test
-    @DisplayName("clasificarMatch devuelve PROPONER entre 0.60 y 0.85")
-    void clasificarMatch_proponer_entre_0_60_y_0_85() {
+    @DisplayName("clasificarMatch devuelve PROPONER entre 0.60 y 0.99")
+    void clasificarMatch_proponer_entre_0_60_y_0_99() {
         assertThat(matchingService.clasificarMatch(0.60)).isEqualTo(TipoMatch.PROPONER);
-        assertThat(matchingService.clasificarMatch(0.84)).isEqualTo(TipoMatch.PROPONER);
+        assertThat(matchingService.clasificarMatch(0.85)).isEqualTo(TipoMatch.PROPONER);
+        assertThat(matchingService.clasificarMatch(0.98)).isEqualTo(TipoMatch.PROPONER);
     }
 
     @Test
