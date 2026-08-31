@@ -1,5 +1,6 @@
 package com.myfoodie.api.controller;
 
+import com.myfoodie.application.dto.despensa.CompactarLotesRequestDTO;
 import com.myfoodie.application.dto.despensa.EliminarProductoRequestDTO;
 import com.myfoodie.application.dto.despensa.LoteProductoRequestDTO;
 import com.myfoodie.application.dto.despensa.LoteProductoResponseDTO;
@@ -136,6 +137,14 @@ public class DespensaController {
             Principal principal) {
         despensaService.eliminarLote(getUsuarioId(principal), id, loteId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/lotes/compactar")
+    public ResponseEntity<LoteProductoResponseDTO> compactarLotes(
+            @PathVariable String id,
+            @Valid @RequestBody CompactarLotesRequestDTO dto,
+            Principal principal) {
+        return ResponseEntity.ok(despensaService.compactarLotes(getUsuarioId(principal), id, dto.criterioFecha()));
     }
 
     @GetMapping("/similares")

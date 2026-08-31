@@ -23,5 +23,6 @@ public record ProductoResponseDTO(
         List<ProductoResponseDTO> posiblesDuplicados,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        Boolean tieneLotes
+        Boolean tieneLotes,
+        Boolean mostrarFechaCaducidad
 ) {}

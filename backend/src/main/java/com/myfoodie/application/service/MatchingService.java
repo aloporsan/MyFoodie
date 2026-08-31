@@ -369,6 +369,7 @@ public class MatchingService {
 
     private ProductoResponseDTO toProductoResponseDTO(Producto p, int umbralEfectivo) {
         boolean alertaCompra = p.getCantidad() <= umbralEfectivo;
+        String estado = calcularEstado(p, umbralEfectivo);
         return new ProductoResponseDTO(
                 p.getId(),
                 p.getDespensaId(),
@@ -383,12 +384,13 @@ public class MatchingService {
                 p.getNotas(),
                 p.getStockMinimo(),
                 alertaCompra,
-                calcularEstado(p, umbralEfectivo),
+                estado,
                 calcularDiasHastaCaducidad(p),
                 null,
                 p.getCreatedAt(),
                 p.getUpdatedAt(),
-                p.getTieneLotes()
+                p.getTieneLotes(),
+                !"sin_stock".equals(estado)
         );
     }
 }

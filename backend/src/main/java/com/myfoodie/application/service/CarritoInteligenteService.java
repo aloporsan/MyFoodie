@@ -552,6 +552,7 @@ public class CarritoInteligenteService {
     private ProductoResponseDTO toProductoResponseDTO(Producto p, int globalUmbral) {
         int umbralEfectivo = p.getStockMinimo() != null ? p.getStockMinimo() : globalUmbral;
         boolean alertaCompra = p.getCantidad() <= umbralEfectivo;
+        String estado = calcularEstado(p, umbralEfectivo);
         return new ProductoResponseDTO(
                 p.getId(),
                 p.getDespensaId(),
@@ -566,12 +567,13 @@ public class CarritoInteligenteService {
                 p.getNotas(),
                 p.getStockMinimo(),
                 alertaCompra,
-                calcularEstado(p, umbralEfectivo),
+                estado,
                 diasHastaCaducidad(p),
                 null,
                 p.getCreatedAt(),
                 p.getUpdatedAt(),
-                p.getTieneLotes()
+                p.getTieneLotes(),
+                !"sin_stock".equals(estado)
         );
     }
 

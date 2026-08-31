@@ -9,6 +9,7 @@ import com.myfoodie.application.dto.despensa.ProductoRequestDTO;
 import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.despensa.ProductoUpdateCantidadDTO;
 import com.myfoodie.application.dto.unidad.UnidadConvertidaDTO;
+import com.myfoodie.domain.model.CriterioFechaLote;
 import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.LoteProducto;
 import com.myfoodie.domain.model.MovimientoProducto;
@@ -412,6 +413,54 @@ public class DespensaService {
                 .toList();
     }
 
+    public LoteProductoResponseDTO compactarLotes(String usuarioId, String productoId, CriterioFechaLote criterioFecha) {
+        Despensa despensa = getDespensaDeUsuario(usuarioId);
+        Producto producto = getProductoDeUsuario(despensa.getId(), productoId);
+
+        List<LoteProducto> lotesActivos = loteProductoRepository
+                .findByProductoIdAndCantidadGreaterThan(producto.getId(), 0f);
+        if (lotesActivos.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "El producto no tiene lotes activos para compactar");
+        }
+
+        float total = lotesActivos.stream().map(LoteProducto::getCantidad).filter(Objects::nonNull)
+                .reduce(0f, Float::sum);
+        Comparator<LoteProducto> porFecha = Comparator.comparing(LoteProducto::getFechaCaducidad,
+                Comparator.nullsLast(Comparator.naturalOrder()));
+        LocalDate fechaElegida = criterioFecha == CriterioFechaLote.MAS_TARDIA
+                ? lotesActivos.stream().max(porFecha).map(LoteProducto::getFechaCaducidad).orElse(null)
+                : lotesActivos.stream().min(porFecha).map(LoteProducto::getFechaCaducidad).orElse(null);
+        LocalDate fechaCompraMasReciente = lotesActivos.stream()
+                .map(LoteProducto::getFechaCompra)
+                .filter(Objects::nonNull)
+                .max(Comparator.naturalOrder())
+                .orElse(LocalDate.now());
+        String unidad = lotesActivos.get(0).getUnidad();
+
+        loteProductoRepository.deleteAll(lotesActivos);
+        LoteProducto loteResultante = loteProductoRepository.save(LoteProducto.builder()
+                .productoId(producto.getId())
+                .despensaId(despensa.getId())
+                .usuarioId(usuarioId)
+                .cantidad(total)
+                .unidad(unidad)
+                .fechaCaducidad(fechaElegida)
+                .fechaCompra(fechaCompraMasReciente)
+                .origen("manual")
+                .build());
+
+        recalcularAgregadoDesdeLotes(producto);
+        Producto guardado = productoRepository.save(producto);
+        actualizarDespensa(despensa);
+        registrarMovimiento(guardado, usuarioId, "lotes_compactados",
+                "Lotes compactados en uno: " + total + " " + unidad,
+                null, guardado.getCantidad(), null, null);
+        carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
+        notificacionService.generarNotificacionesCaducidad(usuarioId);
+
+        return toLoteDTO(loteResultante);
+    }
+
     private void recalcularAgregadoDesdeLotes(Producto producto) {
         List<LoteProducto> lotesConStock = loteProductoRepository
                 .findByProductoIdAndCantidadGreaterThan(producto.getId(), 0f);
@@ -628,6 +677,7 @@ public class DespensaService {
 
     ProductoResponseDTO toDTO(Producto p, List<ProductoResponseDTO> duplicados, int umbralEfectivo) {
         boolean alertaCompra = p.getCantidad() <= umbralEfectivo;
+        String estado = calcularEstado(p, umbralEfectivo);
         return new ProductoResponseDTO(
                 p.getId(),
                 p.getDespensaId(),
@@ -642,12 +692,13 @@ public class DespensaService {
                 p.getNotas(),
                 p.getStockMinimo(),
                 alertaCompra,
-                calcularEstado(p, umbralEfectivo),
+                estado,
                 calcularDiasHastaCaducidad(p),
                 duplicados,
                 p.getCreatedAt(),
                 p.getUpdatedAt(),
-                p.getTieneLotes()
+                p.getTieneLotes(),
+                !"sin_stock".equals(estado)
         );
     }
 }
