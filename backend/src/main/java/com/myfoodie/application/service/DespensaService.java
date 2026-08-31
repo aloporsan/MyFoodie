@@ -1,6 +1,8 @@
 package com.myfoodie.application.service;
 
 import com.myfoodie.application.dto.despensa.EliminarProductoRequestDTO;
+import com.myfoodie.application.dto.despensa.LoteProductoRequestDTO;
+import com.myfoodie.application.dto.despensa.LoteProductoResponseDTO;
 import com.myfoodie.application.dto.despensa.MovimientoProductoResponseDTO;
 import com.myfoodie.application.dto.despensa.ProductoFiltroDTO;
 import com.myfoodie.application.dto.despensa.ProductoRequestDTO;
@@ -8,10 +10,12 @@ import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.despensa.ProductoUpdateCantidadDTO;
 import com.myfoodie.application.dto.unidad.UnidadConvertidaDTO;
 import com.myfoodie.domain.model.Despensa;
+import com.myfoodie.domain.model.LoteProducto;
 import com.myfoodie.domain.model.MovimientoProducto;
 import com.myfoodie.domain.model.Preferencias;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.repository.DespensaRepository;
+import com.myfoodie.domain.repository.LoteProductoRepository;
 import com.myfoodie.domain.repository.MovimientoProductoRepository;
 import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.ProductoRepository;
@@ -25,6 +29,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -40,6 +45,7 @@ public class DespensaService {
     private final ProductoRepository productoRepository;
     private final PreferenciasRepository preferenciasRepository;
     private final MovimientoProductoRepository movimientoRepository;
+    private final LoteProductoRepository loteProductoRepository;
     private final CarritoInteligenteService carritoInteligenteService;
     private final UnidadNormalizadorService unidadNormalizadorService;
     private final NotificacionService notificacionService;
@@ -155,6 +161,16 @@ public class DespensaService {
         int globalUmbral = obtenerGlobalUmbral(usuarioId);
         Producto p = getProductoDeUsuario(despensa.getId(), productoId);
 
+        if (Boolean.TRUE.equals(p.getTieneLotes()) && dto.delta() < 0) {
+            consumirStockFIFO(usuarioId, productoId, (float) -dto.delta());
+            if (actualizarCarrito) {
+                carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
+                notificacionService.generarNotificacionesCaducidad(usuarioId);
+            }
+            Producto actualizado = getProductoDeUsuario(despensa.getId(), productoId);
+            return toDTO(actualizado, null, resolverUmbral(actualizado, globalUmbral));
+        }
+
         double cantidadAnterior = p.getCantidad();
         double nuevaCantidad = cantidadAnterior + dto.delta();
         if (nuevaCantidad < 0) {
@@ -173,6 +189,132 @@ public class DespensaService {
             notificacionService.generarNotificacionesCaducidad(usuarioId);
         }
         return toDTO(saved, null, resolverUmbral(saved, globalUmbral));
+    }
+
+    // -------------------------------------------------------------------------
+    // Gestión por lotes
+    // -------------------------------------------------------------------------
+
+    public LoteProductoResponseDTO añadirLote(String usuarioId, String productoId, LoteProductoRequestDTO dto) {
+        Despensa despensa = getDespensaDeUsuario(usuarioId);
+        Producto producto = getProductoDeUsuario(despensa.getId(), productoId);
+
+        producto.setTieneLotes(true);
+
+        LoteProducto lote = loteProductoRepository.save(LoteProducto.builder()
+                .productoId(producto.getId())
+                .despensaId(despensa.getId())
+                .usuarioId(usuarioId)
+                .cantidad(dto.cantidad())
+                .unidad(dto.unidad())
+                .fechaCaducidad(dto.fechaCaducidad())
+                .fechaCompra(dto.fechaCompra() != null ? dto.fechaCompra() : LocalDate.now())
+                .origen(dto.origen() != null ? dto.origen() : "manual")
+                .build());
+
+        recalcularAgregadoDesdeLotes(producto);
+        Producto guardado = productoRepository.save(producto);
+        actualizarDespensa(despensa);
+        registrarMovimiento(guardado, usuarioId, "lote_añadido",
+                "Lote añadido: " + lote.getCantidad() + " " + lote.getUnidad(),
+                null, guardado.getCantidad(), null, null);
+        carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
+        notificacionService.generarNotificacionesCaducidad(usuarioId);
+
+        return toLoteDTO(lote);
+    }
+
+    public void consumirStockFIFO(String usuarioId, String productoId, float cantidadAConsumir) {
+        Despensa despensa = getDespensaDeUsuario(usuarioId);
+        Producto producto = getProductoDeUsuario(despensa.getId(), productoId);
+
+        List<LoteProducto> lotes = loteProductoRepository.findByProductoIdOrderByFechaCaducidadAsc(producto.getId());
+        float totalDisponible = lotes.stream().map(LoteProducto::getCantidad).filter(Objects::nonNull)
+                .reduce(0f, Float::sum);
+        if (cantidadAConsumir > totalDisponible) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "La cantidad no puede ser negativa");
+        }
+
+        float restante = cantidadAConsumir;
+        for (LoteProducto lote : lotes) {
+            if (restante <= 0) {
+                break;
+            }
+            float disponibleLote = lote.getCantidad() != null ? lote.getCantidad() : 0f;
+            if (disponibleLote <= 0) {
+                continue;
+            }
+
+            float consumidoDeEsteLote = Math.min(disponibleLote, restante);
+            float cantidadNuevaLote = disponibleLote - consumidoDeEsteLote;
+            restante -= consumidoDeEsteLote;
+
+            if (cantidadNuevaLote <= 0) {
+                loteProductoRepository.delete(lote);
+            } else {
+                lote.setCantidad(cantidadNuevaLote);
+                lote.setUpdatedAt(LocalDateTime.now());
+                loteProductoRepository.save(lote);
+            }
+
+            registrarMovimiento(producto, usuarioId, "cantidad_actualizada", "Consumo FIFO de lote",
+                    (double) disponibleLote, (double) cantidadNuevaLote, "consumido", null);
+        }
+
+        recalcularAgregadoDesdeLotes(producto);
+        productoRepository.save(producto);
+        actualizarDespensa(despensa);
+    }
+
+    public List<LoteProductoResponseDTO> obtenerLotes(String usuarioId, String productoId) {
+        Despensa despensa = getDespensaDeUsuario(usuarioId);
+        getProductoDeUsuario(despensa.getId(), productoId);
+        return loteProductoRepository.findByProductoIdOrderByFechaCaducidadAsc(productoId).stream()
+                .map(this::toLoteDTO)
+                .toList();
+    }
+
+    private void recalcularAgregadoDesdeLotes(Producto producto) {
+        List<LoteProducto> lotesConStock = loteProductoRepository
+                .findByProductoIdAndCantidadGreaterThan(producto.getId(), 0f);
+        float total = loteProductoRepository.sumCantidadByProductoId(producto.getId());
+        LocalDate minimaCaducidad = lotesConStock.stream()
+                .map(LoteProducto::getFechaCaducidad)
+                .filter(Objects::nonNull)
+                .min(Comparator.naturalOrder())
+                .orElse(null);
+
+        producto.setCantidad(total);
+        producto.setFechaCaducidad(minimaCaducidad);
+        producto.setUpdatedAt(LocalDateTime.now());
+    }
+
+    private LoteProductoResponseDTO toLoteDTO(LoteProducto lote) {
+        Integer dias = calcularDiasHastaCaducidad(lote.getFechaCaducidad());
+        return new LoteProductoResponseDTO(
+                lote.getId(),
+                lote.getCantidad(),
+                lote.getUnidad(),
+                lote.getFechaCaducidad(),
+                lote.getFechaCompra(),
+                lote.getOrigen(),
+                dias,
+                calcularEstadoLote(lote, dias),
+                lote.getCreatedAt()
+        );
+    }
+
+    private String calcularEstadoLote(LoteProducto lote, Integer dias) {
+        float cantidad = lote.getCantidad() != null ? lote.getCantidad() : 0f;
+        if (cantidad <= 0) {
+            return "sin_stock";
+        }
+        if (dias != null && dias < 0)  return "caducado";
+        if (dias != null && dias == 0) return "caduca_hoy";
+        if (dias != null && dias <= 3) return "caduca_pronto";
+        if (dias != null && dias <= 7)  return "caduca_semana";
+        if (dias != null && dias <= 30) return "caduca_mes";
+        return "normal";
     }
 
     // -------------------------------------------------------------------------
@@ -291,6 +433,10 @@ public class DespensaService {
     }
 
     String calcularEstado(Producto p, int umbral) {
+        if (Boolean.TRUE.equals(p.getTieneLotes())) {
+            return calcularEstadoDesdeLotes(p, umbral);
+        }
+
         if (p.getCantidad() <= 0) {
             return "sin_stock";
         }
@@ -308,9 +454,38 @@ public class DespensaService {
         return "normal";
     }
 
+    // Con lotes, la fecha relevante no es la del producto sino la del lote más próximo a
+    // caducar (FIFO): un producto puede tener stock sobrado en lotes lejanos pero el que
+    // toca consumir antes es el que determina si conviene avisar al usuario.
+    private String calcularEstadoDesdeLotes(Producto p, int umbral) {
+        List<LoteProducto> lotesConStock = loteProductoRepository
+                .findByProductoIdAndCantidadGreaterThan(p.getId(), 0f);
+        if (lotesConStock.isEmpty()) {
+            return "sin_stock";
+        }
+
+        LoteProducto loteMasUrgente = lotesConStock.stream()
+                .min(Comparator.comparing(LoteProducto::getFechaCaducidad,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .orElseThrow();
+        Integer dias = calcularDiasHastaCaducidad(loteMasUrgente.getFechaCaducidad());
+
+        if (dias != null && dias < 0)  return "caducado";
+        if (dias != null && dias == 0) return "caduca_hoy";
+        if (dias != null && dias <= 3) return "caduca_pronto";
+        if (p.getCantidad() <= umbral) return "bajoStock";
+        if (dias != null && dias <= 7)  return "caduca_semana";
+        if (dias != null && dias <= 30) return "caduca_mes";
+        return "normal";
+    }
+
     private Integer calcularDiasHastaCaducidad(Producto p) {
-        if (p.getFechaCaducidad() == null) return null;
-        return (int) ChronoUnit.DAYS.between(LocalDate.now(), p.getFechaCaducidad());
+        return calcularDiasHastaCaducidad(p.getFechaCaducidad());
+    }
+
+    private Integer calcularDiasHastaCaducidad(LocalDate fecha) {
+        if (fecha == null) return null;
+        return (int) ChronoUnit.DAYS.between(LocalDate.now(), fecha);
     }
 
     ProductoResponseDTO toDTO(Producto p, List<ProductoResponseDTO> duplicados, int umbralEfectivo) {
