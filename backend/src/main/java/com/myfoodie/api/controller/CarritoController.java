@@ -1,6 +1,7 @@
 package com.myfoodie.api.controller;
 
 import com.myfoodie.application.dto.carrito.AñadirCompradosResponseDTO;
+import com.myfoodie.application.dto.carrito.AñadirItemCarritoResponseDTO;
 import com.myfoodie.application.dto.carrito.CarritoDTO;
 import com.myfoodie.application.dto.carrito.ItemCarritoCantidadDTO;
 import com.myfoodie.application.dto.carrito.ItemCarritoRequestDTO;
@@ -71,7 +72,7 @@ public class CarritoController {
     }
 
     @PostMapping("/items")
-    public ResponseEntity<ItemCarritoResponseDTO> añadirItemManual(
+    public ResponseEntity<AñadirItemCarritoResponseDTO> añadirItemManual(
             @Valid @RequestBody ItemCarritoRequestDTO dto,
             Principal principal) {
         return ResponseEntity.status(HttpStatus.CREATED)

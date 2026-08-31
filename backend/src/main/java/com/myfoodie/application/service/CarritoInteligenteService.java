@@ -1,5 +1,6 @@
 package com.myfoodie.application.service;
 
+import com.myfoodie.application.dto.carrito.AñadirItemCarritoResponseDTO;
 import com.myfoodie.application.dto.carrito.CarritoDTO;
 import com.myfoodie.application.dto.carrito.CarritoResumenDTO;
 import com.myfoodie.application.dto.carrito.ItemCarritoRequestDTO;
@@ -7,6 +8,7 @@ import com.myfoodie.application.dto.carrito.ItemCompradoAjusteDTO;
 import com.myfoodie.application.dto.carrito.ItemCarritoResponseDTO;
 import com.myfoodie.application.dto.carrito.ListaCompraResponseDTO;
 import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
+import com.myfoodie.application.dto.matching.MatchItemCarritoDTO;
 import com.myfoodie.application.dto.matching.MatchProductoDTO;
 import com.myfoodie.application.dto.matching.ResultadoAñadirDespensaDTO;
 import com.myfoodie.application.dto.unidad.UnidadConvertidaDTO;
@@ -122,9 +124,9 @@ public class CarritoInteligenteService {
         Set<String> noVolver = itemCarritoRepository.findByUsuarioIdAndNoVolverTrue(usuarioId)
                 .stream().map(i -> normalizar(i.getNombre())).collect(Collectors.toSet());
 
-        Set<String> yaEnCarrito = itemCarritoRepository.findByUsuarioId(usuarioId).stream()
+        List<ItemCarrito> itemsEnCarritoActivos = itemCarritoRepository.findByUsuarioId(usuarioId).stream()
                 .filter(i -> "pendiente".equals(i.getEstado()) || "aceptado".equals(i.getEstado()))
-                .map(i -> normalizar(i.getNombre())).collect(Collectors.toSet());
+                .toList();
 
         Map<String, ItemCarrito> candidatos = new LinkedHashMap<>();
 
@@ -135,7 +137,9 @@ public class CarritoInteligenteService {
         List<ItemCarrito> nuevos = new ArrayList<>();
         for (ItemCarrito candidato : candidatos.values()) {
             String clave = normalizar(candidato.getNombre());
-            if (noVolver.contains(clave) || yaEnCarrito.contains(clave)) {
+            boolean similarEnCarrito = itemsEnCarritoActivos.stream()
+                    .anyMatch(i -> esCoincidenciaFuerte(candidato.getNombre(), i.getNombre()));
+            if (noVolver.contains(clave) || similarEnCarrito) {
                 continue;
             }
             candidato.setUsuarioId(usuarioId);
@@ -215,7 +219,20 @@ public class CarritoInteligenteService {
         return toItemDTO(itemCarritoRepository.save(item), nombresEnDespensa(usuarioId));
     }
 
-    public ItemCarritoResponseDTO añadirItemManual(String usuarioId, ItemCarritoRequestDTO dto) {
+    public AñadirItemCarritoResponseDTO añadirItemManual(String usuarioId, ItemCarritoRequestDTO dto) {
+        List<MatchItemCarritoDTO> matches = matchingService.buscarItemSimilarEnCarrito(usuarioId, dto.nombre());
+        MatchItemCarritoDTO mejorMatch = matches.isEmpty() ? null : matches.get(0);
+
+        if (mejorMatch != null && mejorMatch.tipoMatch() == TipoMatch.AUTOMATICO) {
+            ItemCarrito existente = getItemDeUsuario(usuarioId, mejorMatch.item().id());
+            float cantidadActual = existente.getCantidad() != null ? existente.getCantidad() : 0f;
+            float cantidadNueva = dto.cantidad() != null ? dto.cantidad() : 0f;
+            existente.setCantidad(cantidadActual + cantidadNueva);
+            existente.setUpdatedAt(LocalDateTime.now());
+            ItemCarritoResponseDTO actualizado = toItemDTO(itemCarritoRepository.save(existente), nombresEnDespensa(usuarioId));
+            return new AñadirItemCarritoResponseDTO("actualizado", actualizado, null, mejorMatch.similitud());
+        }
+
         String categoria = (dto.categoria() != null && !dto.categoria().isBlank())
                 ? dto.categoria()
                 : inferirCategoria(dto.nombre());
@@ -228,7 +245,13 @@ public class CarritoInteligenteService {
                 .prioridad("media")
                 .estado("pendiente")
                 .build();
-        return toItemDTO(itemCarritoRepository.save(item), nombresEnDespensa(usuarioId));
+        ItemCarritoResponseDTO creado = toItemDTO(itemCarritoRepository.save(item), nombresEnDespensa(usuarioId));
+
+        if (mejorMatch != null && mejorMatch.tipoMatch() == TipoMatch.PROPONER) {
+            return new AñadirItemCarritoResponseDTO("sugerencia", creado, mejorMatch.item(), mejorMatch.similitud());
+        }
+
+        return new AñadirItemCarritoResponseDTO("creado", creado, null, null);
     }
 
     public void eliminarItem(String usuarioId, String itemId) {

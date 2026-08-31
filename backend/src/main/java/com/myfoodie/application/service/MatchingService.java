@@ -1,15 +1,19 @@
 package com.myfoodie.application.service;
 
+import com.myfoodie.application.dto.carrito.ItemCarritoResponseDTO;
 import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
+import com.myfoodie.application.dto.matching.MatchItemCarritoDTO;
 import com.myfoodie.application.dto.matching.MatchProductoDTO;
 import com.myfoodie.application.dto.matching.ParDuplicadoDTO;
 import com.myfoodie.application.dto.matching.SimilitudResultDTO;
 import com.myfoodie.domain.model.Despensa;
+import com.myfoodie.domain.model.ItemCarrito;
 import com.myfoodie.domain.model.Preferencias;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.model.TipoMatch;
 import com.myfoodie.domain.repository.DespensaRepository;
 import com.myfoodie.domain.repository.FusionIgnoradaRepository;
+import com.myfoodie.domain.repository.ItemCarritoRepository;
 import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.ProductoRepository;
 import com.myfoodie.exception.ApiException;
@@ -41,6 +45,7 @@ public class MatchingService {
     private final ProductoRepository productoRepository;
     private final PreferenciasRepository preferenciasRepository;
     private final FusionIgnoradaRepository fusionIgnoradaRepository;
+    private final ItemCarritoRepository itemCarritoRepository;
 
     private static final Set<String> ARTICULOS = Set.of(
             "el", "la", "los", "las", "un", "una", "unos", "unas");
@@ -244,6 +249,49 @@ public class MatchingService {
                     return new MatchProductoDTO(productoDTO, puntuacion, clasificarMatch(puntuacion), textoSugerido);
                 })
                 .toList();
+    }
+
+    public List<MatchItemCarritoDTO> buscarItemSimilarEnCarrito(String usuarioId, String nombreItem) {
+        List<ItemCarrito> itemsActivos = itemCarritoRepository.findByUsuarioId(usuarioId).stream()
+                .filter(i -> "pendiente".equals(i.getEstado()) || "aceptado".equals(i.getEstado()))
+                .toList();
+
+        return itemsActivos.stream()
+                .map(item -> Map.entry(item, calcularSimilitud(nombreItem, item.getNombre())))
+                .filter(entry -> entry.getValue().puntuacion() >= UMBRAL_PROPONER)
+                .sorted(Comparator.comparingDouble(
+                        (Map.Entry<ItemCarrito, SimilitudResultDTO> entry) -> entry.getValue().puntuacion())
+                        .reversed())
+                .map(entry -> {
+                    ItemCarrito item = entry.getKey();
+                    double puntuacion = entry.getValue().puntuacion();
+                    return new MatchItemCarritoDTO(
+                            toItemCarritoResponseDTO(item),
+                            puntuacion,
+                            clasificarMatch(puntuacion),
+                            "Ya tienes '" + item.getNombre() + "' en tu lista");
+                })
+                .toList();
+    }
+
+    private ItemCarritoResponseDTO toItemCarritoResponseDTO(ItemCarrito item) {
+        return new ItemCarritoResponseDTO(
+                item.getId(),
+                item.getUsuarioId(),
+                item.getNombre(),
+                item.getCantidad(),
+                item.getUnidad(),
+                item.getCategoria(),
+                item.getPrioridad(),
+                item.getMotivo(),
+                item.getEstado(),
+                item.getNoVolver(),
+                item.getRecetaId(),
+                null,
+                null,
+                item.getCreatedAt(),
+                item.getUpdatedAt()
+        );
     }
 
     public List<ParDuplicadoDTO> buscarDuplicadosEnDespensa(String usuarioId) {
