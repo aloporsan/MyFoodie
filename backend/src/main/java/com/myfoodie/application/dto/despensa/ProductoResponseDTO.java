@@ -24,5 +24,6 @@ public record ProductoResponseDTO(
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         Boolean tieneLotes,
-        Boolean mostrarFechaCaducidad
+        Boolean mostrarFechaCaducidad,
+        List<ConsumoLoteDTO> consumosFifo
 ) {}

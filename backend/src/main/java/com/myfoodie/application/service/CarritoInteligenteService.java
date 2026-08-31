@@ -573,7 +573,8 @@ public class CarritoInteligenteService {
                 p.getCreatedAt(),
                 p.getUpdatedAt(),
                 p.getTieneLotes(),
-                !"sin_stock".equals(estado)
+                !"sin_stock".equals(estado),
+                null
         );
     }
 

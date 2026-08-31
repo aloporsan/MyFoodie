@@ -105,6 +105,14 @@ public class DespensaController {
         return ResponseEntity.ok(despensaService.actualizarCantidad(getUsuarioId(principal), id, dto));
     }
 
+    @PostMapping("/{id}/lotes/activar")
+    public ResponseEntity<LoteProductoResponseDTO> activarLotes(
+            @PathVariable String id,
+            Principal principal) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(despensaService.activarLotes(getUsuarioId(principal), id));
+    }
+
     @GetMapping("/{id}/lotes")
     public ResponseEntity<List<LoteProductoResponseDTO>> obtenerLotes(
             @PathVariable String id,

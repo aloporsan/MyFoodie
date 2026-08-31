@@ -1,5 +1,6 @@
 package com.myfoodie.application.service;
 
+import com.myfoodie.application.dto.despensa.ConsumoLoteDTO;
 import com.myfoodie.application.dto.despensa.EliminarProductoRequestDTO;
 import com.myfoodie.application.dto.despensa.LoteProductoRequestDTO;
 import com.myfoodie.application.dto.despensa.LoteProductoResponseDTO;
@@ -28,6 +29,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -163,13 +165,13 @@ public class DespensaService {
         Producto p = getProductoDeUsuario(despensa.getId(), productoId);
 
         if (Boolean.TRUE.equals(p.getTieneLotes()) && dto.delta() < 0) {
-            consumirStockFIFO(usuarioId, productoId, (float) -dto.delta());
+            List<ConsumoLoteDTO> consumos = consumirStockFIFO(usuarioId, productoId, (float) -dto.delta());
             if (actualizarCarrito) {
                 carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
                 notificacionService.generarNotificacionesCaducidad(usuarioId);
             }
             Producto actualizado = getProductoDeUsuario(despensa.getId(), productoId);
-            return toDTO(actualizado, null, resolverUmbral(actualizado, globalUmbral));
+            return toDTO(actualizado, null, resolverUmbral(actualizado, globalUmbral), consumos);
         }
 
         double cantidadAnterior = p.getCantidad();
@@ -195,6 +197,37 @@ public class DespensaService {
     // -------------------------------------------------------------------------
     // Gestión por lotes
     // -------------------------------------------------------------------------
+
+    // Activa la gestión por lotes envolviendo el stock ya existente del producto en un
+    // primer lote (misma cantidad/fecha que ya tenía) en vez de partir de cero: así "Gestionar
+    // por lotes" no obliga a volver a introducir a mano lo que ya estaba registrado.
+    public LoteProductoResponseDTO activarLotes(String usuarioId, String productoId) {
+        Despensa despensa = getDespensaDeUsuario(usuarioId);
+        Producto producto = getProductoDeUsuario(despensa.getId(), productoId);
+        if (Boolean.TRUE.equals(producto.getTieneLotes())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "El producto ya tiene la gestión por lotes activada");
+        }
+
+        producto.setTieneLotes(true);
+        LoteProducto lote = loteProductoRepository.save(LoteProducto.builder()
+                .productoId(producto.getId())
+                .despensaId(despensa.getId())
+                .usuarioId(usuarioId)
+                .cantidad((float) producto.getCantidad())
+                .unidad(producto.getUnidad())
+                .fechaCaducidad(producto.getFechaCaducidad())
+                .fechaCompra(producto.getFechaCompra() != null ? producto.getFechaCompra() : LocalDate.now())
+                .origen("manual")
+                .build());
+
+        producto.setUpdatedAt(LocalDateTime.now());
+        productoRepository.save(producto);
+        actualizarDespensa(despensa);
+        registrarMovimiento(producto, usuarioId, "lote_añadido",
+                "Gestión por lotes activada", null, producto.getCantidad(), null, null);
+
+        return toLoteDTO(lote);
+    }
 
     public LoteProductoResponseDTO añadirLote(String usuarioId, String productoId, LoteProductoRequestDTO dto) {
         Despensa despensa = getDespensaDeUsuario(usuarioId);
@@ -363,7 +396,7 @@ public class DespensaService {
         return toDTO(guardado, null, resolverUmbral(guardado, globalUmbral));
     }
 
-    public void consumirStockFIFO(String usuarioId, String productoId, float cantidadAConsumir) {
+    public List<ConsumoLoteDTO> consumirStockFIFO(String usuarioId, String productoId, float cantidadAConsumir) {
         Despensa despensa = getDespensaDeUsuario(usuarioId);
         Producto producto = getProductoDeUsuario(despensa.getId(), productoId);
 
@@ -374,6 +407,7 @@ public class DespensaService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "La cantidad no puede ser negativa");
         }
 
+        List<ConsumoLoteDTO> consumos = new ArrayList<>();
         float restante = cantidadAConsumir;
         for (LoteProducto lote : lotes) {
             if (restante <= 0) {
@@ -387,8 +421,9 @@ public class DespensaService {
             float consumidoDeEsteLote = Math.min(disponibleLote, restante);
             float cantidadNuevaLote = disponibleLote - consumidoDeEsteLote;
             restante -= consumidoDeEsteLote;
+            boolean loteEliminado = cantidadNuevaLote <= 0;
 
-            if (cantidadNuevaLote <= 0) {
+            if (loteEliminado) {
                 loteProductoRepository.delete(lote);
             } else {
                 lote.setCantidad(cantidadNuevaLote);
@@ -396,13 +431,17 @@ public class DespensaService {
                 loteProductoRepository.save(lote);
             }
 
-            registrarMovimiento(producto, usuarioId, "cantidad_actualizada", "Consumo FIFO de lote",
+            registrarMovimiento(producto, usuarioId, "cantidad_actualizada",
+                    "Descontado del lote que caduca antes",
                     (double) disponibleLote, (double) cantidadNuevaLote, "consumido", null);
+            consumos.add(new ConsumoLoteDTO(lote.getId(), lote.getFechaCaducidad(),
+                    consumidoDeEsteLote, loteEliminado ? 0f : cantidadNuevaLote, loteEliminado));
         }
 
         recalcularAgregadoDesdeLotes(producto);
         productoRepository.save(producto);
         actualizarDespensa(despensa);
+        return consumos;
     }
 
     public List<LoteProductoResponseDTO> obtenerLotes(String usuarioId, String productoId) {
@@ -676,6 +715,11 @@ public class DespensaService {
     }
 
     ProductoResponseDTO toDTO(Producto p, List<ProductoResponseDTO> duplicados, int umbralEfectivo) {
+        return toDTO(p, duplicados, umbralEfectivo, null);
+    }
+
+    private ProductoResponseDTO toDTO(Producto p, List<ProductoResponseDTO> duplicados, int umbralEfectivo,
+                                       List<ConsumoLoteDTO> consumosFifo) {
         boolean alertaCompra = p.getCantidad() <= umbralEfectivo;
         String estado = calcularEstado(p, umbralEfectivo);
         return new ProductoResponseDTO(
@@ -698,7 +742,8 @@ public class DespensaService {
                 p.getCreatedAt(),
                 p.getUpdatedAt(),
                 p.getTieneLotes(),
-                !"sin_stock".equals(estado)
+                !"sin_stock".equals(estado),
+                consumosFifo
         );
     }
 }
