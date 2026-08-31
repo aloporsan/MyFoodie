@@ -132,21 +132,28 @@ export function FormItemManual({ onAñadir, onActualizarExistente, isLoading = f
         </View>
       </ScrollView>
 
-      <Text style={styles.selectorLabel}>Categoría (opcional)</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={styles.chipsRow}>
-          {CATEGORIAS.map((op) => (
-            <Pressable
-              key={op}
-              style={[styles.chip, categoria === op && styles.chipActivo]}
-              onPress={() => setCategoria(categoria === op ? null : op)}
-              hitSlop={4}
-            >
-              <Text style={[styles.chipText, categoria === op && styles.chipTextActivo]}>{op}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </ScrollView>
+      {/* La categoría es un atributo del item en sí: si el mejor match es AUTOMÁTICO, esto
+          va a terminar actualizando la cantidad del existente, no creando uno nuevo, así que
+          elegir categoría aquí no tendría ningún efecto. */}
+      {mejorMatch?.tipoMatch !== 'AUTOMATICO' && (
+        <>
+          <Text style={styles.selectorLabel}>Categoría (opcional)</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.chipsRow}>
+              {CATEGORIAS.map((op) => (
+                <Pressable
+                  key={op}
+                  style={[styles.chip, categoria === op && styles.chipActivo]}
+                  onPress={() => setCategoria(categoria === op ? null : op)}
+                  hitSlop={4}
+                >
+                  <Text style={[styles.chipText, categoria === op && styles.chipTextActivo]}>{op}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </ScrollView>
+        </>
+      )}
 
       {mejorMatch && (
         <View style={styles.sugerenciaBox}>
