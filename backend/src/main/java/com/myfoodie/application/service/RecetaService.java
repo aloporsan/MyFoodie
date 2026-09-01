@@ -11,6 +11,7 @@ import com.myfoodie.domain.model.Receta;
 import com.myfoodie.domain.model.RecetaGuardada;
 import com.myfoodie.domain.model.TipoMatch;
 import com.myfoodie.domain.model.Usuario;
+import com.myfoodie.domain.repository.ComentarioRepository;
 import com.myfoodie.domain.repository.DespensaRepository;
 import com.myfoodie.domain.repository.IngredienteRecetaRepository;
 import com.myfoodie.domain.repository.LikeRepository;
@@ -41,6 +42,7 @@ public class RecetaService {
     private final PasoRepository pasoRepository;
     private final RecetaGuardadaRepository recetaGuardadaRepository;
     private final LikeRepository likeRepository;
+    private final ComentarioRepository comentarioRepository;
     private final UsuarioRepository usuarioRepository;
     private final DespensaRepository despensaRepository;
     private final ProductoRepository productoRepository;
@@ -466,6 +468,7 @@ public class RecetaService {
                 receta.getNumPersonas(),
                 ingredientes,
                 pasos,
+                (int) comentarioRepository.countByRecetaIdAndEliminadoFalse(receta.getId()),
                 receta.getCreatedAt(),
                 receta.getUpdatedAt()
         );

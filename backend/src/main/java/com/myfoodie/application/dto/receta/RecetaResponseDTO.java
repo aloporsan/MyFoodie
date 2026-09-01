@@ -19,6 +19,7 @@ public record RecetaResponseDTO(
         Integer numPersonas,
         List<IngredienteResponseDTO> ingredientes,
         List<PasoResponseDTO> pasos,
+        Integer numeroComentarios,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
