@@ -1,0 +1,762 @@
+{
+  "info": {
+    "name": "MyFoodie — Social Avanzado (Fase 3 Bloque 4)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Verificación manual del backend del Bloque 4: comentarios (#72), reportes genéricos (#73), visibilidad de recetas y filtrado de feed por bloqueo (#99, #100). La trazabilidad de interacciones (#101) no expone endpoints (hooks internos)."
+  },
+  "variable": [
+    { "key": "baseUrl",             "value": "http://localhost:8080" },
+    { "key": "autorEmail",          "value": "" },
+    { "key": "lectorEmail",         "value": "" },
+    { "key": "tokenAutor",          "value": "" },
+    { "key": "idAutor",             "value": "" },
+    { "key": "tokenLector",         "value": "" },
+    { "key": "idLector",            "value": "" },
+    { "key": "recetaPublicaId",     "value": "" },
+    { "key": "recetaSeguidoresId",  "value": "" },
+    { "key": "recetaPrivadaId",     "value": "" },
+    { "key": "comentarioId",        "value": "" },
+    { "key": "comentarioReporteId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "🔧 Setup",
+      "item": [
+        {
+          "name": "Registrar Autor",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "exec": [
+                "pm.collectionVariables.set('autorEmail', 'sa_autor_' + Date.now() + '@test.com');"
+              ] }
+            },
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "if (json.token) pm.collectionVariables.set('tokenAutor', json.token);",
+                "if (json.userId) pm.collectionVariables.set('idAutor', json.userId);",
+                "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                "pm.test('Devuelve token y userId', () => {",
+                "  pm.expect(json.token).to.not.be.empty;",
+                "  pm.expect(json.userId).to.not.be.empty;",
+                "});"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Autor Social\",\n  \"nombreUsuario\": \"sa_autor_{{$timestamp}}\",\n  \"email\": \"{{autorEmail}}\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Registrar Lector",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "exec": [
+                "pm.collectionVariables.set('lectorEmail', 'sa_lector_' + Date.now() + '@test.com');"
+              ] }
+            },
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "if (json.token) pm.collectionVariables.set('tokenLector', json.token);",
+                "if (json.userId) pm.collectionVariables.set('idLector', json.userId);",
+                "pm.test('Status 201', () => pm.response.to.have.status(201));"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Lector Social\",\n  \"nombreUsuario\": \"sa_lector_{{$timestamp}}\",\n  \"email\": \"{{lectorEmail}}\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Autor: crear receta PÚBLICA",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                "pm.test('visibilidad por defecto PUBLICA', () => pm.expect(json.visibilidad).to.eql('PUBLICA'));",
+                "pm.test('numeroComentarios arranca en 0', () => pm.expect(json.numeroComentarios).to.eql(0));",
+                "pm.collectionVariables.set('recetaPublicaId', json.id);"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenAutor}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"titulo\": \"Receta pública de prueba\",\n  \"descripcion\": \"Para comentarios y reportes\",\n  \"tiempoEstimado\": 20,\n  \"dificultad\": \"fácil\",\n  \"categoria\": \"principal\",\n  \"etiquetas\": [\"test\"]\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas", "host": ["{{baseUrl}}"], "path": ["api", "recetas"] }
+          }
+        },
+        {
+          "name": "Autor: ingrediente en receta pública",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenAutor}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"harina\",\n  \"cantidad\": 200,\n  \"unidad\": \"g\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaPublicaId}}/ingredientes", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaPublicaId}}", "ingredientes"] }
+          }
+        },
+        {
+          "name": "Autor: paso en receta pública",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenAutor}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"descripcion\": \"Mezclar todo y hornear\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaPublicaId}}/pasos", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaPublicaId}}", "pasos"] }
+          }
+        },
+        {
+          "name": "Autor: publicar receta pública",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenAutor}}" }],
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaPublicaId}}/publicar", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaPublicaId}}", "publicar"] }
+          }
+        },
+        {
+          "name": "Autor: crear receta SOLO_SEGUIDORES",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                "pm.test('visibilidad SOLO_SEGUIDORES', () => pm.expect(json.visibilidad).to.eql('SOLO_SEGUIDORES'));",
+                "pm.collectionVariables.set('recetaSeguidoresId', json.id);"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenAutor}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"titulo\": \"Receta solo para seguidores\",\n  \"descripcion\": \"No debe verse sin seguir al autor\",\n  \"tiempoEstimado\": 15,\n  \"dificultad\": \"fácil\",\n  \"categoria\": \"principal\",\n  \"etiquetas\": [\"test\"],\n  \"visibilidad\": \"SOLO_SEGUIDORES\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas", "host": ["{{baseUrl}}"], "path": ["api", "recetas"] }
+          }
+        },
+        {
+          "name": "Autor: ingrediente en receta seguidores",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenAutor}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"arroz\",\n  \"cantidad\": 100,\n  \"unidad\": \"g\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaSeguidoresId}}/ingredientes", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaSeguidoresId}}", "ingredientes"] }
+          }
+        },
+        {
+          "name": "Autor: paso en receta seguidores",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenAutor}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"descripcion\": \"Cocer el arroz\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaSeguidoresId}}/pasos", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaSeguidoresId}}", "pasos"] }
+          }
+        },
+        {
+          "name": "Autor: publicar receta seguidores",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenAutor}}" }],
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaSeguidoresId}}/publicar", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaSeguidoresId}}", "publicar"] }
+          }
+        },
+        {
+          "name": "Autor: crear receta PRIVADA",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                "pm.test('visibilidad PRIVADA', () => pm.expect(json.visibilidad).to.eql('PRIVADA'));",
+                "pm.collectionVariables.set('recetaPrivadaId', json.id);"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenAutor}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"titulo\": \"Receta privada\",\n  \"descripcion\": \"Solo la ve el autor\",\n  \"tiempoEstimado\": 10,\n  \"dificultad\": \"fácil\",\n  \"categoria\": \"principal\",\n  \"etiquetas\": [\"test\"],\n  \"visibilidad\": \"PRIVADA\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas", "host": ["{{baseUrl}}"], "path": ["api", "recetas"] }
+          }
+        },
+        {
+          "name": "Autor: ingrediente en receta privada",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenAutor}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"sal\",\n  \"cantidad\": 5,\n  \"unidad\": \"g\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaPrivadaId}}/ingredientes", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaPrivadaId}}", "ingredientes"] }
+          }
+        },
+        {
+          "name": "Autor: paso en receta privada",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenAutor}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"descripcion\": \"Añadir sal al gusto\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaPrivadaId}}/pasos", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaPrivadaId}}", "pasos"] }
+          }
+        },
+        {
+          "name": "Autor: publicar receta privada",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenAutor}}" }],
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaPrivadaId}}/publicar", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaPrivadaId}}", "publicar"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "✅ Comentarios (#72)",
+      "item": [
+        {
+          "name": "Lector: POST comentario en receta pública → 201",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                "pm.test('esAutor true para quien lo escribe', () => pm.expect(json.esAutor).to.eql(true));",
+                "pm.test('devuelve texto e id', () => {",
+                "  pm.expect(json.id).to.not.be.empty;",
+                "  pm.expect(json.texto).to.eql('¡Qué buena pinta!');",
+                "});",
+                "pm.collectionVariables.set('comentarioId', json.id);"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenLector}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"texto\": \"¡Qué buena pinta!\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaPublicaId}}/comentarios", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaPublicaId}}", "comentarios"] }
+          }
+        },
+        {
+          "name": "GET comentarios → 200, lista con 1, más reciente primero",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('Un comentario', () => pm.expect(json).to.be.an('array').with.lengthOf(1));",
+                "pm.test('esAutor false para el autor de la receta', () => pm.expect(json[0].esAutor).to.eql(false));"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenAutor}}" }],
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaPublicaId}}/comentarios", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaPublicaId}}", "comentarios"] }
+          }
+        },
+        {
+          "name": "Autor: GET receta → numeroComentarios == 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('numeroComentarios == 1', () => pm.expect(json.numeroComentarios).to.eql(1));"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenAutor}}" }],
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaPublicaId}}", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaPublicaId}}"] }
+          }
+        },
+        {
+          "name": "POST comentario vacío → 400",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 400', () => pm.response.to.have.status(400));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenLector}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"texto\": \"   \"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaPublicaId}}/comentarios", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaPublicaId}}", "comentarios"] }
+          }
+        },
+        {
+          "name": "POST comentario en receta inexistente → 404",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 404', () => pm.response.to.have.status(404));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenLector}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"texto\": \"comentario huérfano\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/000000000000000000000000/comentarios", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "000000000000000000000000", "comentarios"] }
+          }
+        },
+        {
+          "name": "Autor: DELETE comentario ajeno → 404 (no es su comentario)",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 404', () => pm.response.to.have.status(404));"] } }],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenAutor}}" }],
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaPublicaId}}/comentarios/{{comentarioId}}", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaPublicaId}}", "comentarios", "{{comentarioId}}"] }
+          }
+        },
+        {
+          "name": "Lector: DELETE su comentario → 204",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 204', () => pm.response.to.have.status(204));"] } }],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenLector}}" }],
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaPublicaId}}/comentarios/{{comentarioId}}", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaPublicaId}}", "comentarios", "{{comentarioId}}"] }
+          }
+        },
+        {
+          "name": "GET comentarios tras borrado lógico → 200, lista vacía",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('Sin comentarios visibles', () => pm.expect(json).to.be.an('array').that.is.empty);"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenAutor}}" }],
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaPublicaId}}/comentarios", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaPublicaId}}", "comentarios"] }
+          }
+        },
+        {
+          "name": "GET comentarios sin token → 401",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 401', () => pm.response.to.have.status(401));"] } }],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaPublicaId}}/comentarios", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaPublicaId}}", "comentarios"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "✅ Reportes (#73)",
+      "item": [
+        {
+          "name": "Lector: comentario para reportar (setup)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                "pm.collectionVariables.set('comentarioReporteId', json.id);"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenLector}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"texto\": \"comentario que será reportado\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaPublicaId}}/comentarios", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaPublicaId}}", "comentarios"] }
+          }
+        },
+        {
+          "name": "Autor: POST reporte de RECETA → 201, estado PENDIENTE",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                "pm.test('estado inicial PENDIENTE', () => pm.expect(json.estado).to.eql('PENDIENTE'));",
+                "pm.test('eco de tipoContenido y motivo', () => {",
+                "  pm.expect(json.tipoContenido).to.eql('RECETA');",
+                "  pm.expect(json.motivo).to.eql('SPAM');",
+                "});"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenAutor}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"tipoContenido\": \"RECETA\",\n  \"contenidoId\": \"{{recetaPublicaId}}\",\n  \"motivo\": \"SPAM\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/reportes", "host": ["{{baseUrl}}"], "path": ["api", "reportes"] }
+          }
+        },
+        {
+          "name": "Autor: POST mismo reporte de RECETA otra vez → 409 duplicado",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 409', () => pm.response.to.have.status(409));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenAutor}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"tipoContenido\": \"RECETA\",\n  \"contenidoId\": \"{{recetaPublicaId}}\",\n  \"motivo\": \"CONTENIDO_OFENSIVO\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/reportes", "host": ["{{baseUrl}}"], "path": ["api", "reportes"] }
+          }
+        },
+        {
+          "name": "Autor: POST reporte de COMENTARIO (motivo OTRO + descripción) → 201",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                "pm.test('conserva descripcionAdicional', () => pm.expect(json.descripcionAdicional).to.eql('lenguaje inapropiado'));"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenAutor}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"tipoContenido\": \"COMENTARIO\",\n  \"contenidoId\": \"{{comentarioReporteId}}\",\n  \"motivo\": \"OTRO\",\n  \"descripcionAdicional\": \"lenguaje inapropiado\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/reportes", "host": ["{{baseUrl}}"], "path": ["api", "reportes"] }
+          }
+        },
+        {
+          "name": "Lector: POST reporte de PERFIL del Autor → 201",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenLector}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"tipoContenido\": \"PERFIL\",\n  \"contenidoId\": \"{{idAutor}}\",\n  \"motivo\": \"CONTENIDO_OFENSIVO\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/reportes", "host": ["{{baseUrl}}"], "path": ["api", "reportes"] }
+          }
+        },
+        {
+          "name": "Lector: POST reporte de su propio PERFIL → 400",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 400', () => pm.response.to.have.status(400));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenLector}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"tipoContenido\": \"PERFIL\",\n  \"contenidoId\": \"{{idLector}}\",\n  \"motivo\": \"OTRO\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/reportes", "host": ["{{baseUrl}}"], "path": ["api", "reportes"] }
+          }
+        },
+        {
+          "name": "POST reporte de RECETA inexistente → 404",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 404', () => pm.response.to.have.status(404));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenLector}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"tipoContenido\": \"RECETA\",\n  \"contenidoId\": \"000000000000000000000000\",\n  \"motivo\": \"SPAM\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/reportes", "host": ["{{baseUrl}}"], "path": ["api", "reportes"] }
+          }
+        },
+        {
+          "name": "POST reporte sin contenidoId → 400",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 400', () => pm.response.to.have.status(400));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenLector}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"tipoContenido\": \"RECETA\",\n  \"motivo\": \"SPAM\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/reportes", "host": ["{{baseUrl}}"], "path": ["api", "reportes"] }
+          }
+        },
+        {
+          "name": "POST reporte sin token → 401",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 401', () => pm.response.to.have.status(401));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"tipoContenido\": \"RECETA\",\n  \"contenidoId\": \"{{recetaPublicaId}}\",\n  \"motivo\": \"SPAM\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/reportes", "host": ["{{baseUrl}}"], "path": ["api", "reportes"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "✅ Privacidad de recetas (#99)",
+      "item": [
+        {
+          "name": "Lector (no sigue): GET receta SOLO_SEGUIDORES → 404",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 404', () => pm.response.to.have.status(404));"] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenLector}}" }],
+            "url": { "raw": "{{baseUrl}}/api/feed/recetas/{{recetaSeguidoresId}}", "host": ["{{baseUrl}}"], "path": ["api", "feed", "recetas", "{{recetaSeguidoresId}}"] }
+          }
+        },
+        {
+          "name": "Lector: GET feed → la receta SOLO_SEGUIDORES no aparece",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "const id = pm.collectionVariables.get('recetaSeguidoresId');",
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('receta solo-seguidores ausente del feed', () => {",
+                "  pm.expect(json.recetas.find(r => r.id === id)).to.be.undefined;",
+                "});"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenLector}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/feed?pagina=0&tamaño=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "feed"],
+              "query": [{ "key": "pagina", "value": "0" }, { "key": "tamaño", "value": "100" }]
+            }
+          }
+        },
+        {
+          "name": "Lector: seguir al Autor (perfil público → aceptado directo)",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenLector}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/seguir/{{idAutor}}", "host": ["{{baseUrl}}"], "path": ["api", "social", "seguir", "{{idAutor}}"] }
+          }
+        },
+        {
+          "name": "Lector (ya sigue): GET receta SOLO_SEGUIDORES → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('visibilidad SOLO_SEGUIDORES', () => pm.expect(json.visibilidad).to.eql('SOLO_SEGUIDORES'));"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenLector}}" }],
+            "url": { "raw": "{{baseUrl}}/api/feed/recetas/{{recetaSeguidoresId}}", "host": ["{{baseUrl}}"], "path": ["api", "feed", "recetas", "{{recetaSeguidoresId}}"] }
+          }
+        },
+        {
+          "name": "Lector (sigue): GET receta PRIVADA del Autor → 404",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 404', () => pm.response.to.have.status(404));"] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenLector}}" }],
+            "url": { "raw": "{{baseUrl}}/api/feed/recetas/{{recetaPrivadaId}}", "host": ["{{baseUrl}}"], "path": ["api", "feed", "recetas", "{{recetaPrivadaId}}"] }
+          }
+        },
+        {
+          "name": "Autor: GET su propia receta PRIVADA → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('visibilidad PRIVADA', () => pm.expect(json.visibilidad).to.eql('PRIVADA'));"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenAutor}}" }],
+            "url": { "raw": "{{baseUrl}}/api/feed/recetas/{{recetaPrivadaId}}", "host": ["{{baseUrl}}"], "path": ["api", "feed", "recetas", "{{recetaPrivadaId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "✅ Bloqueo y feed (#100)",
+      "item": [
+        {
+          "name": "Lector: GET feed → la receta pública del Autor SÍ aparece (baseline)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "const id = pm.collectionVariables.get('recetaPublicaId');",
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('receta pública presente antes de bloquear', () => {",
+                "  pm.expect(json.recetas.find(r => r.id === id), 'debería estar en el feed').to.not.be.undefined;",
+                "});"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenLector}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/feed?pagina=0&tamaño=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "feed"],
+              "query": [{ "key": "pagina", "value": "0" }, { "key": "tamaño", "value": "100" }]
+            }
+          }
+        },
+        {
+          "name": "Autor: bloquear al Lector → 200",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenAutor}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/bloquear/{{idLector}}", "host": ["{{baseUrl}}"], "path": ["api", "social", "bloquear", "{{idLector}}"] }
+          }
+        },
+        {
+          "name": "Lector: GET feed → recetas del Autor desaparecen (bloqueo en ambas direcciones)",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "const idAutor = pm.collectionVariables.get('idAutor');",
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('ninguna receta del autor bloqueado en el feed', () => {",
+                "  pm.expect(json.recetas.filter(r => r.autorId === idAutor)).to.be.empty;",
+                "});"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenLector}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/feed?pagina=0&tamaño=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "feed"],
+              "query": [{ "key": "pagina", "value": "0" }, { "key": "tamaño", "value": "100" }]
+            }
+          }
+        },
+        {
+          "name": "Lector: GET receta pública del Autor bloqueado → 404",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 404', () => pm.response.to.have.status(404));"] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenLector}}" }],
+            "url": { "raw": "{{baseUrl}}/api/feed/recetas/{{recetaPublicaId}}", "host": ["{{baseUrl}}"], "path": ["api", "feed", "recetas", "{{recetaPublicaId}}"] }
+          }
+        },
+        {
+          "name": "Lector: intentar seguir al Autor con bloqueo activo → 403",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 403', () => pm.response.to.have.status(403));"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenLector}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/seguir/{{idAutor}}", "host": ["{{baseUrl}}"], "path": ["api", "social", "seguir", "{{idAutor}}"] }
+          }
+        },
+        {
+          "name": "Autor: desbloquear al Lector → 204",
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 204', () => pm.response.to.have.status(204));"] } }],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenAutor}}" }],
+            "url": { "raw": "{{baseUrl}}/api/social/bloquear/{{idLector}}", "host": ["{{baseUrl}}"], "path": ["api", "social", "bloquear", "{{idLector}}"] }
+          }
+        },
+        {
+          "name": "Lector: GET feed → la receta pública del Autor reaparece",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "const id = pm.collectionVariables.get('recetaPublicaId');",
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('receta pública visible de nuevo tras desbloquear', () => {",
+                "  pm.expect(json.recetas.find(r => r.id === id)).to.not.be.undefined;",
+                "});"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenLector}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/feed?pagina=0&tamaño=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "feed"],
+              "query": [{ "key": "pagina", "value": "0" }, { "key": "tamaño", "value": "100" }]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
