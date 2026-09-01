@@ -4,6 +4,7 @@ import com.myfoodie.application.dto.reporte.ReporteResponseDTO;
 import com.myfoodie.domain.model.MotivoReporte;
 import com.myfoodie.domain.model.Reporte;
 import com.myfoodie.domain.model.TipoContenidoReporte;
+import com.myfoodie.domain.model.TipoInteraccion;
 import com.myfoodie.domain.repository.ComentarioRepository;
 import com.myfoodie.domain.repository.RecetaRepository;
 import com.myfoodie.domain.repository.ReporteRepository;
@@ -21,6 +22,7 @@ public class ReporteService {
     private final UsuarioRepository usuarioRepository;
     private final RecetaRepository recetaRepository;
     private final ComentarioRepository comentarioRepository;
+    private final InteraccionSocialService interaccionSocialService;
 
     public ReporteResponseDTO crearReporte(String usuarioId, TipoContenidoReporte tipoContenido, String contenidoId,
                                            MotivoReporte motivo, String descripcionAdicional) {
@@ -48,6 +50,9 @@ public class ReporteService {
                         ? descripcionAdicional.trim() : null)
                 .build());
 
+        interaccionSocialService.registrarInteraccion(
+                usuarioId, TipoInteraccion.REPORTAR_CONTENIDO, entidadTipoDe(tipoContenido), contenidoId);
+
         return toDTO(reporte);
     }
 
@@ -62,6 +67,10 @@ public class ReporteService {
         if (!existe) {
             throw new ApiException(HttpStatus.NOT_FOUND, "El contenido reportado no existe");
         }
+    }
+
+    private String entidadTipoDe(TipoContenidoReporte tipoContenido) {
+        return tipoContenido == TipoContenidoReporte.PERFIL ? "USUARIO" : tipoContenido.name();
     }
 
     private ReporteResponseDTO toDTO(Reporte reporte) {

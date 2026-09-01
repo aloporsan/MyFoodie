@@ -7,6 +7,7 @@ import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.receta.RecetaResponseDTO;
 import com.myfoodie.domain.model.Privacidad;
 import com.myfoodie.domain.model.RecetaCompartida;
+import com.myfoodie.domain.model.TipoInteraccion;
 import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.BloqueoRepository;
 import com.myfoodie.domain.repository.RecetaCompartidaRepository;
@@ -39,6 +40,7 @@ public class CompartirService {
     private final RecetaService recetaService;
     private final DespensaService despensaService;
     private final NotificacionService notificacionService;
+    private final InteraccionSocialService interaccionSocialService;
 
     public List<RecetaCompartidaResponseDTO> compartirReceta(String emisorId, String recetaId,
                                                                CompartirRecetaRequestDTO dto) {
@@ -79,6 +81,9 @@ public class CompartirService {
                     return compartida;
                 })
                 .toList();
+
+        interaccionSocialService.registrarInteraccion(
+                emisorId, TipoInteraccion.COMPARTIR_RECETA, "RECETA", recetaId);
 
         Usuario emisor = obtenerUsuario(emisorId);
         return creadas.stream().map(rc -> toResponseDTO(rc, emisor, receta)).toList();

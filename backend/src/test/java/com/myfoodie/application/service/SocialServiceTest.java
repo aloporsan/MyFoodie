@@ -39,6 +39,7 @@ class SocialServiceTest {
     @Mock private UsuarioRepository usuarioRepository;
     @Mock private RecetaRepository recetaRepository;
     @Mock private NotificacionService notificacionService;
+    @Mock private InteraccionSocialService interaccionSocialService;
 
     @InjectMocks
     private SocialService socialService;

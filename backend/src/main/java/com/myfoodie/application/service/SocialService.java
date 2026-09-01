@@ -6,6 +6,7 @@ import com.myfoodie.application.dto.social.UsuarioBusquedaResponseDTO;
 import com.myfoodie.domain.model.Bloqueo;
 import com.myfoodie.domain.model.Privacidad;
 import com.myfoodie.domain.model.Seguimiento;
+import com.myfoodie.domain.model.TipoInteraccion;
 import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.BloqueoRepository;
 import com.myfoodie.domain.repository.RecetaRepository;
@@ -37,6 +38,7 @@ public class SocialService {
     private final UsuarioRepository usuarioRepository;
     private final RecetaRepository recetaRepository;
     private final NotificacionService notificacionService;
+    private final InteraccionSocialService interaccionSocialService;
 
     // ---------- Seguimientos ----------
 
@@ -72,6 +74,8 @@ public class SocialService {
                     seguimiento.getId(), REFERENCIA_SEGUIMIENTO);
         }
 
+        interaccionSocialService.registrarInteraccion(seguidorId, TipoInteraccion.SEGUIR, "USUARIO", seguidoId);
+
         return toSeguimientoResponse(seguimiento, seguido);
     }
 
@@ -79,6 +83,7 @@ public class SocialService {
         Seguimiento seguimiento = seguimientoRepository.findBySeguidorIdAndSeguidoId(seguidorId, seguidoId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "No sigues a este usuario"));
         seguimientoRepository.delete(seguimiento);
+        interaccionSocialService.registrarInteraccion(seguidorId, TipoInteraccion.DEJAR_SEGUIR, "USUARIO", seguidoId);
     }
 
     public SeguimientoResponseDTO aceptarSolicitud(String usuarioId, String seguidorId) {
@@ -219,6 +224,9 @@ public class SocialService {
                 .ifPresent(seguimientoRepository::delete);
         seguimientoRepository.findBySeguidorIdAndSeguidoId(bloqueadoId, bloqueadorId)
                 .ifPresent(seguimientoRepository::delete);
+
+        interaccionSocialService.registrarInteraccion(
+                bloqueadorId, TipoInteraccion.BLOQUEAR_USUARIO, "USUARIO", bloqueadoId);
     }
 
     public void desbloquearUsuario(String bloqueadorId, String bloqueadoId) {

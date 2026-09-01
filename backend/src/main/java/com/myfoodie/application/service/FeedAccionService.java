@@ -4,6 +4,7 @@ import com.myfoodie.domain.model.AccionFeed;
 import com.myfoodie.domain.model.Like;
 import com.myfoodie.domain.model.RecetaDescartada;
 import com.myfoodie.domain.model.RecetaGuardada;
+import com.myfoodie.domain.model.TipoInteraccion;
 import com.myfoodie.domain.repository.AccionFeedRepository;
 import com.myfoodie.domain.repository.LikeRepository;
 import com.myfoodie.domain.repository.RecetaDescartadaRepository;
@@ -30,6 +31,7 @@ public class FeedAccionService {
     private final LikeRepository likeRepository;
     private final AccionFeedRepository accionFeedRepository;
     private final InteraccionUsuarioService interaccionUsuarioService;
+    private final InteraccionSocialService interaccionSocialService;
     private final RecetaRepository recetaRepository;
     private final NotificacionService notificacionService;
 
@@ -41,6 +43,7 @@ public class FeedAccionService {
                     .build());
             registrarAccion(usuarioId, TIPO_GUARDADA, recetaId);
             interaccionUsuarioService.actualizarPerfilGustos(usuarioId, recetaId, TIPO_GUARDADA);
+            interaccionSocialService.registrarInteraccion(usuarioId, TipoInteraccion.GUARDAR_RECETA, "RECETA", recetaId);
         }
     }
 
@@ -54,6 +57,7 @@ public class FeedAccionService {
                 .build());
         registrarAccion(usuarioId, TIPO_DESCARTADA, recetaId);
         interaccionUsuarioService.actualizarPerfilGustos(usuarioId, recetaId, TIPO_DESCARTADA);
+        interaccionSocialService.registrarInteraccion(usuarioId, TipoInteraccion.DESCARTAR_RECETA, "RECETA", recetaId);
     }
 
     public void darLike(String usuarioId, String recetaId) {
@@ -66,6 +70,7 @@ public class FeedAccionService {
                 .build());
         registrarAccion(usuarioId, TIPO_LIKE, recetaId);
         interaccionUsuarioService.actualizarPerfilGustos(usuarioId, recetaId, TIPO_LIKE);
+        interaccionSocialService.registrarInteraccion(usuarioId, TipoInteraccion.LIKE, "RECETA", recetaId);
 
         recetaRepository.findById(recetaId).ifPresent(receta -> {
             if (!receta.getAutorId().equals(usuarioId)) {

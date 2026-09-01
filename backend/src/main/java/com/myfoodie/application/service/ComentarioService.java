@@ -2,6 +2,7 @@ package com.myfoodie.application.service;
 
 import com.myfoodie.application.dto.comentario.ComentarioResponseDTO;
 import com.myfoodie.domain.model.Comentario;
+import com.myfoodie.domain.model.TipoInteraccion;
 import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.ComentarioRepository;
 import com.myfoodie.domain.repository.RecetaRepository;
@@ -23,6 +24,7 @@ public class ComentarioService {
     private final ComentarioRepository comentarioRepository;
     private final RecetaRepository recetaRepository;
     private final UsuarioRepository usuarioRepository;
+    private final InteraccionSocialService interaccionSocialService;
 
     public ComentarioResponseDTO crearComentario(String usuarioId, String recetaId, String texto) {
         if (texto == null || texto.isBlank()) {
@@ -41,6 +43,8 @@ public class ComentarioService {
                 .usuarioId(usuarioId)
                 .texto(texto.trim())
                 .build());
+
+        interaccionSocialService.registrarInteraccion(usuarioId, TipoInteraccion.COMENTAR, "RECETA", recetaId);
 
         return toDTO(comentario, usuarioId);
     }
