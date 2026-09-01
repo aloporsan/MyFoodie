@@ -55,3 +55,30 @@ it('no_aplica_el_tope_cuando_el_modo_es_sumar', () => {
   fireEvent.changeText(getByDisplayValue('1'), '7');
   expect(getByDisplayValue('7')).toBeTruthy();
 });
+
+it('muestra_el_aviso_cuando_se_proporciona', () => {
+  const { getByText } = render(
+    <CantidadMotivoSheet
+      visible={true}
+      unidad="litros"
+      modo="restar"
+      aviso="Se descontará primero del lote que caduca el 01/02/2026 (2 litros)."
+      onConfirm={onConfirm}
+      onCancelar={onCancelar}
+    />
+  );
+  expect(getByText('Se descontará primero del lote que caduca el 01/02/2026 (2 litros).')).toBeTruthy();
+});
+
+it('no_muestra_ningun_aviso_cuando_no_se_proporciona', () => {
+  const { queryByText } = render(
+    <CantidadMotivoSheet
+      visible={true}
+      unidad="litros"
+      modo="restar"
+      onConfirm={onConfirm}
+      onCancelar={onCancelar}
+    />
+  );
+  expect(queryByText(/descontará/)).toBeNull();
+});

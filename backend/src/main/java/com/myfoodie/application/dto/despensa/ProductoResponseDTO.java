@@ -22,5 +22,8 @@ public record ProductoResponseDTO(
         Integer diasHastaCaducidad,
         List<ProductoResponseDTO> posiblesDuplicados,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        Boolean tieneLotes,
+        Boolean mostrarFechaCaducidad,
+        List<ConsumoLoteDTO> consumosFifo
 ) {}

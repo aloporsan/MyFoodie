@@ -30,7 +30,8 @@ export function ProductoCard({
 }: Props) {
   const tieneDuplicados = producto.posiblesDuplicados && producto.posiblesDuplicados.length > 0;
   const cat = getCategoriaConfig(producto.categoria);
-  const diasText = formatDias(producto.diasHastaCaducidad);
+  const mostrarFechaCaducidad = producto.mostrarFechaCaducidad !== false;
+  const diasText = mostrarFechaCaducidad ? formatDias(producto.diasHastaCaducidad) : null;
 
   return (
     <Pressable style={styles.card} onPress={onPress}>

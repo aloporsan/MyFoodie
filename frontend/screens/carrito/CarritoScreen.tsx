@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { FormItemManual, ItemCarritoCard, ResumenCarritoHeader } from '@/components/carrito';
-import { ItemCarritoInput } from '@/services/carritoService';
+import { ItemCarrito, ItemCarritoInput } from '@/services/carritoService';
 import { useCarritoStore } from '@/store/carritoStore';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
@@ -95,6 +95,13 @@ export function CarritoScreen() {
     } finally {
       setAñadiendoManual(false);
     }
+  };
+
+  // Preview de matching en el propio formulario: en vez de crear un item nuevo, suma la
+  // cantidad sobre el que ya existe en el carrito (evita el duplicado desde el origen).
+  const handleActualizarExistente = async (itemExistente: ItemCarrito, cantidadASumar: number) => {
+    await modificarCantidad(itemExistente.id, itemExistente.cantidad + cantidadASumar, itemExistente.unidad);
+    setModalManual(false);
   };
 
   const pendientes = items.filter((i) => i.estado === 'pendiente');
@@ -219,7 +226,11 @@ export function CarritoScreen() {
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setModalManual(false)} />
           <View style={styles.modalSheet}>
             <Text style={styles.modalTitulo}>Añadir producto</Text>
-            <FormItemManual onAñadir={handleAñadirManual} isLoading={añadiendoManual} />
+            <FormItemManual
+              onAñadir={handleAñadirManual}
+              onActualizarExistente={handleActualizarExistente}
+              isLoading={añadiendoManual}
+            />
           </View>
         </View>
       </Modal>

@@ -4,5 +4,6 @@ import java.util.List;
 
 public record DescuentoRecetaResponseDTO(
         List<IngredienteConsumoDTO> descontados,
-        List<IngredienteConsumoDTO> noDisponibles
+        List<IngredienteConsumoDTO> noDisponibles,
+        List<IngredienteConsumoDTO> coincidenciasParciales
 ) {}

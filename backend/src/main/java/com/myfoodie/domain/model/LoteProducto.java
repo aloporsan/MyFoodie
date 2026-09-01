@@ -15,28 +15,28 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "productos")
-public class Producto {
+@Document(collection = "lotes_producto")
+public class LoteProducto {
 
     @Id
     private String id;
 
     @Indexed
+    private String productoId;
+
+    @Indexed
     private String despensaId;
 
-    private String nombre;
-    private double cantidad;
+    @Indexed
+    private String usuarioId;
+
+    private Float cantidad;
     private String unidad;
-    private String unidadOriginal;
-    private String categoria;
     private LocalDate fechaCaducidad;
     private LocalDate fechaCompra;
-    private String marca;
-    private String notas;
-    private Integer stockMinimo;
 
-    @Builder.Default
-    private Boolean tieneLotes = false;
+    /** manual | ocr | carrito | receta */
+    private String origen;
 
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

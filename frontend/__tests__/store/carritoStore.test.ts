@@ -202,14 +202,47 @@ it('modificarCantidad_sincroniza_el_item_en_listaActiva_y_listaEnCurso', async (
 // añadirItemManual / eliminarItem
 // -------------------------------------------------------------------------
 
-it('añadirItemManual_agrega_el_item_a_la_lista', async () => {
+it('añadirItemManual_creado_agrega_el_item_a_la_lista_y_no_deja_sugerencia', async () => {
   const nuevo = { ...mockItem, id: 'item-2', nombre: 'Café' };
-  mockService.añadirItemManual.mockResolvedValue(nuevo);
+  mockService.añadirItemManual.mockResolvedValue({ accion: 'creado', item: nuevo, itemExistente: null, similitud: null });
 
   await useCarritoStore.getState().añadirItemManual({ nombre: 'Café', cantidad: 1, unidad: 'paquetes' });
 
   expect(useCarritoStore.getState().items).toHaveLength(1);
   expect(useCarritoStore.getState().items[0].nombre).toBe('Café');
+  expect(useCarritoStore.getState().sugerenciaCarrito).toBeNull();
+});
+
+it('añadirItemManual_actualizado_sustituye_el_item_existente_en_vez_de_duplicarlo', async () => {
+  useCarritoStore.setState({ ...estadoInicial, items: [mockItem] });
+  const actualizado = { ...mockItem, cantidad: 4 };
+  mockService.añadirItemManual.mockResolvedValue({ accion: 'actualizado', item: actualizado, itemExistente: null, similitud: 1 });
+
+  await useCarritoStore.getState().añadirItemManual({ nombre: 'Leche', cantidad: 2, unidad: 'litros' });
+
+  expect(useCarritoStore.getState().items).toHaveLength(1);
+  expect(useCarritoStore.getState().items[0].cantidad).toBe(4);
+});
+
+it('añadirItemManual_sugerencia_inserta_el_item_propuesto_y_ademas_guarda_sugerenciaCarrito', async () => {
+  const propuesto = { ...mockItem, id: 'item-3', nombre: 'Carne' };
+  const existente = { ...mockItem, id: 'item-1', nombre: 'Carne boloñesa' };
+  mockService.añadirItemManual.mockResolvedValue({
+    accion: 'sugerencia',
+    item: propuesto,
+    itemExistente: existente,
+    similitud: 0.75,
+  });
+
+  await useCarritoStore.getState().añadirItemManual({ nombre: 'Carne', cantidad: 1, unidad: 'kg' });
+
+  expect(useCarritoStore.getState().items).toHaveLength(1);
+  expect(useCarritoStore.getState().items[0].nombre).toBe('Carne');
+  expect(useCarritoStore.getState().sugerenciaCarrito).toEqual({
+    item: propuesto,
+    itemExistente: existente,
+    similitud: 0.75,
+  });
 });
 
 it('eliminarItem_quita_el_item_de_items_listas_listaActiva_y_listaEnCurso', async () => {

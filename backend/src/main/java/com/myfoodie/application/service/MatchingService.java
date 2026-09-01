@@ -1,15 +1,19 @@
 package com.myfoodie.application.service;
 
+import com.myfoodie.application.dto.carrito.ItemCarritoResponseDTO;
 import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
+import com.myfoodie.application.dto.matching.MatchItemCarritoDTO;
 import com.myfoodie.application.dto.matching.MatchProductoDTO;
 import com.myfoodie.application.dto.matching.ParDuplicadoDTO;
 import com.myfoodie.application.dto.matching.SimilitudResultDTO;
 import com.myfoodie.domain.model.Despensa;
+import com.myfoodie.domain.model.ItemCarrito;
 import com.myfoodie.domain.model.Preferencias;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.model.TipoMatch;
 import com.myfoodie.domain.repository.DespensaRepository;
 import com.myfoodie.domain.repository.FusionIgnoradaRepository;
+import com.myfoodie.domain.repository.ItemCarritoRepository;
 import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.ProductoRepository;
 import com.myfoodie.exception.ApiException;
@@ -33,14 +37,22 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MatchingService {
 
-    private static final double UMBRAL_AUTOMATICO = 0.85;
+    private static final double UMBRAL_AUTOMATICO = 0.99;
     private static final double UMBRAL_PROPONER = 0.60;
     private static final double UMBRAL_DUPLICADO = 0.75;
+
+    // Un sinónimo homologa "familias" de producto (tomate ~ tomate frito, aceite de oliva ~
+    // aceite de girasol) para que recetas/duplicados no exijan texto idéntico, pero nunca debe
+    // bastar por sí solo para fusionar o actualizar algo en automático: por muy exacta que
+    // quede la coincidencia tras sustituir el sinónimo, se limita a este techo, por debajo de
+    // UMBRAL_AUTOMATICO, así que siempre pasa por confirmación del usuario (PROPONER).
+    private static final double TECHO_SINONIMO = 0.90;
 
     private final DespensaRepository despensaRepository;
     private final ProductoRepository productoRepository;
     private final PreferenciasRepository preferenciasRepository;
     private final FusionIgnoradaRepository fusionIgnoradaRepository;
+    private final ItemCarritoRepository itemCarritoRepository;
 
     private static final Set<String> ARTICULOS = Set.of(
             "el", "la", "los", "las", "un", "una", "unos", "unas");
@@ -170,6 +182,9 @@ public class MatchingService {
 
         double puntuacion = calcularSimilitudJaroWinkler(textoA, textoB) * factorSolapePalabras(textoA, textoB);
         boolean fueronSinonimos = !textoA.equals(normalizadoA) || !textoB.equals(normalizadoB);
+        if (fueronSinonimos) {
+            puntuacion = Math.min(puntuacion, TECHO_SINONIMO);
+        }
 
         return new SimilitudResultDTO(puntuacion, textoA, textoB, fueronSinonimos);
     }
@@ -244,6 +259,49 @@ public class MatchingService {
                     return new MatchProductoDTO(productoDTO, puntuacion, clasificarMatch(puntuacion), textoSugerido);
                 })
                 .toList();
+    }
+
+    public List<MatchItemCarritoDTO> buscarItemSimilarEnCarrito(String usuarioId, String nombreItem) {
+        List<ItemCarrito> itemsActivos = itemCarritoRepository.findByUsuarioId(usuarioId).stream()
+                .filter(i -> "pendiente".equals(i.getEstado()) || "aceptado".equals(i.getEstado()))
+                .toList();
+
+        return itemsActivos.stream()
+                .map(item -> Map.entry(item, calcularSimilitud(nombreItem, item.getNombre())))
+                .filter(entry -> entry.getValue().puntuacion() >= UMBRAL_PROPONER)
+                .sorted(Comparator.comparingDouble(
+                        (Map.Entry<ItemCarrito, SimilitudResultDTO> entry) -> entry.getValue().puntuacion())
+                        .reversed())
+                .map(entry -> {
+                    ItemCarrito item = entry.getKey();
+                    double puntuacion = entry.getValue().puntuacion();
+                    return new MatchItemCarritoDTO(
+                            toItemCarritoResponseDTO(item),
+                            puntuacion,
+                            clasificarMatch(puntuacion),
+                            "Ya tienes '" + item.getNombre() + "' en tu lista");
+                })
+                .toList();
+    }
+
+    private ItemCarritoResponseDTO toItemCarritoResponseDTO(ItemCarrito item) {
+        return new ItemCarritoResponseDTO(
+                item.getId(),
+                item.getUsuarioId(),
+                item.getNombre(),
+                item.getCantidad(),
+                item.getUnidad(),
+                item.getCategoria(),
+                item.getPrioridad(),
+                item.getMotivo(),
+                item.getEstado(),
+                item.getNoVolver(),
+                item.getRecetaId(),
+                null,
+                null,
+                item.getCreatedAt(),
+                item.getUpdatedAt()
+        );
     }
 
     public List<ParDuplicadoDTO> buscarDuplicadosEnDespensa(String usuarioId) {
@@ -321,6 +379,7 @@ public class MatchingService {
 
     private ProductoResponseDTO toProductoResponseDTO(Producto p, int umbralEfectivo) {
         boolean alertaCompra = p.getCantidad() <= umbralEfectivo;
+        String estado = calcularEstado(p, umbralEfectivo);
         return new ProductoResponseDTO(
                 p.getId(),
                 p.getDespensaId(),
@@ -335,11 +394,14 @@ public class MatchingService {
                 p.getNotas(),
                 p.getStockMinimo(),
                 alertaCompra,
-                calcularEstado(p, umbralEfectivo),
+                estado,
                 calcularDiasHastaCaducidad(p),
                 null,
                 p.getCreatedAt(),
-                p.getUpdatedAt()
+                p.getUpdatedAt(),
+                p.getTieneLotes(),
+                !"sin_stock".equals(estado),
+                null
         );
     }
 }

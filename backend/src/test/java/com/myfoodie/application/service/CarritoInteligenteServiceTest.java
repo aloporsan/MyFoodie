@@ -1,10 +1,12 @@
 package com.myfoodie.application.service;
 
+import com.myfoodie.application.dto.carrito.AñadirItemCarritoResponseDTO;
 import com.myfoodie.application.dto.carrito.CarritoDTO;
 import com.myfoodie.application.dto.carrito.ItemCarritoRequestDTO;
 import com.myfoodie.application.dto.carrito.ItemCarritoResponseDTO;
 import com.myfoodie.application.dto.carrito.ItemCompradoAjusteDTO;
 import com.myfoodie.application.dto.carrito.ListaCompraResponseDTO;
+import com.myfoodie.application.dto.matching.SimilitudResultDTO;
 import com.myfoodie.application.dto.unidad.UnidadConvertidaDTO;
 import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.IngredienteReceta;
@@ -13,10 +15,12 @@ import com.myfoodie.domain.model.ListaCompra;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.model.Receta;
 import com.myfoodie.domain.model.RecetaGuardada;
+import com.myfoodie.domain.model.TipoMatch;
 import com.myfoodie.domain.repository.DespensaRepository;
 import com.myfoodie.domain.repository.IngredienteRecetaRepository;
 import com.myfoodie.domain.repository.ItemCarritoRepository;
 import com.myfoodie.domain.repository.ListaCompraRepository;
+import com.myfoodie.domain.repository.LoteProductoRepository;
 import com.myfoodie.domain.repository.MovimientoProductoRepository;
 import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.ProductoRepository;
@@ -64,17 +68,33 @@ class CarritoInteligenteServiceTest {
     @Mock private RecetaRepository recetaRepository;
     @Mock private UnidadNormalizadorService unidadNormalizadorService;
     @Mock private MatchingService matchingService;
+    @Mock private LoteProductoRepository loteProductoRepository;
 
     @InjectMocks private CarritoInteligenteService carritoInteligenteService;
 
     // Por defecto, unidadNormalizadorService devuelve la cantidad/unidad tal cual (comportamiento
     // real para unidades ya objetivas), tanto para comparar disponibilidad como para el carrito.
+    // matchingService, al ser un mock, no reproduce el algoritmo real: para estos tests basta con
+    // que considere "coincidencia fuerte" cuando los nombres son exactamente iguales (que es el
+    // comportamiento exacto que tenían antes de introducir MatchingService en este servicio).
     @BeforeEach
     void configurarNormalizadorPorDefecto() {
         lenient().when(unidadNormalizadorService.normalizarUnidades(anyDouble(), anyString()))
                 .thenAnswer(inv -> new UnidadConvertidaDTO(inv.getArgument(0), inv.getArgument(1), false));
         lenient().when(unidadNormalizadorService.convertirAUnidadDeCompra(anyDouble(), anyString()))
                 .thenAnswer(inv -> new UnidadConvertidaDTO(inv.getArgument(0), inv.getArgument(1), false));
+        lenient().when(matchingService.calcularSimilitud(anyString(), anyString())).thenAnswer(inv -> {
+            String a = inv.getArgument(0);
+            String b = inv.getArgument(1);
+            boolean iguales = a != null && b != null && a.trim().equalsIgnoreCase(b.trim());
+            return new SimilitudResultDTO(iguales ? 1.0 : 0.0, a, b, false);
+        });
+        lenient().when(matchingService.clasificarMatch(anyDouble())).thenAnswer(inv -> {
+            double puntuacion = inv.getArgument(0);
+            if (puntuacion >= 0.99) return TipoMatch.AUTOMATICO;
+            if (puntuacion >= 0.60) return TipoMatch.PROPONER;
+            return TipoMatch.NUEVO;
+        });
     }
 
     // -------------------------------------------------------------------------
@@ -416,11 +436,12 @@ class CarritoInteligenteServiceTest {
         guardarItemsComoLlegan();
         ItemCarritoRequestDTO dto = new ItemCarritoRequestDTO("Café", 1f, "paquetes", "Otros");
 
-        ItemCarritoResponseDTO resultado = carritoInteligenteService.añadirItemManual("user-1", dto);
+        AñadirItemCarritoResponseDTO resultado = carritoInteligenteService.añadirItemManual("user-1", dto);
 
-        assertThat(resultado.estado()).isEqualTo("pendiente");
-        assertThat(resultado.prioridad()).isEqualTo("media");
-        assertThat(resultado.nombre()).isEqualTo("Café");
+        assertThat(resultado.accion()).isEqualTo("creado");
+        assertThat(resultado.item().estado()).isEqualTo("pendiente");
+        assertThat(resultado.item().prioridad()).isEqualTo("media");
+        assertThat(resultado.item().nombre()).isEqualTo("Café");
     }
 
     // -------------------------------------------------------------------------
@@ -451,9 +472,9 @@ class CarritoInteligenteServiceTest {
         guardarItemsComoLlegan();
         ItemCarritoRequestDTO dto = new ItemCarritoRequestDTO("Tomate", 3f, "unidades", null);
 
-        ItemCarritoResponseDTO resultado = carritoInteligenteService.añadirItemManual("user-1", dto);
+        AñadirItemCarritoResponseDTO resultado = carritoInteligenteService.añadirItemManual("user-1", dto);
 
-        assertThat(resultado.categoria()).isEqualTo("verduras");
+        assertThat(resultado.item().categoria()).isEqualTo("verduras");
     }
 
     @Test

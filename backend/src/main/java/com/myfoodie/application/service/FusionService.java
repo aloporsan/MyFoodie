@@ -164,6 +164,7 @@ public class FusionService {
 
     private ProductoResponseDTO toProductoResponseDTO(Producto p, int umbralEfectivo) {
         boolean alertaCompra = p.getCantidad() <= umbralEfectivo;
+        String estado = calcularEstado(p, umbralEfectivo);
         return new ProductoResponseDTO(
                 p.getId(),
                 p.getDespensaId(),
@@ -178,11 +179,14 @@ public class FusionService {
                 p.getNotas(),
                 p.getStockMinimo(),
                 alertaCompra,
-                calcularEstado(p, umbralEfectivo),
+                estado,
                 calcularDiasHastaCaducidad(p),
                 null,
                 p.getCreatedAt(),
-                p.getUpdatedAt()
+                p.getUpdatedAt(),
+                p.getTieneLotes(),
+                !"sin_stock".equals(estado),
+                null
         );
     }
 }

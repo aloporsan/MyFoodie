@@ -30,6 +30,28 @@ interface PreviewMatching {
   respuesta: boolean | null;
 }
 
+type LoteInfo = { tipo: 'nuevo' } | { tipo: 'existente'; nombreExistente: string };
+
+// El backend resuelve "creado" siempre con un lote inicial (crearProductoConPrimerLote) y
+// "actualizado" (match AUTOMATICO) con un lote nuevo si el producto ya tenía lotes o si la
+// fecha de caducidad introducida difiere de la que ya tenía (registrarCompraEnProductoExistente).
+// Las "sugerencia" (PROPONER) que se resuelven aquí en el cliente no pasan por ese flujo todavía
+// (usan actualizarCantidad/añadirProducto planos), así que deliberadamente no se anuncian.
+function calcularLoteInfo(info: PreviewMatching | undefined, fechaCaducidadElegida: string): LoteInfo | null {
+  if (!info) return null; // preview aún no resuelto
+  if (!info.match || info.match.tipoMatch === 'NUEVO') {
+    return { tipo: 'nuevo' };
+  }
+  if (info.match.tipoMatch === 'AUTOMATICO') {
+    const existente = info.match.producto;
+    const creaLote =
+      existente.tieneLotes === true ||
+      (!!fechaCaducidadElegida && !!existente.fechaCaducidad && fechaCaducidadElegida !== existente.fechaCaducidad);
+    return creaLote ? { tipo: 'existente', nombreExistente: existente.nombre } : null;
+  }
+  return null;
+}
+
 function dateToApi(d: Date): string {
   return d.toISOString().split('T')[0];
 }
@@ -222,9 +244,21 @@ export function AñadirCompradosScreen() {
             fechaCaducidad: '',
           };
           const info = preview[item.id];
+          const loteInfo = calcularLoteInfo(info, edicion.fechaCaducidad);
           return (
             <View key={item.id} style={styles.card}>
               <Text style={styles.nombre}>{item.nombre}</Text>
+
+              {loteInfo && (
+                <View style={styles.badgeLote}>
+                  <Ionicons name="layers-outline" size={14} color={colors.grayDark} />
+                  <Text style={styles.badgeLoteTexto}>
+                    {loteInfo.tipo === 'nuevo'
+                      ? 'Se creará como producto nuevo con su primer lote'
+                      : `Se añadirá como nuevo lote de "${loteInfo.nombreExistente}"`}
+                  </Text>
+                </View>
+              )}
 
               {info?.match?.tipoMatch === 'AUTOMATICO' && (
                 <View style={styles.badgeAutomatico}>
@@ -417,6 +451,17 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   badgeAutomaticoTexto: { ...typography.caption, color: colors.primaryDark, fontWeight: '600' },
+  badgeLote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.grayLight,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  badgeLoteTexto: { ...typography.caption, color: colors.grayDark },
   banner: {
     backgroundColor: '#FEF3E0',
     borderRadius: borderRadius.md,

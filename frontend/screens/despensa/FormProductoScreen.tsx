@@ -294,16 +294,20 @@ export function FormProductoScreen() {
             <ChipSelector opciones={UNIDADES_OBJETIVAS} valor={unidad} onSelect={setUnidad} getLabel={etiquetaUnidad} />
           </Campo>
 
-          {/* Categoría */}
-          <Campo label="Categoría">
-            <ChipSelector
-              opciones={CATEGORIAS}
-              valor={categoria}
-              onSelect={setCategoria}
-              nullable
-              getAccentColor={(op) => getCategoriaConfig(op)}
-            />
-          </Campo>
+          {/* Categoría, marca, notas y stock mínimo son atributos del producto en sí: si ya
+              hay uno seleccionado (se va a actualizar su cantidad, no a crear uno nuevo),
+              editarlos aquí no tendría efecto — el producto ya existente conserva los suyos. */}
+          {!productoSeleccionado && (
+            <Campo label="Categoría">
+              <ChipSelector
+                opciones={CATEGORIAS}
+                valor={categoria}
+                onSelect={setCategoria}
+                nullable
+                getAccentColor={(op) => getCategoriaConfig(op)}
+              />
+            </Campo>
+          )}
 
           {/* Fecha caducidad */}
           <Campo label="Fecha caducidad">
@@ -315,45 +319,46 @@ export function FormProductoScreen() {
             <DateFieldInput value={fechaCompra} onChange={setFechaCompra} />
           </Campo>
 
-          {/* Marca */}
-          <Campo label="Marca">
-            <TextInput
-              style={styles.input}
-              value={marca}
-              onChangeText={setMarca}
-              placeholder="ej. Hacendado"
-              placeholderTextColor={colors.grayMid}
-            />
-          </Campo>
+          {!productoSeleccionado && (
+            <>
+              <Campo label="Marca">
+                <TextInput
+                  style={styles.input}
+                  value={marca}
+                  onChangeText={setMarca}
+                  placeholder="ej. Hacendado"
+                  placeholderTextColor={colors.grayMid}
+                />
+              </Campo>
 
-          {/* Notas */}
-          <Campo label="Notas">
-            <TextInput
-              style={[styles.input, styles.textarea]}
-              value={notas}
-              onChangeText={setNotas}
-              placeholder="Notas adicionales..."
-              placeholderTextColor={colors.grayMid}
-              multiline
-              numberOfLines={3}
-            />
-          </Campo>
+              <Campo label="Notas">
+                <TextInput
+                  style={[styles.input, styles.textarea]}
+                  value={notas}
+                  onChangeText={setNotas}
+                  placeholder="Notas adicionales..."
+                  placeholderTextColor={colors.grayMid}
+                  multiline
+                  numberOfLines={3}
+                />
+              </Campo>
 
-          {/* Stock mínimo */}
-          <Campo
-            label="Stock mínimo personalizado"
-            error={errores.stockMinimo}
-            hint="Deja vacío para usar el umbral global de tus preferencias"
-          >
-            <TextInput
-              style={[styles.input, errores.stockMinimo && styles.inputError]}
-              value={stockMinimo}
-              onChangeText={(t) => { setStockMinimo(t); setErrores((e) => ({ ...e, stockMinimo: '' })); }}
-              placeholder="ej. 3"
-              placeholderTextColor={colors.grayMid}
-              keyboardType="number-pad"
-            />
-          </Campo>
+              <Campo
+                label="Stock mínimo personalizado"
+                error={errores.stockMinimo}
+                hint="Deja vacío para usar el umbral global de tus preferencias"
+              >
+                <TextInput
+                  style={[styles.input, errores.stockMinimo && styles.inputError]}
+                  value={stockMinimo}
+                  onChangeText={(t) => { setStockMinimo(t); setErrores((e) => ({ ...e, stockMinimo: '' })); }}
+                  placeholder="ej. 3"
+                  placeholderTextColor={colors.grayMid}
+                  keyboardType="number-pad"
+                />
+              </Campo>
+            </>
+          )}
 
           {/* Botón guardar */}
           <Pressable

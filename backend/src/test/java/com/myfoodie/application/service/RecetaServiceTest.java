@@ -1,6 +1,7 @@
 package com.myfoodie.application.service;
 
 import com.myfoodie.application.dto.despensa.ProductoUpdateCantidadDTO;
+import com.myfoodie.application.dto.matching.SimilitudResultDTO;
 import com.myfoodie.application.dto.receta.*;
 import com.myfoodie.application.dto.unidad.UnidadConvertidaDTO;
 import com.myfoodie.domain.model.Despensa;
@@ -8,6 +9,7 @@ import com.myfoodie.domain.model.IngredienteReceta;
 import com.myfoodie.domain.model.Paso;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.model.Receta;
+import com.myfoodie.domain.model.TipoMatch;
 import com.myfoodie.domain.repository.DespensaRepository;
 import com.myfoodie.domain.repository.IngredienteRecetaRepository;
 import com.myfoodie.domain.repository.LikeRepository;
@@ -50,15 +52,31 @@ class RecetaServiceTest {
     @Mock private DespensaService despensaService;
     @Mock private CarritoInteligenteService carritoInteligenteService;
     @Mock private UnidadNormalizadorService unidadNormalizadorService;
+    @Mock private MatchingService matchingService;
 
     @InjectMocks private RecetaService recetaService;
 
     // Por defecto, unidadNormalizadorService devuelve la cantidad/unidad tal cual (comportamiento
     // real para unidades ya objetivas, que es lo que usa el helper ingrediente() por defecto: "g").
+    // matchingService, al ser un mock, no reproduce el algoritmo real: para estos tests basta con
+    // que considere "coincidencia" cuando los nombres son exactamente iguales (el comportamiento
+    // que tenía este servicio antes de introducir MatchingService para el matching de ingredientes).
     @BeforeEach
     void configurarNormalizadorPorDefecto() {
         lenient().when(unidadNormalizadorService.normalizarUnidades(anyDouble(), anyString()))
                 .thenAnswer(inv -> new UnidadConvertidaDTO(inv.getArgument(0), inv.getArgument(1), false));
+        lenient().when(matchingService.calcularSimilitud(anyString(), anyString())).thenAnswer(inv -> {
+            String a = inv.getArgument(0);
+            String b = inv.getArgument(1);
+            boolean iguales = a != null && b != null && a.trim().equalsIgnoreCase(b.trim());
+            return new SimilitudResultDTO(iguales ? 1.0 : 0.0, a, b, false);
+        });
+        lenient().when(matchingService.clasificarMatch(anyDouble())).thenAnswer(inv -> {
+            double puntuacion = inv.getArgument(0);
+            if (puntuacion >= 0.99) return TipoMatch.AUTOMATICO;
+            if (puntuacion >= 0.60) return TipoMatch.PROPONER;
+            return TipoMatch.NUEVO;
+        });
     }
 
     // -------------------------------------------------------------------------
@@ -626,6 +644,37 @@ class RecetaServiceTest {
         ArgumentCaptor<ProductoUpdateCantidadDTO> captor = ArgumentCaptor.forClass(ProductoUpdateCantidadDTO.class);
         verify(despensaService).actualizarCantidad(eq("user-1"), eq("prod-1"), captor.capture(), eq(false));
         assertThat(captor.getValue().delta()).isEqualTo(-200.0);
+    }
+
+    @Test
+    @DisplayName("descontarIngredientesReceta_coincidenciaParcial_incluyeProductoCandidato")
+    void descontarIngredientesReceta_coincidenciaParcial_incluyeProductoCandidato() {
+        Receta receta = receta("r1", "user-1"); // numPersonas = 2
+        Despensa despensa = despensa("desp-1", "user-1");
+        Producto carnePicada = productoDespensa("prod-1", "desp-1", "Carne picada", 500);
+
+        when(recetaRepository.findById("r1")).thenReturn(Optional.of(receta));
+        when(recetaGuardadaRepository.existsByUsuarioIdAndRecetaId("user-1", "r1")).thenReturn(true);
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(despensa));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(carnePicada));
+        when(ingredienteRepository.findByRecetaId("r1")).thenReturn(List.of(ingrediente("ing-1", "r1", "Carne", 300, "g")));
+
+        // "Carne" (receta) vs "Carne picada" (despensa) no son exactamente iguales: se simula
+        // una coincidencia PROPONER (parecido, no automática) en vez del match exacto por defecto.
+        when(matchingService.calcularSimilitud("Carne", "Carne picada"))
+                .thenReturn(new SimilitudResultDTO(0.85, "carne", "carne picada", false));
+
+        DescuentoRecetaResponseDTO resultado = recetaService.descontarIngredientesReceta("user-1", "r1", 2);
+
+        assertThat(resultado.descontados()).isEmpty();
+        assertThat(resultado.noDisponibles()).isEmpty();
+        assertThat(resultado.coincidenciasParciales()).hasSize(1);
+        IngredienteConsumoDTO coincidencia = resultado.coincidenciasParciales().get(0);
+        assertThat(coincidencia.nombre()).isEqualTo("Carne");
+        assertThat(coincidencia.tipoMatch()).isEqualTo(TipoMatch.PROPONER);
+        assertThat(coincidencia.productoId()).isEqualTo("prod-1");
+        assertThat(coincidencia.productoNombre()).isEqualTo("Carne picada");
+        verify(despensaService, never()).actualizarCantidad(any(), any(), any(), anyBoolean());
     }
 
     @Test

@@ -9,6 +9,7 @@ import com.myfoodie.domain.model.Paso;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.model.Receta;
 import com.myfoodie.domain.model.RecetaGuardada;
+import com.myfoodie.domain.model.TipoMatch;
 import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.DespensaRepository;
 import com.myfoodie.domain.repository.IngredienteRecetaRepository;
@@ -46,6 +47,7 @@ public class RecetaService {
     private final DespensaService despensaService;
     private final CarritoInteligenteService carritoInteligenteService;
     private final UnidadNormalizadorService unidadNormalizadorService;
+    private final MatchingService matchingService;
 
     // -------------------------------------------------------------------------
     // CRUD básico
@@ -268,10 +270,16 @@ public class RecetaService {
 
         List<IngredienteConsumoDTO> descontados = new ArrayList<>();
         List<IngredienteConsumoDTO> noDisponibles = new ArrayList<>();
+        List<IngredienteConsumoDTO> coincidenciasParciales = new ArrayList<>();
         boolean huboDescuento = false;
 
         for (IngredienteReceta ingrediente : ingredienteRepository.findByRecetaId(recetaId)) {
             IngredienteConsumoDTO consumo = calcularConsumo(ingrediente, factor, productos);
+
+            if (consumo.tipoMatch() == TipoMatch.PROPONER) {
+                coincidenciasParciales.add(consumo);
+                continue;
+            }
             if (!consumo.productoEnDespensa() || consumo.noComparable()) {
                 noDisponibles.add(consumo);
                 continue;
@@ -279,7 +287,7 @@ public class RecetaService {
 
             double aDescontar = Math.min(consumo.cantidadCalculada(), consumo.cantidadDisponible());
             if (aDescontar > 0) {
-                Producto producto = buscarProductoPorNombre(productos, ingrediente.getNombre());
+                Producto producto = buscarProductoCoincidente(productos, ingrediente.getNombre()).producto();
                 despensaService.actualizarCantidad(usuarioId, producto.getId(),
                         new ProductoUpdateCantidadDTO(-aDescontar, "usado_en_receta", null,
                                 "Usado en receta: " + receta.getTitulo()), false);
@@ -292,7 +300,7 @@ public class RecetaService {
             carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
         }
 
-        return new DescuentoRecetaResponseDTO(descontados, noDisponibles);
+        return new DescuentoRecetaResponseDTO(descontados, noDisponibles, coincidenciasParciales);
     }
 
     private void validarRecetaGuardada(String usuarioId, String recetaId) {
@@ -320,7 +328,8 @@ public class RecetaService {
         UnidadConvertidaDTO normalizado = unidadNormalizadorService
                 .normalizarUnidades(ingrediente.getCantidad(), ingrediente.getUnidad());
         double cantidadCalculada = normalizado.cantidadConvertida() * factor;
-        Producto producto = buscarProductoPorNombre(productos, ingrediente.getNombre());
+        ProductoMatchResult match = buscarProductoCoincidente(productos, ingrediente.getNombre());
+        Producto producto = match.producto();
         boolean enDespensa = producto != null;
 
         boolean comparable = enDespensa && unidadesCompatibles(normalizado.unidadConvertida(), producto.getUnidad());
@@ -330,19 +339,30 @@ public class RecetaService {
 
         return new IngredienteConsumoDTO(
                 ingrediente.getNombre(), cantidadCalculada, normalizado.unidadConvertida(),
-                enDespensa, disponible, suficiente, noComparable);
+                enDespensa, disponible, suficiente, noComparable, match.tipoMatch(),
+                producto != null ? producto.getId() : null,
+                producto != null ? producto.getNombre() : null);
     }
 
     private boolean unidadesCompatibles(String unidadIngrediente, String unidadProducto) {
         return normalizar(unidadIngrediente).equals(normalizar(unidadProducto));
     }
 
-    private Producto buscarProductoPorNombre(List<Producto> productos, String nombre) {
-        return productos.stream()
-                .filter(p -> normalizar(p.getNombre()).equals(normalizar(nombre)))
-                .findFirst()
-                .orElse(null);
+    private ProductoMatchResult buscarProductoCoincidente(List<Producto> productos, String nombreIngrediente) {
+        Producto mejorProducto = null;
+        double mejorPuntuacion = -1;
+        for (Producto p : productos) {
+            double puntuacion = matchingService.calcularSimilitud(nombreIngrediente, p.getNombre()).puntuacion();
+            if (puntuacion > mejorPuntuacion) {
+                mejorPuntuacion = puntuacion;
+                mejorProducto = p;
+            }
+        }
+        TipoMatch tipoMatch = mejorProducto == null ? TipoMatch.NUEVO : matchingService.clasificarMatch(mejorPuntuacion);
+        return new ProductoMatchResult(tipoMatch == TipoMatch.NUEVO ? null : mejorProducto, tipoMatch);
     }
+
+    private record ProductoMatchResult(Producto producto, TipoMatch tipoMatch) {}
 
     private String normalizar(String texto) {
         return texto == null ? "" : texto.trim().toLowerCase(Locale.ROOT);

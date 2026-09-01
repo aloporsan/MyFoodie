@@ -26,5 +26,6 @@ public record RecetaFeedDTO(
         Boolean publicadaPorSeguido,
         Integer likesDeSeguidosCount,
         ContextoSocialDTO contextoSocial,
-        Boolean modoFallback
+        Boolean modoFallback,
+        Boolean coincidenciaParcial
 ) {}

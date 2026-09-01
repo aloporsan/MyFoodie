@@ -9,6 +9,7 @@ import {
   ProductoInput,
 } from '@/services/despensaService';
 import { matchingService, MatchProducto } from '@/services/matchingService';
+import { CriterioFechaLote, loteService, LoteProducto, LoteProductoInput } from '@/services/loteService';
 import { handleApiError } from '@/utils/errorHandler';
 import { useDashboardStore } from './dashboardStore';
 import { useFusionStore } from './fusionStore';
@@ -26,6 +27,7 @@ interface DespensaState {
   busquedaActiva: string;
   ordenActivo: string;
   similaresSugeridos: MatchProducto[];
+  lotesProductoActual: LoteProducto[];
 }
 
 interface DespensaActions {
@@ -33,7 +35,7 @@ interface DespensaActions {
   añadirProducto: (datos: ProductoInput) => Promise<Producto>;
   editarProducto: (id: string, datos: ProductoInput) => Promise<void>;
   eliminarProducto: (id: string, motivo?: MotivoEliminacion, motivoDetalle?: string) => Promise<void>;
-  actualizarCantidad: (id: string, delta: number, motivo?: MotivoEliminacion, motivoDetalle?: string) => Promise<void>;
+  actualizarCantidad: (id: string, delta: number, motivo?: MotivoEliminacion, motivoDetalle?: string) => Promise<Producto>;
   cargarHistorial: (productoId: string) => Promise<void>;
   buscarSimilares: (nombre: string) => Promise<void>;
   limpiarSimilares: () => void;
@@ -42,13 +44,33 @@ interface DespensaActions {
   limpiarFiltros: () => void;
   setOrden: (orden: string) => Promise<void>;
   inicializarOrden: () => Promise<void>;
+  cargarLotes: (productoId: string) => Promise<void>;
+  activarLotes: (productoId: string) => Promise<void>;
+  añadirLote: (productoId: string, datos: LoteProductoInput) => Promise<void>;
+  editarLote: (productoId: string, loteId: string, datos: LoteProductoInput) => Promise<void>;
+  eliminarLote: (productoId: string, loteId: string) => Promise<void>;
+  compactarLotes: (productoId: string, criterioFecha: CriterioFechaLote) => Promise<void>;
   clearError: () => void;
 }
 
 const hayFiltrosActivos = (f: ProductoFiltro): boolean =>
   Object.values(f).some((v) => v !== undefined && v !== '');
 
-export const useDespensaStore = create<DespensaState & DespensaActions>()((set, get) => ({
+export const useDespensaStore = create<DespensaState & DespensaActions>()((set, get) => {
+  // Tras mutar un lote, tanto el listado de lotes como el producto padre (cantidad/estado
+  // recalculados en el backend a partir de los lotes) quedan desactualizados: se refrescan juntos.
+  const refrescarProductoYLotes = async (productoId: string) => {
+    const [lotes, producto] = await Promise.all([
+      loteService.listar(productoId),
+      despensaService.obtenerProducto(productoId),
+    ]);
+    set((s) => ({
+      lotesProductoActual: lotes,
+      productos: s.productos.map((p) => (p.id === productoId ? producto : p)),
+    }));
+  };
+
+  return {
   productos: [],
   historialProducto: [],
   isLoading: false,
@@ -57,6 +79,7 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
   busquedaActiva: '',
   ordenActivo: ORDEN_POR_DEFECTO,
   similaresSugeridos: [],
+  lotesProductoActual: [],
 
   cargarProductos: async () => {
     set({ isLoading: true, error: null });
@@ -129,6 +152,7 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
         productos: s.productos.map((p) => (p.id === id ? actualizado : p)),
       }));
       useDashboardStore.getState().cargarDashboard();
+      return actualizado;
     } catch (e) {
       set({ error: handleApiError(e) });
       throw e;
@@ -173,5 +197,71 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
     set({ ordenActivo: guardado ?? ORDEN_POR_DEFECTO });
   },
 
+  cargarLotes: async (productoId) => {
+    set({ isLoading: true, error: null });
+    try {
+      const lotes = await loteService.listar(productoId);
+      set({ lotesProductoActual: lotes, isLoading: false });
+    } catch (e) {
+      set({ error: handleApiError(e), isLoading: false });
+    }
+  },
+
+  activarLotes: async (productoId) => {
+    try {
+      await loteService.activar(productoId);
+      await refrescarProductoYLotes(productoId);
+      useDashboardStore.getState().cargarDashboard();
+    } catch (e) {
+      set({ error: handleApiError(e) });
+      throw e;
+    }
+  },
+
+  añadirLote: async (productoId, datos) => {
+    try {
+      await loteService.añadir(productoId, datos);
+      await refrescarProductoYLotes(productoId);
+      useDashboardStore.getState().cargarDashboard();
+    } catch (e) {
+      set({ error: handleApiError(e) });
+      throw e;
+    }
+  },
+
+  editarLote: async (productoId, loteId, datos) => {
+    try {
+      await loteService.editar(productoId, loteId, datos);
+      await refrescarProductoYLotes(productoId);
+      useDashboardStore.getState().cargarDashboard();
+    } catch (e) {
+      set({ error: handleApiError(e) });
+      throw e;
+    }
+  },
+
+  eliminarLote: async (productoId, loteId) => {
+    try {
+      await loteService.eliminar(productoId, loteId);
+      await refrescarProductoYLotes(productoId);
+      useDashboardStore.getState().cargarDashboard();
+    } catch (e) {
+      set({ error: handleApiError(e) });
+      throw e;
+    }
+  },
+
+  compactarLotes: async (productoId, criterioFecha) => {
+    try {
+      await loteService.compactar(productoId, criterioFecha);
+      await refrescarProductoYLotes(productoId);
+      useDashboardStore.getState().cargarDashboard();
+    } catch (e) {
+      set({ error: handleApiError(e) });
+      throw e;
+    }
+  },
+
   clearError: () => set({ error: null }),
-}));
+  };
+});

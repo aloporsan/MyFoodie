@@ -31,7 +31,7 @@ public class MovimientoProducto {
     /** Nombre del producto en el momento del movimiento (se conserva aunque el producto se elimine) */
     private String nombre;
 
-    /** añadido | editado | cantidad_actualizada | eliminado */
+    /** añadido | editado | cantidad_actualizada | eliminado | lote_añadido | lotes_compactados */
     private String tipo;
 
     private String descripcion;

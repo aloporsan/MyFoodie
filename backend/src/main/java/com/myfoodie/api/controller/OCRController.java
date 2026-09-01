@@ -1,7 +1,6 @@
 package com.myfoodie.api.controller;
 
 import com.myfoodie.application.dto.despensa.ProductoRequestDTO;
-import com.myfoodie.application.dto.despensa.ProductoUpdateCantidadDTO;
 import com.myfoodie.application.dto.ocr.ProductoConfirmadoOCRDTO;
 import com.myfoodie.application.dto.ocr.ProductoTicketDTO;
 import com.myfoodie.application.dto.ocr.ResultadoOCRDTO;
@@ -76,21 +75,19 @@ public class OCRController {
         for (ProductoConfirmadoOCRDTO producto : productos) {
             switch (producto.accion()) {
                 case "actualizado" -> {
-                    despensaService.actualizarCantidad(usuarioId, producto.productoExistenteId(),
-                            new ProductoUpdateCantidadDTO(
-                                    producto.cantidad() != null ? producto.cantidad().doubleValue() : 0,
-                                    null, null, "Añadido desde ticket OCR"));
+                    despensaService.registrarEntradaProducto(usuarioId, producto.productoExistenteId(),
+                            producto.cantidad(), producto.unidad(), producto.fechaCaducidad(), "ocr");
                     actualizados++;
                 }
                 case "nuevo" -> {
-                    despensaService.añadirProducto(usuarioId, new ProductoRequestDTO(
+                    despensaService.añadirProductoConLote(usuarioId, new ProductoRequestDTO(
                             producto.nombre(),
                             producto.cantidad() != null ? producto.cantidad() : 0,
                             producto.unidad(),
                             producto.categoria(),
                             producto.fechaCaducidad(),
                             LocalDate.now(),
-                            producto.marca(), producto.notas(), producto.stockMinimo()));
+                            producto.marca(), producto.notas(), producto.stockMinimo()), "ocr");
                     añadidos++;
                 }
                 case "ignorado" -> ignorados++;

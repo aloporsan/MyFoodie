@@ -16,6 +16,7 @@ import com.myfoodie.domain.model.PerfilGustos;
 import com.myfoodie.domain.model.Receta;
 import com.myfoodie.domain.model.RecetaCompartida;
 import com.myfoodie.domain.model.RecetaDescartada;
+import com.myfoodie.domain.model.TipoMatch;
 import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.IngredienteRecetaRepository;
 import com.myfoodie.domain.repository.LikeRepository;
@@ -61,6 +62,7 @@ public class FeedService {
     private final DespensaService despensaService;
     private final SocialService socialService;
     private final RecomendacionService recomendacionService;
+    private final MatchingService matchingService;
 
     public FeedResponseDTO obtenerFeed(String usuarioId, int pagina, int tamaño) {
         Set<String> seguidosIds = obtenerSeguidosIds(usuarioId);
@@ -144,8 +146,17 @@ public class FeedService {
                                                 Set<String> seguidosIds, DescartesInfo descartes,
                                                 boolean priorizarSeguidos) {
         PerfilGustos perfilGustos = obtenerOPredeterminarPerfil(usuarioId);
-        Set<String> ingredientesDespensa = obtenerIngredientesDespensa(usuarioId);
-        Set<String> ingredientesProximosACaducar = obtenerIngredientesProximosACaducar(usuarioId);
+        List<ProductoResponseDTO> productosDespensa = despensaService.listarProductos(usuarioId);
+        List<String> nombresProductosDespensa = productosDespensa.stream()
+                .map(ProductoResponseDTO::nombre)
+                .filter(nombre -> nombre != null && !nombre.isBlank())
+                .toList();
+        Set<String> ingredientesProximosACaducar = productosDespensa.stream()
+                .filter(p -> ESTADO_CADUCA_HOY.equals(p.estado()) || ESTADO_CADUCA_PRONTO.equals(p.estado()))
+                .map(ProductoResponseDTO::nombre)
+                .filter(nombre -> nombre != null && !nombre.isBlank())
+                .map(nombre -> nombre.trim().toLowerCase())
+                .collect(Collectors.toSet());
 
         List<String> idsCandidatas = candidatas.stream().map(Receta::getId).toList();
         Map<String, List<String>> likesDeSeguidosPorReceta = obtenerLikesDeSeguidosPorReceta(idsCandidatas, seguidosIds);
@@ -154,7 +165,7 @@ public class FeedService {
         List<CandidatoRecetaDTO> candidatos = candidatas.stream()
                 .map(receta -> construirCandidato(
                         receta,
-                        ingredientesDespensa,
+                        nombresProductosDespensa,
                         ingredientesProximosACaducar,
                         likesDeSeguidosPorReceta.getOrDefault(receta.getId(), List.of()),
                         recetasCompartidasPorSeguido.contains(receta.getId()),
@@ -180,7 +191,7 @@ public class FeedService {
         Map<String, String> nombresPorUsuarioId = resolverNombresLikers(paginaOrdenada, likesDeSeguidosPorReceta);
 
         List<RecetaFeedDTO> recetasPagina = paginaOrdenada.stream()
-                .map(rp -> toFeedDTO(rp, usuarioId, ingredientesDespensa, seguidosIds, likesDeSeguidosPorReceta,
+                .map(rp -> toFeedDTO(rp, usuarioId, nombresProductosDespensa, seguidosIds, likesDeSeguidosPorReceta,
                         recetasCompartidasPorSeguido, nombresPorUsuarioId))
                 .toList();
 
@@ -197,22 +208,37 @@ public class FeedService {
                         .build());
     }
 
-    private Set<String> obtenerIngredientesDespensa(String usuarioId) {
-        return despensaService.listarProductos(usuarioId).stream()
-                .map(ProductoResponseDTO::nombre)
-                .filter(nombre -> nombre != null && !nombre.isBlank())
-                .map(nombre -> nombre.trim().toLowerCase())
-                .collect(Collectors.toSet());
+    private CoincidenciaDespensa calcularCoincidenciaDespensa(List<IngredienteReceta> ingredientes,
+                                                                List<String> nombresProductosDespensa) {
+        int disponibles = 0;
+        boolean huboParcial = false;
+        for (IngredienteReceta ingrediente : ingredientes) {
+            TipoMatch tipo = mejorTipoMatch(ingrediente.getNombre(), nombresProductosDespensa);
+            if (tipo != TipoMatch.NUEVO) {
+                disponibles++;
+                if (tipo == TipoMatch.PROPONER) {
+                    huboParcial = true;
+                }
+            }
+        }
+        int total = ingredientes.size();
+        int faltantes = total - disponibles;
+        double coincidencia = total == 0 ? 0 : Math.round(disponibles * 1000.0 / total) / 10.0;
+        return new CoincidenciaDespensa(disponibles, faltantes, coincidencia, huboParcial);
     }
 
-    private Set<String> obtenerIngredientesProximosACaducar(String usuarioId) {
-        return despensaService.listarProductos(usuarioId).stream()
-                .filter(p -> ESTADO_CADUCA_HOY.equals(p.estado()) || ESTADO_CADUCA_PRONTO.equals(p.estado()))
-                .map(ProductoResponseDTO::nombre)
-                .filter(nombre -> nombre != null && !nombre.isBlank())
-                .map(nombre -> nombre.trim().toLowerCase())
-                .collect(Collectors.toSet());
+    private TipoMatch mejorTipoMatch(String nombreIngrediente, List<String> nombresProductosDespensa) {
+        if (nombreIngrediente == null || nombresProductosDespensa.isEmpty()) {
+            return TipoMatch.NUEVO;
+        }
+        double mejorPuntuacion = nombresProductosDespensa.stream()
+                .mapToDouble(nombreProducto -> matchingService.calcularSimilitud(nombreIngrediente, nombreProducto).puntuacion())
+                .max()
+                .orElse(0.0);
+        return matchingService.clasificarMatch(mejorPuntuacion);
     }
+
+    private record CoincidenciaDespensa(int disponibles, int faltantes, double coincidencia, boolean coincidenciaParcial) {}
 
     private Map<String, List<String>> obtenerLikesDeSeguidosPorReceta(List<String> recetaIds, Set<String> seguidosIds) {
         if (recetaIds.isEmpty() || seguidosIds.isEmpty()) {
@@ -248,44 +274,32 @@ public class FeedService {
                 .collect(Collectors.toMap(Usuario::getId, Usuario::getNombre));
     }
 
-    private CandidatoRecetaDTO construirCandidato(Receta receta, Set<String> ingredientesDespensa,
+    private CandidatoRecetaDTO construirCandidato(Receta receta, List<String> nombresProductosDespensa,
                                                     Set<String> ingredientesProximosACaducar,
                                                     List<String> seguidosQueDieronLike, boolean compartidaPorSeguido,
                                                     LocalDateTime fechaDescarte) {
         List<IngredienteReceta> ingredientes = ingredienteRepository.findByRecetaId(receta.getId());
-
-        int total = ingredientes.size();
-        int disponibles = (int) ingredientes.stream()
-                .filter(i -> i.getNombre() != null
-                        && ingredientesDespensa.contains(i.getNombre().trim().toLowerCase()))
-                .count();
-        double coincidencia = total == 0 ? 0 : Math.round(disponibles * 1000.0 / total) / 10.0;
+        CoincidenciaDespensa coincidenciaInfo = calcularCoincidenciaDespensa(ingredientes, nombresProductosDespensa);
 
         boolean tieneProximosACaducar = ingredientes.stream()
                 .anyMatch(i -> i.getNombre() != null
                         && ingredientesProximosACaducar.contains(i.getNombre().trim().toLowerCase()));
 
         ContextoPuntuacionDTO contexto = new ContextoPuntuacionDTO(
-                coincidencia, tieneProximosACaducar, seguidosQueDieronLike, compartidaPorSeguido, fechaDescarte);
+                coincidenciaInfo.coincidencia(), tieneProximosACaducar, seguidosQueDieronLike, compartidaPorSeguido,
+                fechaDescarte);
 
         return new CandidatoRecetaDTO(receta, contexto);
     }
 
     private RecetaFeedDTO toFeedDTO(RecetaPuntuadaDTO recetaPuntuada, String usuarioId,
-                                     Set<String> ingredientesDespensa, Set<String> seguidosIds,
+                                     List<String> nombresProductosDespensa, Set<String> seguidosIds,
                                      Map<String, List<String>> likesDeSeguidosPorReceta,
                                      Set<String> recetasCompartidasPorSeguido,
                                      Map<String, String> nombresPorUsuarioId) {
         Receta receta = recetaPuntuada.receta();
         List<IngredienteReceta> ingredientes = ingredienteRepository.findByRecetaId(receta.getId());
-
-        int total = ingredientes.size();
-        int disponibles = (int) ingredientes.stream()
-                .filter(i -> i.getNombre() != null
-                        && ingredientesDespensa.contains(i.getNombre().trim().toLowerCase()))
-                .count();
-        int faltantes = total - disponibles;
-        double coincidencia = total == 0 ? 0 : Math.round(disponibles * 1000.0 / total) / 10.0;
+        CoincidenciaDespensa coincidenciaInfo = calcularCoincidenciaDespensa(ingredientes, nombresProductosDespensa);
 
         Usuario autor = usuarioRepository.findById(receta.getAutorId()).orElse(null);
         long likes = likeRepository.countByRecetaId(receta.getId());
@@ -323,15 +337,16 @@ public class FeedService {
                 likes,
                 yaLike,
                 yaGuardada,
-                coincidencia,
-                disponibles,
-                faltantes,
+                coincidenciaInfo.coincidencia(),
+                coincidenciaInfo.disponibles(),
+                coincidenciaInfo.faltantes(),
                 receta.getCreatedAt(),
                 recetaPuntuada.motivoRecomendacion(),
                 publicadaPorSeguido,
                 likesDeSeguidosCount,
                 contextoSocial,
-                recetaPuntuada.modoFallback());
+                recetaPuntuada.modoFallback(),
+                coincidenciaInfo.coincidenciaParcial());
     }
 
     private String construirTextoContexto(List<String> nombresLikers, int totalLikesDeSeguidos,

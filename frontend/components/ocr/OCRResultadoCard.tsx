@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
-import { ResultadoOCR } from '@/services/ocrService';
+import { Producto } from '@/services/despensaService';
+import { AccionOCR, ResultadoOCR } from '@/services/ocrService';
 import { getCategoriaConfig } from '@/utils/categoriaConfig';
 import { etiquetaUnidad, UNIDADES_OBJETIVAS } from '@/utils/unidadConfig';
 import { borderRadius, colors, spacing, typography } from '@/theme';
@@ -51,6 +52,32 @@ function unidadInicialDesde(unidadDetectada: string | null): string {
   return unidadDetectada === 'gr' ? 'g' : unidadDetectada;
 }
 
+type LoteInfo = { tipo: 'nuevo' } | { tipo: 'existente'; nombreExistente: string };
+
+// El backend confirma este resultado siempre a través de registrarEntradaProducto (accion
+// "actualizado") o añadirProductoConLote (accion "nuevo") — incluso cuando la accion original
+// era "sugerencia" y el usuario acaba de resolverla aquí mismo. Por eso el aviso de lote puede
+// calcularse igual en los tres casos, replicando la misma regla que usa el backend.
+function calcularLoteInfo(
+  accion: AccionOCR,
+  confirmaSugerencia: boolean | null,
+  productoExistente: Producto | null,
+  fechaCaducidad: string
+): LoteInfo | null {
+  if (accion === 'sugerencia' && confirmaSugerencia === null) return null; // aún sin resolver
+
+  const seActualiza = accion === 'actualizado' || (accion === 'sugerencia' && confirmaSugerencia === true);
+
+  if (!seActualiza) {
+    return { tipo: 'nuevo' };
+  }
+  if (!productoExistente) return null;
+  const creaLote =
+    productoExistente.tieneLotes === true ||
+    (!!fechaCaducidad && !!productoExistente.fechaCaducidad && fechaCaducidad !== productoExistente.fechaCaducidad);
+  return creaLote ? { tipo: 'existente', nombreExistente: productoExistente.nombre } : null;
+}
+
 export function OCRResultadoCard({ resultado, onChange }: Props) {
   const { productoTicket, accion, productoExistente, mensajeSugerencia } = resultado;
 
@@ -69,6 +96,7 @@ export function OCRResultadoCard({ resultado, onChange }: Props) {
   const [categoria, setCategoria] = useState('');
 
   const esNuevo = accion === 'nuevo';
+  const loteInfo = calcularLoteInfo(accion, confirmaSugerencia, productoExistente, fechaCaducidad);
 
   const notify = (overrides: Partial<AjusteOCR> = {}) => {
     onChange({
@@ -233,6 +261,17 @@ export function OCRResultadoCard({ resultado, onChange }: Props) {
             </Pressable>
           )}
         </View>
+      )}
+
+      {loteInfo && (
+        <Badge
+          label={
+            loteInfo.tipo === 'nuevo'
+              ? 'Se creará como producto nuevo con su primer lote'
+              : `Se añadirá como nuevo lote de "${loteInfo.nombreExistente}"`
+          }
+          variant="neutral"
+        />
       )}
 
       <View style={styles.campos}>
