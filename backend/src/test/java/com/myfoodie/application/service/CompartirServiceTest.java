@@ -7,6 +7,7 @@ import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.receta.RecetaResponseDTO;
 import com.myfoodie.domain.model.Privacidad;
 import com.myfoodie.domain.model.RecetaCompartida;
+import com.myfoodie.domain.model.VisibilidadReceta;
 import com.myfoodie.domain.model.Seguimiento;
 import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.BloqueoRepository;
@@ -73,8 +74,8 @@ class CompartirServiceTest {
                                               List<RecetaResponseDTO.IngredienteResponseDTO> ingredientes) {
         return new RecetaResponseDTO(
                 id, "autor-1", "Autor Uno", "autoruno", "Título", "Descripción",
-                20, "facil", "entrante", List.of(), null, estado, 2,
-                ingredientes, List.of(), LocalDateTime.now(), LocalDateTime.now());
+                20, "facil", "entrante", List.of(), null, estado, VisibilidadReceta.PUBLICA, 2,
+                ingredientes, List.of(), 0, LocalDateTime.now(), LocalDateTime.now());
     }
 
     private ProductoResponseDTO productoDespensa(String nombre) {

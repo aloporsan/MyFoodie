@@ -13,4 +13,6 @@ public interface BloqueoRepository extends MongoRepository<Bloqueo, String> {
     boolean existsByBloqueadorIdAndBloqueadoId(String bloqueadorId, String bloqueadoId);
 
     List<Bloqueo> findByBloqueadorId(String bloqueadorId);
+
+    List<Bloqueo> findByBloqueadoId(String bloqueadoId);
 }

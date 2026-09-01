@@ -16,7 +16,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -229,6 +231,25 @@ public class SocialService {
         return bloqueoRepository.findByBloqueadorId(bloqueadorId).stream()
                 .map(b -> toUsuarioBusquedaResponse(obtenerUsuario(b.getBloqueadoId()), bloqueadorId))
                 .toList();
+    }
+
+    /** Comprueba si existe un bloqueo entre dos usuarios en cualquiera de las dos direcciones. */
+    public boolean estaBloqueado(String usuarioAId, String usuarioBId) {
+        return hayBloqueoEntre(usuarioAId, usuarioBId);
+    }
+
+    /** IDs de usuarios que deben quedar ocultos para {@code usuarioId}: los que ha bloqueado y los que le han bloqueado. */
+    public Set<String> obtenerIdsOcultosPara(String usuarioId) {
+        Set<String> ocultos = new HashSet<>();
+        bloqueoRepository.findByBloqueadorId(usuarioId).forEach(b -> ocultos.add(b.getBloqueadoId()));
+        bloqueoRepository.findByBloqueadoId(usuarioId).forEach(b -> ocultos.add(b.getBloqueadorId()));
+        return ocultos;
+    }
+
+    public boolean esSeguidorAceptado(String seguidorId, String seguidoId) {
+        return seguimientoRepository.findBySeguidorIdAndSeguidoId(seguidorId, seguidoId)
+                .filter(s -> ESTADO_ACEPTADO.equals(s.getEstado()))
+                .isPresent();
     }
 
     // ---------- Helpers ----------

@@ -1,5 +1,7 @@
 package com.myfoodie.application.dto.receta;
 
+import com.myfoodie.domain.model.VisibilidadReceta;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -16,6 +18,7 @@ public record RecetaResponseDTO(
         List<String> etiquetas,
         String imagenUrl,
         String estado,
+        VisibilidadReceta visibilidad,
         Integer numPersonas,
         List<IngredienteResponseDTO> ingredientes,
         List<PasoResponseDTO> pasos,

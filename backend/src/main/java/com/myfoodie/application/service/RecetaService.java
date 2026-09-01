@@ -11,6 +11,7 @@ import com.myfoodie.domain.model.Receta;
 import com.myfoodie.domain.model.RecetaGuardada;
 import com.myfoodie.domain.model.TipoMatch;
 import com.myfoodie.domain.model.Usuario;
+import com.myfoodie.domain.model.VisibilidadReceta;
 import com.myfoodie.domain.repository.ComentarioRepository;
 import com.myfoodie.domain.repository.DespensaRepository;
 import com.myfoodie.domain.repository.IngredienteRecetaRepository;
@@ -50,6 +51,7 @@ public class RecetaService {
     private final CarritoInteligenteService carritoInteligenteService;
     private final UnidadNormalizadorService unidadNormalizadorService;
     private final MatchingService matchingService;
+    private final SocialService socialService;
 
     // -------------------------------------------------------------------------
     // CRUD básico
@@ -70,6 +72,7 @@ public class RecetaService {
                 .imagenUrl(dto.imagenUrl())
                 .numPersonas(dto.numPersonas() != null ? dto.numPersonas() : 2)
                 .estado("borrador")
+                .visibilidad(dto.visibilidad() != null ? dto.visibilidad() : VisibilidadReceta.PUBLICA)
                 .build();
 
         Receta saved = recetaRepository.save(receta);
@@ -77,7 +80,29 @@ public class RecetaService {
     }
 
     public RecetaResponseDTO obtenerReceta(String recetaId, String usuarioId) {
-        return toDTO(getReceta(recetaId));
+        Receta receta = getReceta(recetaId);
+        verificarAccesoLectura(receta, usuarioId);
+        return toDTO(receta);
+    }
+
+    private void verificarAccesoLectura(Receta receta, String usuarioId) {
+        if (receta.getAutorId().equals(usuarioId)) {
+            return;
+        }
+        // 404 en vez de 403 para no revelar la existencia de contenido ajeno no accesible
+        if (socialService.estaBloqueado(receta.getAutorId(), usuarioId)) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "Receta no encontrada");
+        }
+        VisibilidadReceta visibilidad = receta.getVisibilidad() != null
+                ? receta.getVisibilidad() : VisibilidadReceta.PUBLICA;
+        boolean permitido = switch (visibilidad) {
+            case PUBLICA -> true;
+            case SOLO_SEGUIDORES -> socialService.esSeguidorAceptado(usuarioId, receta.getAutorId());
+            case PRIVADA -> false;
+        };
+        if (!permitido) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "Receta no encontrada");
+        }
     }
 
     public RecetaResponseDTO editarReceta(String usuarioId, String recetaId, RecetaRequestDTO dto) {
@@ -91,6 +116,9 @@ public class RecetaService {
         receta.setEtiquetas(dto.etiquetas() != null ? dto.etiquetas() : new ArrayList<>());
         receta.setImagenUrl(dto.imagenUrl());
         receta.setNumPersonas(dto.numPersonas() != null ? dto.numPersonas() : 2);
+        if (dto.visibilidad() != null) {
+            receta.setVisibilidad(dto.visibilidad());
+        }
         receta.setUpdatedAt(LocalDateTime.now());
 
         return toDTO(recetaRepository.save(receta));
@@ -465,6 +493,7 @@ public class RecetaService {
                 receta.getEtiquetas(),
                 receta.getImagenUrl(),
                 receta.getEstado(),
+                receta.getVisibilidad() != null ? receta.getVisibilidad() : VisibilidadReceta.PUBLICA,
                 receta.getNumPersonas(),
                 ingredientes,
                 pasos,
