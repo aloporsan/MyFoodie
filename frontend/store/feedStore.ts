@@ -18,6 +18,7 @@ interface AccionFeed {
 interface FeedState {
   recetas: RecetaFeed[];
   fuente: FuenteFeed;
+  etiquetaSeleccionada: string | null;
   pagina: number;
   hayMas: boolean;
   isLoading: boolean;
@@ -30,6 +31,7 @@ interface FeedState {
 
 interface FeedActions {
   cargarFeed: (fuente?: FuenteFeed) => Promise<void>;
+  filtrarPorEtiqueta: (etiqueta: string | null) => Promise<void>;
   cargarMas: () => Promise<void>;
   guardarReceta: (id: string) => Promise<void>;
   descartarReceta: (id: string) => Promise<void>;
@@ -45,6 +47,7 @@ interface FeedActions {
 const ESTADO_INICIAL: FeedState = {
   recetas: [],
   fuente: 'para-ti',
+  etiquetaSeleccionada: null,
   pagina: 0,
   hayMas: false,
   isLoading: false,
@@ -55,17 +58,24 @@ const ESTADO_INICIAL: FeedState = {
   isLoadingPerfilGustos: false,
 };
 
-function obtenerFeedPorFuente(fuente: FuenteFeed) {
-  return fuente === 'seguidos' ? feedService.obtenerRecetasSeguidos : feedService.obtenerFeed;
+function cargarPagina(fuente: FuenteFeed, etiqueta: string | null, pagina: number) {
+  if (fuente === 'seguidos') {
+    return feedService.obtenerRecetasSeguidos(pagina, TAMAÑO_PAGINA);
+  }
+  return etiqueta
+    ? feedService.obtenerFeed(pagina, TAMAÑO_PAGINA, etiqueta)
+    : feedService.obtenerFeed(pagina, TAMAÑO_PAGINA);
 }
 
 export const useFeedStore = create<FeedState & FeedActions>()((set, get) => ({
   ...ESTADO_INICIAL,
 
   cargarFeed: async (fuente = 'para-ti') => {
-    set({ isLoading: true, error: null, fuente });
+    // El filtro por etiqueta solo aplica al feed "para ti"; al ver "seguidos" se descarta.
+    const etiquetaSeleccionada = fuente === 'seguidos' ? null : get().etiquetaSeleccionada;
+    set({ isLoading: true, error: null, fuente, etiquetaSeleccionada });
     try {
-      const respuesta = await obtenerFeedPorFuente(fuente)(0, TAMAÑO_PAGINA);
+      const respuesta = await cargarPagina(fuente, etiquetaSeleccionada, 0);
       set({
         recetas: respuesta.recetas,
         pagina: respuesta.pagina,
@@ -77,13 +87,18 @@ export const useFeedStore = create<FeedState & FeedActions>()((set, get) => ({
     }
   },
 
+  filtrarPorEtiqueta: async (etiqueta) => {
+    set({ etiquetaSeleccionada: etiqueta });
+    await get().cargarFeed('para-ti');
+  },
+
   cargarMas: async () => {
-    const { hayMas, isLoadingMas, pagina, fuente } = get();
+    const { hayMas, isLoadingMas, pagina, fuente, etiquetaSeleccionada } = get();
     if (!hayMas || isLoadingMas) return;
 
     set({ isLoadingMas: true, error: null });
     try {
-      const respuesta = await obtenerFeedPorFuente(fuente)(pagina + 1, TAMAÑO_PAGINA);
+      const respuesta = await cargarPagina(fuente, etiquetaSeleccionada, pagina + 1);
       set((s) => ({
         recetas: [...s.recetas, ...respuesta.recetas],
         pagina: respuesta.pagina,

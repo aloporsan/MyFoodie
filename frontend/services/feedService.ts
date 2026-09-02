@@ -52,9 +52,13 @@ export interface PerfilGustos {
 }
 
 export const feedService = {
-  obtenerFeed: async (pagina: number, tamaño: number): Promise<FeedResponse> => {
+  obtenerFeed: async (
+    pagina: number,
+    tamaño: number,
+    etiqueta?: string
+  ): Promise<FeedResponse> => {
     const { data } = await apiClient.get<FeedResponse>('/feed', {
-      params: { pagina, tamaño },
+      params: { pagina, tamaño, ...(etiqueta ? { etiqueta } : {}) },
     });
     return data;
   },
