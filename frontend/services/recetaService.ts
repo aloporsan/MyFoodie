@@ -31,7 +31,9 @@ export interface Receta {
   etiquetas: string[];
   imagenUrl?: string;
   estado: EstadoReceta;
+  visibilidad?: VisibilidadReceta;
   numPersonas: number;
+  numeroComentarios?: number;
   totalLikes?: number;
   likeUsuario?: boolean;
   ingredientes: IngredienteReceta[];
@@ -39,6 +41,8 @@ export interface Receta {
   createdAt: string;
   updatedAt: string;
 }
+
+export type VisibilidadReceta = 'PUBLICA' | 'SOLO_SEGUIDORES' | 'PRIVADA';
 
 export interface RecetaResumen {
   id: string;

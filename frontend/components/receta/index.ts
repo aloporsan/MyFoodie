@@ -1,4 +1,6 @@
+export { ComentarioCard } from './ComentarioCard';
 export { EtiquetasSelector } from './EtiquetasSelector';
+export { ListaComentarios } from './ListaComentarios';
 export { FormIngrediente } from './FormIngrediente';
 export { FormPaso } from './FormPaso';
 export { FormRecetaBasica } from './FormRecetaBasica';

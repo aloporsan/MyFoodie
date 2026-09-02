@@ -8,6 +8,7 @@ import { ModalCompartir } from '@/components/compartir/ModalCompartir';
 import { ErrorScreen } from '@/components/common/ErrorScreen';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
+import { ListaComentarios } from '@/components/receta';
 import { useToast } from '@/hooks/useToast';
 import { despensaService } from '@/services/despensaService';
 import { feedService } from '@/services/feedService';
@@ -44,6 +45,7 @@ export function DetalleRecetaFeedScreen() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalCompartirVisible, setModalCompartirVisible] = useState(false);
+  const [numComentarios, setNumComentarios] = useState(0);
 
   useEffect(() => {
     if (!id) return;
@@ -54,6 +56,7 @@ export function DetalleRecetaFeedScreen() {
       .then(([detalle, productos]) => {
         if (cancelado) return;
         setReceta(detalle);
+        setNumComentarios(detalle.numeroComentarios ?? 0);
         setNombresDespensa(new Set(productos.map((p) => p.nombre.trim().toLowerCase())));
         setError(null);
       })
@@ -319,11 +322,13 @@ export function DetalleRecetaFeedScreen() {
           </View>
 
           <View style={styles.card}>
-            <SectionHeader icon="chatbubble-outline" iconColor={colors.grayDark} titulo="Comentarios" count={0} />
-            <View style={styles.comentariosPlaceholder}>
-              <Ionicons name="chatbubbles-outline" size={32} color={colors.grayMid} />
-              <Text style={styles.vacioText}>Los comentarios estarán disponibles próximamente</Text>
-            </View>
+            <SectionHeader
+              icon="chatbubble-outline"
+              iconColor={colors.grayDark}
+              titulo="Comentarios"
+              count={numComentarios}
+            />
+            {id ? <ListaComentarios recetaId={id} onCountChange={setNumComentarios} /> : null}
           </View>
         </View>
       </ScrollView>
@@ -461,12 +466,6 @@ const styles = StyleSheet.create({
   carritoBtnTexto: { ...typography.button, color: colors.white },
 
   pasosList: { gap: spacing.md },
-
-  comentariosPlaceholder: {
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-  },
 });
 
 const secStyles = StyleSheet.create({
