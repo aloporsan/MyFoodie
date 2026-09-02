@@ -66,13 +66,21 @@ public class FeedService {
     private final MatchingService matchingService;
 
     public FeedResponseDTO obtenerFeed(String usuarioId, int pagina, int tamaño) {
+        return obtenerFeed(usuarioId, pagina, tamaño, null);
+    }
+
+    public FeedResponseDTO obtenerFeed(String usuarioId, int pagina, int tamaño, String etiqueta) {
         Set<String> seguidosIds = obtenerSeguidosIds(usuarioId);
         DescartesInfo descartes = obtenerDescartes(usuarioId);
 
         int tamañoPool = calcularTamañoPool(tamaño);
         PageRequest poolRequest = PageRequest.of(0, tamañoPool, Sort.by(Sort.Direction.DESC, "createdAt"));
-        List<Receta> candidatas = recetaRepository.findByEstadoAndAutorIdNotAndIdNotIn(
-                ESTADO_PUBLICADA, usuarioId, descartes.idsRecientes(), poolRequest).getContent();
+        boolean filtrarPorEtiqueta = etiqueta != null && !etiqueta.isBlank();
+        List<Receta> candidatas = filtrarPorEtiqueta
+                ? recetaRepository.findByEstadoAndEtiquetasContainingAndAutorIdNotAndIdNotIn(
+                        ESTADO_PUBLICADA, etiqueta.trim(), usuarioId, descartes.idsRecientes(), poolRequest).getContent()
+                : recetaRepository.findByEstadoAndAutorIdNotAndIdNotIn(
+                        ESTADO_PUBLICADA, usuarioId, descartes.idsRecientes(), poolRequest).getContent();
         candidatas = filtrarAccesibles(candidatas, usuarioId, seguidosIds);
 
         return construirRespuesta(candidatas, usuarioId, pagina, tamaño, seguidosIds, descartes, true);

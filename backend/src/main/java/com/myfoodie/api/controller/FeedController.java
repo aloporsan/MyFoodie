@@ -31,8 +31,9 @@ public class FeedController {
     public ResponseEntity<FeedResponseDTO> obtenerFeed(
             @RequestParam(defaultValue = "0") int pagina,
             @RequestParam(name = "tamaño", defaultValue = "10") int tamaño,
+            @RequestParam(required = false) String etiqueta,
             Principal principal) {
-        return ResponseEntity.ok(feedService.obtenerFeed(getUsuarioId(principal), pagina, tamaño));
+        return ResponseEntity.ok(feedService.obtenerFeed(getUsuarioId(principal), pagina, tamaño, etiqueta));
     }
 
     @GetMapping("/recetas/{id}")

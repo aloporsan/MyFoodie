@@ -19,6 +19,9 @@ public interface RecetaRepository extends MongoRepository<Receta, String> {
     Page<Receta> findByEstadoAndAutorIdNotAndIdNotIn(
             String estado, String autorId, Collection<String> idsExcluidos, Pageable pageable);
 
+    Page<Receta> findByEstadoAndEtiquetasContainingAndAutorIdNotAndIdNotIn(
+            String estado, String etiqueta, String autorId, Collection<String> idsExcluidos, Pageable pageable);
+
     Page<Receta> findByEstadoAndAutorIdInAndIdNotIn(
             String estado, Collection<String> autorIds, Collection<String> idsExcluidos, Pageable pageable);
 }
