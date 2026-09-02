@@ -181,6 +181,11 @@ export const recetaService = {
     return data;
   },
 
+  recetasDeUsuario: async (usuarioId: string): Promise<Receta[]> => {
+    const { data } = await apiClient.get<Receta[]>(`/recetas/usuario/${usuarioId}`);
+    return data;
+  },
+
   guardarReceta: async (id: string): Promise<void> => {
     await apiClient.post(`/recetas/${id}/guardar`);
   },
