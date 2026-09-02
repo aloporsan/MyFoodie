@@ -114,14 +114,24 @@ export function FeedScreen() {
       <View onLayout={(e) => setAlturaCabecera(e.nativeEvent.layout.height)}>
         <View style={styles.header}>
           <Text style={styles.headerTitulo}>Feed</Text>
-          <Pressable
-            style={({ pressed }) => [styles.btnBuscar, pressed && styles.btnBuscarPressed]}
-            onPress={() => router.push('/social/buscar')}
-            hitSlop={8}
-            testID="btn-buscar-usuarios"
-          >
-            <Ionicons name="search" size={20} color={colors.primary} />
-          </Pressable>
+          <View style={styles.headerAcciones}>
+            <Pressable
+              style={({ pressed }) => [styles.btnBuscar, pressed && styles.btnBuscarPressed]}
+              onPress={() => router.push('/feed/buscar')}
+              hitSlop={8}
+              testID="btn-buscar-recetas"
+            >
+              <Ionicons name="search" size={20} color={colors.primary} />
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.btnBuscar, pressed && styles.btnBuscarPressed]}
+              onPress={() => router.push('/social/buscar')}
+              hitSlop={8}
+              testID="btn-buscar-usuarios"
+            >
+              <Ionicons name="people-outline" size={20} color={colors.primary} />
+            </Pressable>
+          </View>
         </View>
 
         <FiltroFeedBar filtroActivo={filtro} onFiltroChange={setFiltro} />
@@ -172,6 +182,10 @@ const styles = StyleSheet.create({
   headerTitulo: {
     ...typography.heading1,
     color: colors.text.primary,
+  },
+  headerAcciones: {
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
   btnBuscar: {
     width: 40,

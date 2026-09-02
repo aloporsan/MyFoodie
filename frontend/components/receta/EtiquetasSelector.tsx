@@ -1,17 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ETIQUETAS_SUGERIDAS } from '@/constants/etiquetas';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
-
-const ETIQUETAS_SUGERIDAS = [
-  'vegetariano', 'vegano', 'sin gluten', 'sin lactosa',
-  'rápido', 'económico', 'saludable', 'picante',
-  'dulce', 'proteico', 'apto niños', 'mediterráneo',
-  'tradicional', 'bajo en calorías', 'alto en proteínas',
-];
 
 interface Props {
   etiquetas: string[];

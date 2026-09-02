@@ -1,10 +1,13 @@
-import { useEffect, useRef } from 'react';
-import { Animated, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { contarFiltros } from '@/constants/filtrosReceta';
 import { useFeedStore } from '@/store/feedStore';
 import { colors } from '@/theme/colors';
 import { borderRadius } from '@/theme/borderRadius';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
+import { FiltrosRecetaSheet } from './FiltrosRecetaSheet';
 
 export type FiltroFeed = 'para-ti' | 'seguidos' | 'despensa';
 
@@ -28,6 +31,11 @@ interface FiltroFeedBarProps {
 
 export function FiltroFeedBar({ filtroActivo, onFiltroChange }: FiltroFeedBarProps) {
   const cargarFeed = useFeedStore((s) => s.cargarFeed);
+  const filtros = useFeedStore((s) => s.filtros);
+  const aplicarFiltros = useFeedStore((s) => s.aplicarFiltros);
+
+  const [sheetVisible, setSheetVisible] = useState(false);
+  const totalFiltros = contarFiltros(filtros);
 
   const handlePress = (filtro: FiltroFeed) => {
     if (filtro === filtroActivo) return;
@@ -37,21 +45,47 @@ export function FiltroFeedBar({ filtroActivo, onFiltroChange }: FiltroFeedBarPro
   };
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.content}
-      testID="filtro-feed-bar"
-    >
-      {FILTROS.map((filtro) => (
-        <FiltroChip
-          key={filtro.id}
-          filtro={filtro}
-          activo={filtro.id === filtroActivo}
-          onPress={() => handlePress(filtro.id)}
-        />
-      ))}
-    </ScrollView>
+    <View style={styles.barra}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+        testID="filtro-feed-bar"
+      >
+        {FILTROS.map((filtro) => (
+          <FiltroChip
+            key={filtro.id}
+            filtro={filtro}
+            activo={filtro.id === filtroActivo}
+            onPress={() => handlePress(filtro.id)}
+          />
+        ))}
+      </ScrollView>
+
+      <Pressable
+        style={styles.btnFiltros}
+        onPress={() => setSheetVisible(true)}
+        hitSlop={8}
+        testID="btn-abrir-filtros"
+      >
+        <Ionicons name="options-outline" size={20} color={colors.primary} />
+        {totalFiltros > 0 && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeTexto}>{totalFiltros}</Text>
+          </View>
+        )}
+      </Pressable>
+
+      <FiltrosRecetaSheet
+        visible={sheetVisible}
+        filtros={filtros}
+        onCerrar={() => setSheetVisible(false)}
+        onAplicar={(nuevos) => {
+          setSheetVisible(false);
+          void aplicarFiltros(nuevos);
+        }}
+      />
+    </View>
   );
 }
 
@@ -93,9 +127,13 @@ function FiltroChip({
 }
 
 const styles = StyleSheet.create({
+  barra: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: spacing.lg,
+  },
   content: {
     flexGrow: 1,
-    justifyContent: 'center',
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: spacing.lg,
@@ -108,6 +146,33 @@ const styles = StyleSheet.create({
   },
   chipTexto: {
     ...typography.label,
+    fontWeight: '700',
+  },
+  btnFiltros: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#E8F5D0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeTexto: {
+    ...typography.caption,
+    fontSize: 10,
+    lineHeight: 12,
+    color: colors.white,
     fontWeight: '700',
   },
 });

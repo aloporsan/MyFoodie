@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { FiltrosReceta, filtrosRecetaAQuery, hayFiltros } from '@/constants/filtrosReceta';
 import { Receta } from './recetaService';
 
 export interface ContextoSocial {
@@ -18,6 +19,7 @@ export interface RecetaFeed {
   autorFoto?: string;
   tiempoEstimado: number;
   dificultad: string;
+  categoria?: string;
   numPersonas: number;
   etiquetas: string[];
   imagenUrl?: string;
@@ -52,9 +54,16 @@ export interface PerfilGustos {
 }
 
 export const feedService = {
-  obtenerFeed: async (pagina: number, tamaño: number): Promise<FeedResponse> => {
+  obtenerFeed: async (
+    pagina: number,
+    tamaño: number,
+    filtros?: FiltrosReceta
+  ): Promise<FeedResponse> => {
     const { data } = await apiClient.get<FeedResponse>('/feed', {
-      params: { pagina, tamaño },
+      params:
+        filtros && hayFiltros(filtros)
+          ? filtrosRecetaAQuery(filtros, { pagina, tamaño })
+          : { pagina, tamaño },
     });
     return data;
   },
@@ -104,10 +113,28 @@ export const feedService = {
     await apiClient.delete('/feed/descartadas');
   },
 
-  obtenerRecetasSeguidos: async (pagina: number, tamaño: number): Promise<FeedResponse> => {
+  obtenerRecetasSeguidos: async (
+    pagina: number,
+    tamaño: number,
+    filtros?: FiltrosReceta
+  ): Promise<FeedResponse> => {
     const { data } = await apiClient.get<FeedResponse>('/feed/recetas-seguidos', {
-      params: { pagina, tamaño },
+      params:
+        filtros && hayFiltros(filtros)
+          ? filtrosRecetaAQuery(filtros, { pagina, tamaño })
+          : { pagina, tamaño },
     });
+    return data;
+  },
+
+  buscarRecetas: async (texto: string, filtros?: FiltrosReceta): Promise<RecetaFeed[]> => {
+    const q = texto.trim();
+    if (!q) return [];
+    const params =
+      filtros && hayFiltros(filtros)
+        ? filtrosRecetaAQuery(filtros, { q })
+        : new URLSearchParams({ q });
+    const { data } = await apiClient.get<RecetaFeed[]>('/feed/buscar', { params });
     return data;
   },
 };

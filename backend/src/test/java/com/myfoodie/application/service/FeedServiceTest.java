@@ -2,9 +2,11 @@ package com.myfoodie.application.service;
 
 import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.feed.FeedResponseDTO;
+import com.myfoodie.application.dto.feed.FiltrosFeedDTO;
 import com.myfoodie.application.dto.feed.InicializarPerfilRequestDTO;
 import com.myfoodie.application.dto.feed.RecetaFeedDTO;
 import com.myfoodie.application.dto.matching.SimilitudResultDTO;
+import com.myfoodie.application.dto.social.SeguimientoResponseDTO;
 import com.myfoodie.domain.model.IngredienteReceta;
 import com.myfoodie.domain.model.PerfilGustos;
 import com.myfoodie.domain.model.Receta;
@@ -34,11 +36,13 @@ import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -97,6 +101,30 @@ class FeedServiceTest {
                 .estado("publicada")
                 .createdAt(LocalDateTime.now())
                 .build();
+    }
+
+    private Receta recetaCompleta(String id, String autorId, String categoria, String dificultad,
+                                    int tiempo, int personas, List<String> etiquetas) {
+        return Receta.builder()
+                .id(id)
+                .autorId(autorId)
+                .titulo("Receta " + id)
+                .tiempoEstimado(tiempo)
+                .dificultad(dificultad)
+                .categoria(categoria)
+                .numPersonas(personas)
+                .etiquetas(etiquetas)
+                .estado("publicada")
+                .createdAt(LocalDateTime.now())
+                .build();
+    }
+
+    /** Stubs mínimos para que el pipeline del feed no lance NPE en un test de filtrado. */
+    private void stubsFeedBasicos() {
+        lenient().when(recetaDescartadaRepository.findByUsuarioId(anyString())).thenReturn(List.of());
+        lenient().when(ingredienteRepository.findByRecetaId(anyString())).thenReturn(List.of());
+        lenient().when(despensaService.listarProductos(anyString())).thenReturn(List.of());
+        lenient().when(usuarioRepository.findById(anyString())).thenReturn(Optional.empty());
     }
 
     private ProductoResponseDTO productoDespensa(String nombre) {
@@ -247,5 +275,162 @@ class FeedServiceTest {
         feedService.inicializarPerfilDesdeOnboarding("user-1", dto);
 
         verify(perfilGustosRepository, org.mockito.Mockito.never()).save(any());
+    }
+
+    // ===== Filtros multidimensionales del feed (#37 ampliado) =====
+
+    private void stubPool(List<Receta> recetas) {
+        when(recetaRepository.findByEstadoAndAutorIdNotAndIdNotIn(
+                anyString(), anyString(), anyList(), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(recetas));
+    }
+
+    @Test
+    @DisplayName("obtenerFeed sin filtros devuelve todas las recetas del pool")
+    void obtenerFeed_sin_filtros_no_filtra() {
+        stubsFeedBasicos();
+        stubPool(List.of(
+                recetaCompleta("r-almuerzo", "a1", "Almuerzo", "Fácil", 30, 2, List.of("rápido")),
+                recetaCompleta("r-postre", "a2", "Postre", "Media", 50, 6, List.of("dulce"))));
+
+        FeedResponseDTO respuesta = feedService.obtenerFeed("user-1", 0, 10, FiltrosFeedDTO.vacios());
+
+        assertThat(respuesta.recetas()).extracting(RecetaFeedDTO::id)
+                .containsExactlyInAnyOrder("r-almuerzo", "r-postre");
+    }
+
+    @Test
+    @DisplayName("obtenerFeed filtra por categoría y dificultad combinadas con AND")
+    void obtenerFeed_combina_categoria_y_dificultad_con_AND() {
+        stubsFeedBasicos();
+        stubPool(List.of(
+                recetaCompleta("r-ok", "a1", "Postre", "Fácil", 40, 4, List.of()),
+                recetaCompleta("r-otra-cat", "a2", "Cena", "Fácil", 40, 4, List.of()),
+                recetaCompleta("r-otra-dif", "a3", "Postre", "Difícil", 40, 4, List.of())));
+
+        FeedResponseDTO respuesta = feedService.obtenerFeed("user-1", 0, 10,
+                new FiltrosFeedDTO(List.of("Postre"), List.of("Fácil"), null, null, null));
+
+        assertThat(respuesta.recetas()).extracting(RecetaFeedDTO::id).containsExactly("r-ok");
+    }
+
+    @Test
+    @DisplayName("obtenerFeed filtra por tiempo usando buckets 'min-max'")
+    void obtenerFeed_filtra_por_tiempo_con_buckets() {
+        stubsFeedBasicos();
+        stubPool(List.of(
+                recetaCompleta("r-rapida", "a1", "Almuerzo", "Fácil", 12, 2, List.of()),
+                recetaCompleta("r-media", "a2", "Almuerzo", "Fácil", 45, 2, List.of()),
+                recetaCompleta("r-larga", "a3", "Almuerzo", "Fácil", 90, 2, List.of())));
+
+        FeedResponseDTO respuesta = feedService.obtenerFeed("user-1", 0, 10,
+                new FiltrosFeedDTO(null, null, null, List.of("0-15", "61-9999"), null));
+
+        assertThat(respuesta.recetas()).extracting(RecetaFeedDTO::id)
+                .containsExactlyInAnyOrder("r-rapida", "r-larga");
+    }
+
+    @Test
+    @DisplayName("obtenerFeed neutraliza SOLO el eje filtrado en el perfil de gustos que ordena el feed")
+    void obtenerFeed_neutraliza_solo_el_eje_filtrado() {
+        stubsFeedBasicos();
+        PerfilGustos perfil = PerfilGustos.builder()
+                .usuarioId("user-1")
+                .categoriasPreferidas(new java.util.HashMap<>(Map.of("Almuerzo", 5)))
+                .dificultadesPreferidas(new java.util.HashMap<>(Map.of("Fácil", 5)))
+                .totalInteracciones(20)
+                .build();
+        when(perfilGustosRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(perfil));
+        stubPool(List.of(recetaCompleta("r1", "a1", "Almuerzo", "Media", 30, 2, List.of())));
+
+        feedService.obtenerFeed("user-1", 0, 10,
+                new FiltrosFeedDTO(null, List.of("Media"), null, null, null));
+
+        ArgumentCaptor<PerfilGustos> captor = ArgumentCaptor.forClass(PerfilGustos.class);
+        verify(recomendacionService).ordenarFeed(anyList(), eq("user-1"), any(), captor.capture());
+        assertThat(captor.getValue().getDificultadesPreferidas()).isEmpty();
+        assertThat(captor.getValue().getCategoriasPreferidas()).containsEntry("Almuerzo", 5);
+    }
+
+    @Test
+    @DisplayName("obtenerRecetasSeguidos también aplica los filtros")
+    void obtenerRecetasSeguidos_aplica_filtros() {
+        stubsFeedBasicos();
+        when(socialService.obtenerSeguidos("user-1")).thenReturn(List.of(
+                new SeguimientoResponseDTO("s1", "autor-seg", "N", "n", null, "aceptado", null)));
+        when(recetaRepository.findByEstadoAndAutorIdInAndIdNotIn(
+                anyString(), anyCollection(), anyList(), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(
+                        recetaCompleta("r-vegana", "autor-seg", "Almuerzo", "Fácil", 30, 2, List.of("vegano")),
+                        recetaCompleta("r-no", "autor-seg", "Almuerzo", "Fácil", 30, 2, List.of("carne")))));
+
+        FeedResponseDTO respuesta = feedService.obtenerRecetasSeguidos("user-1", 0, 10,
+                new FiltrosFeedDTO(null, null, List.of("vegano"), null, null));
+
+        assertThat(respuesta.recetas()).extracting(RecetaFeedDTO::id).containsExactly("r-vegana");
+    }
+
+    // ===== Buscador de recetas (#104 ampliado) =====
+
+    @Test
+    @DisplayName("buscarRecetas sin texto devuelve lista vacía sin consultar el repositorio")
+    void buscarRecetas_sin_texto_devuelve_lista_vacia() {
+        assertThat(feedService.buscarRecetas("user-1", "   ", FiltrosFeedDTO.vacios())).isEmpty();
+        verify(recetaRepository, org.mockito.Mockito.never()).findByEstado(anyString());
+    }
+
+    @Test
+    @DisplayName("buscarRecetas encuentra por título e ingrediente y ordena título antes que ingrediente")
+    void buscarRecetas_ordena_por_relevancia() {
+        stubsFeedBasicos();
+        when(recetaRepository.findByEstado("publicada")).thenReturn(List.of(
+                recetaConTitulo("r-ingr", "Ensalada verde"),
+                recetaConTitulo("r-titulo", "Tomate al horno")));
+        when(ingredienteRepository.findByNombreContainingIgnoreCase("tomate")).thenReturn(List.of(
+                IngredienteReceta.builder().recetaId("r-ingr").nombre("tomate cherry").build()));
+
+        List<RecetaFeedDTO> resultado = feedService.buscarRecetas("user-1", "Tomate", FiltrosFeedDTO.vacios());
+
+        assertThat(resultado).extracting(RecetaFeedDTO::id).containsExactly("r-titulo", "r-ingr");
+    }
+
+    @Test
+    @DisplayName("buscarRecetas aplica también los filtros multidimensionales")
+    void buscarRecetas_aplica_filtros() {
+        stubsFeedBasicos();
+        Receta sopaPostre = recetaCompleta("r-postre", "a1", "Postre", "Fácil", 10, 2, List.of());
+        sopaPostre.setTitulo("Sopa dulce");
+        Receta sopaAlmuerzo = recetaCompleta("r-almuerzo", "a2", "Almuerzo", "Fácil", 10, 2, List.of());
+        sopaAlmuerzo.setTitulo("Sopa fría");
+        when(recetaRepository.findByEstado("publicada")).thenReturn(List.of(sopaPostre, sopaAlmuerzo));
+
+        List<RecetaFeedDTO> resultado = feedService.buscarRecetas("user-1", "sopa",
+                new FiltrosFeedDTO(List.of("Postre"), null, null, null, null));
+
+        assertThat(resultado).extracting(RecetaFeedDTO::id).containsExactly("r-postre");
+    }
+
+    @Test
+    @DisplayName("buscarRecetas devuelve la tarjeta con la coincidencia de despensa calculada")
+    void buscarRecetas_incluye_coincidencia_de_despensa() {
+        lenient().when(recetaDescartadaRepository.findByUsuarioId(anyString())).thenReturn(List.of());
+        lenient().when(usuarioRepository.findById(anyString())).thenReturn(Optional.empty());
+        Receta r = recetaConTitulo("r1", "Tomate frito");
+        when(recetaRepository.findByEstado("publicada")).thenReturn(List.of(r));
+        when(ingredienteRepository.findByRecetaId("r1")).thenReturn(List.of(
+                IngredienteReceta.builder().recetaId("r1").nombre("Tomate").cantidad(2).unidad("unidades").build()));
+        when(despensaService.listarProductos("user-1")).thenReturn(List.of(productoDespensa("Tomate")));
+
+        List<RecetaFeedDTO> resultado = feedService.buscarRecetas("user-1", "tomate", FiltrosFeedDTO.vacios());
+
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).coincidenciaDespensa()).isEqualTo(100.0);
+        assertThat(resultado.get(0).ingredientesFaltantes()).isZero();
+    }
+
+    private Receta recetaConTitulo(String id, String titulo) {
+        Receta r = recetaCompleta(id, "autor-" + id, "Almuerzo", "Fácil", 30, 2, List.of());
+        r.setTitulo(titulo);
+        return r;
     }
 }
