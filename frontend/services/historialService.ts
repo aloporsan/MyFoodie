@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { Receta } from './recetaService';
 
 export type OrigenCompra = 'lista' | 'ticket';
 
@@ -17,6 +18,8 @@ export interface RangoFechas {
   fechaHasta?: string;
 }
 
+export type TipoHistorialReceta = 'guardadas' | 'like' | 'comentadas' | 'vistas';
+
 export const historialService = {
   obtenerHistorialCompras: async (rango: RangoFechas = {}): Promise<HistorialCompra[]> => {
     const { data } = await apiClient.get<HistorialCompra[]>('/historial/compras', {
@@ -24,6 +27,13 @@ export const historialService = {
         fechaDesde: rango.fechaDesde || undefined,
         fechaHasta: rango.fechaHasta || undefined,
       },
+    });
+    return data;
+  },
+
+  obtenerHistorialRecetas: async (tipo: TipoHistorialReceta): Promise<Receta[]> => {
+    const { data } = await apiClient.get<Receta[]>('/perfil/historial-recetas', {
+      params: { tipo },
     });
     return data;
   },
