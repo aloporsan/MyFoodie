@@ -36,6 +36,7 @@ const mockEstadisticas = {
   totalProductosCaducados: 5,
   totalRecetasPublicadas: 8,
   totalRecetasGuardadas: 15,
+  aprovechamientoDespensa: 88,
   fechaRegistro: '2024-01-15T00:00:00.000Z',
   motivosEliminacion: {
     consumido: 20,
