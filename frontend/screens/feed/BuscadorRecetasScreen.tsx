@@ -5,24 +5,31 @@ import { useEffect, useRef, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
-import { ETIQUETAS_SUGERIDAS } from '@/constants/etiquetas';
+import { FiltrosRecetaSheet } from '@/components/feed';
+import {
+  contarFiltros,
+  FILTROS_RECETA_VACIOS,
+  FiltrosReceta,
+} from '@/constants/filtrosReceta';
 import { useToastStore } from '@/hooks/useToast';
-import { recetaBusquedaService } from '@/services/recetaBusquedaService';
-import type { Receta } from '@/services/recetaService';
+import { feedService, type RecetaFeed } from '@/services/feedService';
 import { borderRadius, colors, spacing, typography } from '@/theme';
 import { resolveImagenUrl } from '@/utils/media';
 
 const DEBOUNCE_MS = 400;
-const ETIQUETAS_POPULARES = ETIQUETAS_SUGERIDAS.slice(0, 8);
 
 export function BuscadorRecetasScreen() {
   const router = useRouter();
 
   const [texto, setTexto] = useState('');
-  const [resultados, setResultados] = useState<Receta[]>([]);
+  const [filtros, setFiltros] = useState<FiltrosReceta>(FILTROS_RECETA_VACIOS);
+  const [sheetVisible, setSheetVisible] = useState(false);
+  const [resultados, setResultados] = useState<RecetaFeed[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [busquedaLanzada, setBusquedaLanzada] = useState(false);
   const peticionRef = useRef(0);
+
+  const totalFiltros = contarFiltros(filtros);
 
   useEffect(() => {
     const q = texto.trim();
@@ -37,7 +44,7 @@ export function BuscadorRecetasScreen() {
     const idPeticion = ++peticionRef.current;
     const timer = setTimeout(async () => {
       try {
-        const recetas = await recetaBusquedaService.buscarRecetas(q);
+        const recetas = await feedService.buscarRecetas(q, filtros);
         if (peticionRef.current === idPeticion) {
           setResultados(recetas);
           setBusquedaLanzada(true);
@@ -52,7 +59,7 @@ export function BuscadorRecetasScreen() {
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [texto]);
+  }, [texto, filtros]);
 
   const hayTexto = texto.trim().length > 0;
   const sinResultados = busquedaLanzada && !isLoading && resultados.length === 0;
@@ -83,18 +90,18 @@ export function BuscadorRecetasScreen() {
             </Pressable>
           )}
         </View>
-      </View>
-
-      <View style={styles.toggle}>
-        <View style={[styles.toggleOpcion, styles.toggleOpcionActiva]}>
-          <Text style={[styles.toggleTexto, styles.toggleTextoActivo]}>Recetas</Text>
-        </View>
         <Pressable
-          style={styles.toggleOpcion}
-          onPress={() => router.replace('/social/buscar')}
-          testID="btn-buscar-usuarios"
+          style={styles.btnFiltros}
+          onPress={() => setSheetVisible(true)}
+          hitSlop={8}
+          testID="btn-abrir-filtros"
         >
-          <Text style={styles.toggleTexto}>Usuarios</Text>
+          <Ionicons name="options-outline" size={20} color={colors.primary} />
+          {totalFiltros > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeTexto}>{totalFiltros}</Text>
+            </View>
+          )}
         </Pressable>
       </View>
 
@@ -112,22 +119,60 @@ export function BuscadorRecetasScreen() {
           )}
         />
       ) : (
-        <EstadoVacio
-          titulo={sinResultados ? 'Sin resultados' : 'Busca recetas'}
-          subtitulo={
-            sinResultados
-              ? `No encontramos recetas para "${texto.trim()}". Prueba con otra palabra o una etiqueta.`
-              : 'Escribe el nombre de una receta, un ingrediente o una etiqueta.'
-          }
-          onSugerencia={(etiqueta) => setTexto(etiqueta)}
-        />
+        <View style={styles.vacio}>
+          <View style={styles.vacioIcono}>
+            <Ionicons name="search" size={40} color={colors.primary} />
+          </View>
+          <Text style={styles.vacioTitulo}>{sinResultados ? 'Sin resultados' : 'Busca recetas'}</Text>
+          <Text style={styles.vacioTexto}>
+            {sinResultados
+              ? `No encontramos recetas para "${texto.trim()}"${
+                  totalFiltros > 0 ? ' con esos filtros' : ''
+                }. Prueba con otra palabra${totalFiltros > 0 ? ' o quita filtros' : ''}.`
+              : 'Escribe el nombre de una receta, un ingrediente o una etiqueta.'}
+          </Text>
+        </View>
       )}
+
+      <FiltrosRecetaSheet
+        visible={sheetVisible}
+        filtros={filtros}
+        onCerrar={() => setSheetVisible(false)}
+        onAplicar={(nuevos) => {
+          setSheetVisible(false);
+          setFiltros(nuevos);
+        }}
+      />
     </SafeAreaView>
   );
 }
 
-function ResultadoReceta({ receta, onPress }: { receta: Receta; onPress: () => void }) {
+const DIFICULTAD_COLOR: Record<string, string> = {
+  'fácil': colors.primary,
+  media: colors.secondary,
+  'difícil': colors.error,
+};
+
+function estadoDespensa(receta: RecetaFeed): { color: string; icono: keyof typeof Ionicons.glyphMap; texto: string } | null {
+  const total = receta.ingredientesDisponibles + receta.ingredientesFaltantes;
+  if (total === 0) return null;
+  if (receta.ingredientesFaltantes === 0) {
+    return { color: colors.primary, icono: 'checkmark-circle', texto: 'Tienes los ingredientes' };
+  }
+  if (receta.ingredientesDisponibles > 0) {
+    return {
+      color: colors.secondary,
+      icono: 'remove-circle',
+      texto: `Tienes ${receta.ingredientesDisponibles}/${total}`,
+    };
+  }
+  return { color: colors.grayMid, icono: 'close-circle', texto: 'Te faltan ingredientes' };
+}
+
+function ResultadoReceta({ receta, onPress }: { receta: RecetaFeed; onPress: () => void }) {
   const imagenUrl = resolveImagenUrl(receta.imagenUrl);
+  const despensa = estadoDespensa(receta);
+  const dificultadColor = DIFICULTAD_COLOR[receta.dificultad?.toLowerCase()] ?? colors.grayMid;
 
   return (
     <Pressable style={styles.card} onPress={onPress} testID={`resultado-receta-${receta.id}`}>
@@ -142,57 +187,35 @@ function ResultadoReceta({ receta, onPress }: { receta: Receta; onPress: () => v
         <Text style={styles.cardTitulo} numberOfLines={1}>
           {receta.titulo}
         </Text>
-        <View style={styles.cardMeta}>
-          <Ionicons name="time-outline" size={13} color={colors.text.secondary} />
-          <Text style={styles.cardMetaTexto}>{receta.tiempoEstimado} min</Text>
-          <Ionicons name="heart-outline" size={13} color={colors.text.secondary} />
-          <Text style={styles.cardMetaTexto}>{receta.totalLikes ?? 0}</Text>
+
+        <View style={styles.cardIconos}>
+          <View style={[styles.pill, { backgroundColor: dificultadColor }]}>
+            <Text style={styles.pillTexto}>{receta.dificultad}</Text>
+          </View>
+          {receta.categoria && (
+            <View style={styles.metaItem}>
+              <Ionicons name="restaurant-outline" size={13} color={colors.text.secondary} />
+              <Text style={styles.metaTexto}>{receta.categoria}</Text>
+            </View>
+          )}
+          <View style={styles.metaItem}>
+            <Ionicons name="people-outline" size={13} color={colors.text.secondary} />
+            <Text style={styles.metaTexto}>{receta.numPersonas}</Text>
+          </View>
+          <View style={styles.metaItem}>
+            <Ionicons name="time-outline" size={13} color={colors.text.secondary} />
+            <Text style={styles.metaTexto}>{receta.tiempoEstimado} min</Text>
+          </View>
         </View>
-        {receta.etiquetas.length > 0 && (
-          <View style={styles.cardEtiquetas}>
-            {receta.etiquetas.slice(0, 3).map((etiqueta) => (
-              <View key={etiqueta} style={styles.cardEtiqueta}>
-                <Text style={styles.cardEtiquetaTexto}>{etiqueta}</Text>
-              </View>
-            ))}
+
+        {despensa && (
+          <View style={styles.despensaRow}>
+            <Ionicons name={despensa.icono} size={14} color={despensa.color} />
+            <Text style={[styles.despensaTexto, { color: despensa.color }]}>{despensa.texto}</Text>
           </View>
         )}
       </View>
     </Pressable>
-  );
-}
-
-function EstadoVacio({
-  titulo,
-  subtitulo,
-  onSugerencia,
-}: {
-  titulo: string;
-  subtitulo: string;
-  onSugerencia: (etiqueta: string) => void;
-}) {
-  return (
-    <View style={styles.vacio}>
-      <View style={styles.vacioIcono}>
-        <Ionicons name="search" size={40} color={colors.primary} />
-      </View>
-      <Text style={styles.vacioTitulo}>{titulo}</Text>
-      <Text style={styles.vacioTexto}>{subtitulo}</Text>
-
-      <Text style={styles.sugerenciasLabel}>Etiquetas populares</Text>
-      <View style={styles.sugerencias}>
-        {ETIQUETAS_POPULARES.map((etiqueta) => (
-          <Pressable
-            key={etiqueta}
-            style={styles.sugerencia}
-            onPress={() => onSugerencia(etiqueta)}
-            testID={`sugerencia-${etiqueta}`}
-          >
-            <Text style={styles.sugerenciaTexto}>{etiqueta}</Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
   );
 }
 
@@ -219,24 +242,27 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   input: { ...typography.body, color: colors.text.primary, flex: 1, padding: 0 },
-  toggle: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.grayLight,
+  btnFiltros: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#E8F5D0',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  toggleOpcion: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.grayLight,
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  toggleOpcionActiva: { backgroundColor: colors.primary },
-  toggleTexto: { ...typography.label, color: colors.text.secondary, fontWeight: '700' },
-  toggleTextoActivo: { color: colors.white },
+  badgeTexto: { ...typography.caption, fontSize: 10, lineHeight: 12, color: colors.white, fontWeight: '700' },
 
   lista: { padding: spacing.lg, paddingBottom: spacing.xxxl },
   card: {
@@ -247,7 +273,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     padding: spacing.sm,
   },
-  cardImagen: { width: 72, height: 72, borderRadius: borderRadius.md },
+  cardImagen: { width: 80, height: 80, borderRadius: borderRadius.md },
   cardImagenPlaceholder: {
     backgroundColor: colors.primary,
     alignItems: 'center',
@@ -255,16 +281,13 @@ const styles = StyleSheet.create({
   },
   cardCuerpo: { flex: 1, justifyContent: 'center', gap: spacing.xs },
   cardTitulo: { ...typography.label, color: colors.text.primary, fontWeight: '700' },
-  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  cardMetaTexto: { ...typography.caption, color: colors.text.secondary, marginRight: spacing.sm },
-  cardEtiquetas: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  cardEtiqueta: {
-    backgroundColor: colors.grayLight,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: borderRadius.full,
-  },
-  cardEtiquetaTexto: { ...typography.caption, color: colors.text.secondary },
+  cardIconos: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm },
+  pill: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.full },
+  pillTexto: { ...typography.caption, fontSize: 10, color: colors.white, fontWeight: '700' },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  metaTexto: { ...typography.caption, color: colors.text.secondary },
+  despensaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: 2 },
+  despensaTexto: { ...typography.caption, fontWeight: '600' },
 
   vacio: { flex: 1, alignItems: 'center', paddingHorizontal: spacing.xl, paddingTop: spacing.xxxl, gap: spacing.sm },
   vacioIcono: {
@@ -278,23 +301,4 @@ const styles = StyleSheet.create({
   },
   vacioTitulo: { ...typography.heading3, color: colors.text.primary, textAlign: 'center' },
   vacioTexto: { ...typography.body, color: colors.text.secondary, textAlign: 'center' },
-  sugerenciasLabel: {
-    ...typography.caption,
-    color: colors.text.secondary,
-    fontWeight: '700',
-    marginTop: spacing.lg,
-    alignSelf: 'flex-start',
-  },
-  sugerencias: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, alignSelf: 'flex-start' },
-  sugerencia: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.grayLight,
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.gray,
-  },
-  sugerenciaTexto: { ...typography.caption, color: colors.text.secondary },
 });

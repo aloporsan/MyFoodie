@@ -1,4 +1,9 @@
 import { create } from 'zustand';
+import {
+  FiltrosReceta,
+  FILTROS_RECETA_VACIOS,
+  hayFiltros,
+} from '@/constants/filtrosReceta';
 import { PerfilGustos, RecetaFeed, feedService } from '@/services/feedService';
 import { handleApiError } from '@/utils/errorHandler';
 
@@ -18,7 +23,7 @@ interface AccionFeed {
 interface FeedState {
   recetas: RecetaFeed[];
   fuente: FuenteFeed;
-  etiquetaSeleccionada: string | null;
+  filtros: FiltrosReceta;
   pagina: number;
   hayMas: boolean;
   isLoading: boolean;
@@ -31,7 +36,7 @@ interface FeedState {
 
 interface FeedActions {
   cargarFeed: (fuente?: FuenteFeed) => Promise<void>;
-  filtrarPorEtiqueta: (etiqueta: string | null) => Promise<void>;
+  aplicarFiltros: (filtros: FiltrosReceta) => Promise<void>;
   cargarMas: () => Promise<void>;
   guardarReceta: (id: string) => Promise<void>;
   descartarReceta: (id: string) => Promise<void>;
@@ -47,7 +52,7 @@ interface FeedActions {
 const ESTADO_INICIAL: FeedState = {
   recetas: [],
   fuente: 'para-ti',
-  etiquetaSeleccionada: null,
+  filtros: FILTROS_RECETA_VACIOS,
   pagina: 0,
   hayMas: false,
   isLoading: false,
@@ -58,12 +63,15 @@ const ESTADO_INICIAL: FeedState = {
   isLoadingPerfilGustos: false,
 };
 
-function cargarPagina(fuente: FuenteFeed, etiqueta: string | null, pagina: number) {
+function cargarPagina(fuente: FuenteFeed, filtros: FiltrosReceta, pagina: number) {
+  const conFiltros = hayFiltros(filtros);
   if (fuente === 'seguidos') {
-    return feedService.obtenerRecetasSeguidos(pagina, TAMAÑO_PAGINA);
+    return conFiltros
+      ? feedService.obtenerRecetasSeguidos(pagina, TAMAÑO_PAGINA, filtros)
+      : feedService.obtenerRecetasSeguidos(pagina, TAMAÑO_PAGINA);
   }
-  return etiqueta
-    ? feedService.obtenerFeed(pagina, TAMAÑO_PAGINA, etiqueta)
+  return conFiltros
+    ? feedService.obtenerFeed(pagina, TAMAÑO_PAGINA, filtros)
     : feedService.obtenerFeed(pagina, TAMAÑO_PAGINA);
 }
 
@@ -71,11 +79,10 @@ export const useFeedStore = create<FeedState & FeedActions>()((set, get) => ({
   ...ESTADO_INICIAL,
 
   cargarFeed: async (fuente = 'para-ti') => {
-    // El filtro por etiqueta solo aplica al feed "para ti"; al ver "seguidos" se descarta.
-    const etiquetaSeleccionada = fuente === 'seguidos' ? null : get().etiquetaSeleccionada;
-    set({ isLoading: true, error: null, fuente, etiquetaSeleccionada });
+    const { filtros } = get();
+    set({ isLoading: true, error: null, fuente });
     try {
-      const respuesta = await cargarPagina(fuente, etiquetaSeleccionada, 0);
+      const respuesta = await cargarPagina(fuente, filtros, 0);
       set({
         recetas: respuesta.recetas,
         pagina: respuesta.pagina,
@@ -87,18 +94,18 @@ export const useFeedStore = create<FeedState & FeedActions>()((set, get) => ({
     }
   },
 
-  filtrarPorEtiqueta: async (etiqueta) => {
-    set({ etiquetaSeleccionada: etiqueta });
-    await get().cargarFeed('para-ti');
+  aplicarFiltros: async (filtros) => {
+    set({ filtros });
+    await get().cargarFeed(get().fuente);
   },
 
   cargarMas: async () => {
-    const { hayMas, isLoadingMas, pagina, fuente, etiquetaSeleccionada } = get();
+    const { hayMas, isLoadingMas, pagina, fuente, filtros } = get();
     if (!hayMas || isLoadingMas) return;
 
     set({ isLoadingMas: true, error: null });
     try {
-      const respuesta = await cargarPagina(fuente, etiquetaSeleccionada, pagina + 1);
+      const respuesta = await cargarPagina(fuente, filtros, pagina + 1);
       set((s) => ({
         recetas: [...s.recetas, ...respuesta.recetas],
         pagina: respuesta.pagina,

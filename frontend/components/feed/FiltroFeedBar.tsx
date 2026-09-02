@@ -1,11 +1,13 @@
-import { useEffect, useRef } from 'react';
-import { Animated, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { ETIQUETAS_SUGERIDAS } from '@/constants/etiquetas';
+import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { contarFiltros } from '@/constants/filtrosReceta';
 import { useFeedStore } from '@/store/feedStore';
 import { colors } from '@/theme/colors';
 import { borderRadius } from '@/theme/borderRadius';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
+import { FiltrosRecetaSheet } from './FiltrosRecetaSheet';
 
 export type FiltroFeed = 'para-ti' | 'seguidos' | 'despensa';
 
@@ -29,8 +31,11 @@ interface FiltroFeedBarProps {
 
 export function FiltroFeedBar({ filtroActivo, onFiltroChange }: FiltroFeedBarProps) {
   const cargarFeed = useFeedStore((s) => s.cargarFeed);
-  const filtrarPorEtiqueta = useFeedStore((s) => s.filtrarPorEtiqueta);
-  const etiquetaSeleccionada = useFeedStore((s) => s.etiquetaSeleccionada);
+  const filtros = useFeedStore((s) => s.filtros);
+  const aplicarFiltros = useFeedStore((s) => s.aplicarFiltros);
+
+  const [sheetVisible, setSheetVisible] = useState(false);
+  const totalFiltros = contarFiltros(filtros);
 
   const handlePress = (filtro: FiltroFeed) => {
     if (filtro === filtroActivo) return;
@@ -39,57 +44,59 @@ export function FiltroFeedBar({ filtroActivo, onFiltroChange }: FiltroFeedBarPro
     cargarFeed(filtro === 'seguidos' ? 'seguidos' : 'para-ti');
   };
 
-  const handleEtiquetaPress = (etiqueta: string) => {
-    const nueva = etiqueta === etiquetaSeleccionada ? null : etiqueta;
-    // El filtro por etiqueta se sirve desde el feed "para-ti"; si veníamos de "seguidos" cambiamos.
-    if (nueva && filtroActivo === 'seguidos') {
-      onFiltroChange('para-ti');
-    }
-    void filtrarPorEtiqueta(nueva);
-  };
-
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.content}
-      testID="filtro-feed-bar"
-    >
-      {FILTROS.map((filtro) => (
-        <Chip
-          key={filtro.id}
-          label={filtro.label}
-          activo={filtro.id === filtroActivo}
-          onPress={() => handlePress(filtro.id)}
-          testID={`filtro-chip-${filtro.id}`}
-        />
-      ))}
+    <View style={styles.barra}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+        testID="filtro-feed-bar"
+      >
+        {FILTROS.map((filtro) => (
+          <FiltroChip
+            key={filtro.id}
+            filtro={filtro}
+            activo={filtro.id === filtroActivo}
+            onPress={() => handlePress(filtro.id)}
+          />
+        ))}
+      </ScrollView>
 
-      <View style={styles.separador} />
+      <Pressable
+        style={styles.btnFiltros}
+        onPress={() => setSheetVisible(true)}
+        hitSlop={8}
+        testID="btn-abrir-filtros"
+      >
+        <Ionicons name="options-outline" size={20} color={colors.primary} />
+        {totalFiltros > 0 && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeTexto}>{totalFiltros}</Text>
+          </View>
+        )}
+      </Pressable>
 
-      {ETIQUETAS_SUGERIDAS.map((etiqueta) => (
-        <Chip
-          key={etiqueta}
-          label={etiqueta}
-          activo={etiqueta === etiquetaSeleccionada}
-          onPress={() => handleEtiquetaPress(etiqueta)}
-          testID={`filtro-etiqueta-${etiqueta}`}
-        />
-      ))}
-    </ScrollView>
+      <FiltrosRecetaSheet
+        visible={sheetVisible}
+        filtros={filtros}
+        onCerrar={() => setSheetVisible(false)}
+        onAplicar={(nuevos) => {
+          setSheetVisible(false);
+          void aplicarFiltros(nuevos);
+        }}
+      />
+    </View>
   );
 }
 
-function Chip({
-  label,
+function FiltroChip({
+  filtro,
   activo,
   onPress,
-  testID,
 }: {
-  label: string;
+  filtro: FiltroOpcion;
   activo: boolean;
   onPress: () => void;
-  testID?: string;
 }) {
   const progreso = useRef(new Animated.Value(activo ? 1 : 0)).current;
 
@@ -111,29 +118,26 @@ function Chip({
   });
 
   return (
-    <Pressable onPress={onPress} testID={testID}>
+    <Pressable onPress={onPress} testID={`filtro-chip-${filtro.id}`}>
       <Animated.View style={[styles.chip, { backgroundColor }]}>
-        <Animated.Text style={[styles.chipTexto, { color }]}>{label}</Animated.Text>
+        <Animated.Text style={[styles.chipTexto, { color }]}>{filtro.label}</Animated.Text>
       </Animated.View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  barra: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: spacing.lg,
+  },
   content: {
     flexGrow: 1,
-    justifyContent: 'center',
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: spacing.lg,
     gap: spacing.sm,
-    alignItems: 'center',
-  },
-  separador: {
-    width: StyleSheet.hairlineWidth,
-    alignSelf: 'stretch',
-    marginVertical: spacing.xs,
-    backgroundColor: colors.gray,
   },
   chip: {
     paddingHorizontal: spacing.lg,
@@ -142,6 +146,33 @@ const styles = StyleSheet.create({
   },
   chipTexto: {
     ...typography.label,
+    fontWeight: '700',
+  },
+  btnFiltros: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#E8F5D0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeTexto: {
+    ...typography.caption,
+    fontSize: 10,
+    lineHeight: 12,
+    color: colors.white,
     fontWeight: '700',
   },
 });
