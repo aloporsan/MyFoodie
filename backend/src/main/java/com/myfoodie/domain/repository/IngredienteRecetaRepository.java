@@ -10,6 +10,8 @@ public interface IngredienteRecetaRepository extends MongoRepository<Ingrediente
 
     List<IngredienteReceta> findByRecetaId(String recetaId);
 
+    List<IngredienteReceta> findByNombreContainingIgnoreCase(String nombre);
+
     Optional<IngredienteReceta> findByRecetaIdAndId(String recetaId, String id);
 
     void deleteByRecetaId(String recetaId);
