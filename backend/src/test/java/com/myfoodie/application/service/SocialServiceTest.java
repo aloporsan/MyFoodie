@@ -369,4 +369,20 @@ class SocialServiceTest {
 
         verify(bloqueoRepository, never()).save(any());
     }
+
+    @Test
+    void estaBloqueado_detecta_bloqueo_en_ambas_direcciones() {
+        when(bloqueoRepository.existsByBloqueadorIdAndBloqueadoId("a", "b")).thenReturn(false);
+        when(bloqueoRepository.existsByBloqueadorIdAndBloqueadoId("b", "a")).thenReturn(true);
+
+        assertThat(socialService.estaBloqueado("a", "b")).isTrue();
+    }
+
+    @Test
+    void estaBloqueado_es_falso_si_no_hay_bloqueo_en_ninguna_direccion() {
+        when(bloqueoRepository.existsByBloqueadorIdAndBloqueadoId("a", "b")).thenReturn(false);
+        when(bloqueoRepository.existsByBloqueadorIdAndBloqueadoId("b", "a")).thenReturn(false);
+
+        assertThat(socialService.estaBloqueado("a", "b")).isFalse();
+    }
 }
