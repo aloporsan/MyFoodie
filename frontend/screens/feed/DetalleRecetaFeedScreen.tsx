@@ -2,12 +2,24 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ModalCompartir } from '@/components/compartir/ModalCompartir';
 import { ErrorScreen } from '@/components/common/ErrorScreen';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
+import { ListaComentarios } from '@/components/receta';
+import { ReporteModal } from '@/components/social';
 import { useToast } from '@/hooks/useToast';
 import { despensaService } from '@/services/despensaService';
 import { feedService } from '@/services/feedService';
@@ -44,6 +56,8 @@ export function DetalleRecetaFeedScreen() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalCompartirVisible, setModalCompartirVisible] = useState(false);
+  const [modalReporteVisible, setModalReporteVisible] = useState(false);
+  const [numComentarios, setNumComentarios] = useState(0);
 
   useEffect(() => {
     if (!id) return;
@@ -54,6 +68,7 @@ export function DetalleRecetaFeedScreen() {
       .then(([detalle, productos]) => {
         if (cancelado) return;
         setReceta(detalle);
+        setNumComentarios(detalle.numeroComentarios ?? 0);
         setNombresDespensa(new Set(productos.map((p) => p.nombre.trim().toLowerCase())));
         setError(null);
       })
@@ -194,6 +209,9 @@ export function DetalleRecetaFeedScreen() {
               color={recetaFeed?.yaGuardada ? colors.primary : colors.text.primary}
             />
           </Pressable>
+          <Pressable testID="btn-reportar-header" onPress={() => setModalReporteVisible(true)} hitSlop={8}>
+            <Ionicons name="flag-outline" size={22} color={colors.text.primary} />
+          </Pressable>
         </View>
       </View>
 
@@ -203,7 +221,23 @@ export function DetalleRecetaFeedScreen() {
         onClose={() => setModalCompartirVisible(false)}
       />
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ReporteModal
+        visible={modalReporteVisible}
+        tipoContenido="RECETA"
+        contenidoId={receta.id}
+        onClose={() => setModalReporteVisible(false)}
+      />
+
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+      >
         {imagenUrl ? (
           <Image source={{ uri: imagenUrl }} style={styles.heroImagen} resizeMode="cover" />
         ) : (
@@ -319,14 +353,17 @@ export function DetalleRecetaFeedScreen() {
           </View>
 
           <View style={styles.card}>
-            <SectionHeader icon="chatbubble-outline" iconColor={colors.grayDark} titulo="Comentarios" count={0} />
-            <View style={styles.comentariosPlaceholder}>
-              <Ionicons name="chatbubbles-outline" size={32} color={colors.grayMid} />
-              <Text style={styles.vacioText}>Los comentarios estarán disponibles próximamente</Text>
-            </View>
+            <SectionHeader
+              icon="chatbubble-outline"
+              iconColor={colors.grayDark}
+              titulo="Comentarios"
+              count={numComentarios}
+            />
+            {id ? <ListaComentarios recetaId={id} onCountChange={setNumComentarios} /> : null}
           </View>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -379,6 +416,7 @@ function SectionHeader({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background.surface },
+  flex: { flex: 1 },
 
   header: {
     flexDirection: 'row',
@@ -461,12 +499,6 @@ const styles = StyleSheet.create({
   carritoBtnTexto: { ...typography.button, color: colors.white },
 
   pasosList: { gap: spacing.md },
-
-  comentariosPlaceholder: {
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-  },
 });
 
 const secStyles = StyleSheet.create({

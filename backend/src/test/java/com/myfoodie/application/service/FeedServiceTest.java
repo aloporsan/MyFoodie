@@ -35,6 +35,7 @@ import org.springframework.data.domain.PageRequest;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -198,6 +199,26 @@ class FeedServiceTest {
         FeedResponseDTO respuesta = feedService.obtenerFeed("user-1", 0, 10);
 
         assertThat(respuesta.recetas().get(0).modoFallback()).isFalse();
+    }
+
+    @Test
+    @DisplayName("obtenerFeed excluye las recetas de autores con bloqueo activo (en cualquier dirección)")
+    void obtenerFeed_excluye_recetas_de_usuarios_bloqueados() {
+        when(recetaDescartadaRepository.findByUsuarioId("user-1")).thenReturn(List.of());
+        when(socialService.obtenerIdsOcultosPara("user-1")).thenReturn(Set.of("autor-bloqueado"));
+
+        Receta bloqueada = receta("receta-bloq", "autor-bloqueado", 0);
+        Receta visible = receta("receta-ok", "autor-ok", 0);
+        when(recetaRepository.findByEstadoAndAutorIdNotAndIdNotIn(
+                anyString(), anyString(), anyList(), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(bloqueada, visible)));
+        when(ingredienteRepository.findByRecetaId(anyString())).thenReturn(List.of());
+        when(despensaService.listarProductos("user-1")).thenReturn(List.of());
+        when(usuarioRepository.findById(anyString())).thenReturn(Optional.empty());
+
+        FeedResponseDTO respuesta = feedService.obtenerFeed("user-1", 0, 10);
+
+        assertThat(respuesta.recetas()).extracting(RecetaFeedDTO::id).containsExactly("receta-ok");
     }
 
     // ===== inicializarPerfilDesdeOnboarding =====

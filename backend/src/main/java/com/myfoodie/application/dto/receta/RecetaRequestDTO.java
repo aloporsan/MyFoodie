@@ -3,6 +3,7 @@ package com.myfoodie.application.dto.receta;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import com.myfoodie.domain.model.VisibilidadReceta;
 import java.util.List;
 
 public record RecetaRequestDTO(
@@ -16,5 +17,6 @@ public record RecetaRequestDTO(
         String imagenUrl,
         @Min(value = 1, message = "El número de personas debe ser al menos 1")
         @Max(value = 20, message = "El número de personas no puede superar 20")
-        Integer numPersonas
+        Integer numPersonas,
+        VisibilidadReceta visibilidad
 ) {}

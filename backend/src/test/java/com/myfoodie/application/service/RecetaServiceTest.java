@@ -10,6 +10,7 @@ import com.myfoodie.domain.model.Paso;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.model.Receta;
 import com.myfoodie.domain.model.TipoMatch;
+import com.myfoodie.domain.repository.ComentarioRepository;
 import com.myfoodie.domain.repository.DespensaRepository;
 import com.myfoodie.domain.repository.IngredienteRecetaRepository;
 import com.myfoodie.domain.repository.LikeRepository;
@@ -46,6 +47,7 @@ class RecetaServiceTest {
     @Mock private PasoRepository pasoRepository;
     @Mock private RecetaGuardadaRepository recetaGuardadaRepository;
     @Mock private LikeRepository likeRepository;
+    @Mock private ComentarioRepository comentarioRepository;
     @Mock private UsuarioRepository usuarioRepository;
     @Mock private DespensaRepository despensaRepository;
     @Mock private ProductoRepository productoRepository;
@@ -53,6 +55,7 @@ class RecetaServiceTest {
     @Mock private CarritoInteligenteService carritoInteligenteService;
     @Mock private UnidadNormalizadorService unidadNormalizadorService;
     @Mock private MatchingService matchingService;
+    @Mock private SocialService socialService;
 
     @InjectMocks private RecetaService recetaService;
 
@@ -106,7 +109,7 @@ class RecetaServiceTest {
     }
 
     private RecetaRequestDTO request(String titulo) {
-        return new RecetaRequestDTO(titulo, "Descripción", 30, "Fácil", "Pasta", List.of(), null, null);
+        return new RecetaRequestDTO(titulo, "Descripción", 30, "Fácil", "Pasta", List.of(), null, null, null);
     }
 
     private IngredienteReceta ingrediente(String id, String recetaId) {
@@ -173,7 +176,7 @@ class RecetaServiceTest {
         when(pasoRepository.findByRecetaIdOrderByOrdenAsc("r1")).thenReturn(List.of());
 
         RecetaRequestDTO dto = new RecetaRequestDTO(
-                "Paella", "Descripción", 30, "Fácil", "Pasta", List.of(), null, 6);
+                "Paella", "Descripción", 30, "Fácil", "Pasta", List.of(), null, 6, null);
 
         RecetaResponseDTO result = recetaService.crearReceta("user-1", dto);
 
@@ -419,7 +422,7 @@ class RecetaServiceTest {
     @DisplayName("crearReceta_falla_siTituloVacio")
     void crearReceta_falla_siTituloVacio() {
         assertThatThrownBy(() ->
-                recetaService.crearReceta("user-1", new RecetaRequestDTO("", "desc", 30, "Fácil", "Pasta", List.of(), null, null)))
+                recetaService.crearReceta("user-1", new RecetaRequestDTO("", "desc", 30, "Fácil", "Pasta", List.of(), null, null, null)))
                 .isInstanceOf(ApiException.class)
                 .hasFieldOrPropertyWithValue("status", HttpStatus.BAD_REQUEST);
     }

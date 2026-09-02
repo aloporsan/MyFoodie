@@ -18,6 +18,7 @@ import com.myfoodie.domain.model.RecetaCompartida;
 import com.myfoodie.domain.model.RecetaDescartada;
 import com.myfoodie.domain.model.TipoMatch;
 import com.myfoodie.domain.model.Usuario;
+import com.myfoodie.domain.model.VisibilidadReceta;
 import com.myfoodie.domain.repository.IngredienteRecetaRepository;
 import com.myfoodie.domain.repository.LikeRepository;
 import com.myfoodie.domain.repository.PerfilGustosRepository;
@@ -72,6 +73,7 @@ public class FeedService {
         PageRequest poolRequest = PageRequest.of(0, tamañoPool, Sort.by(Sort.Direction.DESC, "createdAt"));
         List<Receta> candidatas = recetaRepository.findByEstadoAndAutorIdNotAndIdNotIn(
                 ESTADO_PUBLICADA, usuarioId, descartes.idsRecientes(), poolRequest).getContent();
+        candidatas = filtrarAccesibles(candidatas, usuarioId, seguidosIds);
 
         return construirRespuesta(candidatas, usuarioId, pagina, tamaño, seguidosIds, descartes, true);
     }
@@ -87,6 +89,7 @@ public class FeedService {
         PageRequest poolRequest = PageRequest.of(0, tamañoPool, Sort.by(Sort.Direction.DESC, "createdAt"));
         List<Receta> candidatas = recetaRepository.findByEstadoAndAutorIdInAndIdNotIn(
                 ESTADO_PUBLICADA, seguidosIds, descartes.idsRecientes(), poolRequest).getContent();
+        candidatas = filtrarAccesibles(candidatas, usuarioId, seguidosIds);
 
         return construirRespuesta(candidatas, usuarioId, pagina, tamaño, seguidosIds, descartes, false);
     }
@@ -118,6 +121,31 @@ public class FeedService {
 
     private int calcularTamañoPool(int tamaño) {
         return Math.min(TAMAÑO_MAXIMO_POOL, Math.max(TAMAÑO_MINIMO_POOL, tamaño * 5));
+    }
+
+    /**
+     * Excluye del pool las recetas que el usuario no debería ver: de usuarios con bloqueo activo
+     * (en cualquier dirección) y las que no cumplen la visibilidad configurada por su autor.
+     */
+    private List<Receta> filtrarAccesibles(List<Receta> recetas, String usuarioId, Set<String> seguidosIds) {
+        Set<String> ocultos = socialService.obtenerIdsOcultosPara(usuarioId);
+        return recetas.stream()
+                .filter(r -> !ocultos.contains(r.getAutorId()))
+                .filter(r -> esVisiblePara(r, usuarioId, seguidosIds))
+                .toList();
+    }
+
+    private boolean esVisiblePara(Receta receta, String usuarioId, Set<String> seguidosIds) {
+        if (receta.getAutorId().equals(usuarioId)) {
+            return true;
+        }
+        VisibilidadReceta visibilidad = receta.getVisibilidad() != null
+                ? receta.getVisibilidad() : VisibilidadReceta.PUBLICA;
+        return switch (visibilidad) {
+            case PUBLICA -> true;
+            case SOLO_SEGUIDORES -> seguidosIds.contains(receta.getAutorId());
+            case PRIVADA -> false;
+        };
     }
 
     private Set<String> obtenerSeguidosIds(String usuarioId) {

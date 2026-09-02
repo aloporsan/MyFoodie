@@ -2,13 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import type React from 'react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ErrorScreen } from '@/components/common/ErrorScreen';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { EstadisticaItem } from '@/components/perfil/EstadisticaItem';
+import { ReporteModal } from '@/components/social';
 import { showConfirm } from '@/hooks/useConfirm';
 import { useToast } from '@/hooks/useToast';
 import type { PerfilPublico } from '@/services/socialService';
@@ -44,6 +45,8 @@ export function PerfilPublicoScreen() {
   const dejarDeSeguir = useSocialStore((s) => s.dejarDeSeguir);
   const bloquearUsuario = useSocialStore((s) => s.bloquearUsuario);
   const desbloquearUsuario = useSocialStore((s) => s.desbloquearUsuario);
+
+  const [modalReporteVisible, setModalReporteVisible] = useState(false);
 
   useEffect(() => {
     if (id) cargarPerfilPublico(id);
@@ -99,7 +102,7 @@ export function PerfilPublicoScreen() {
   };
 
   const handleReportar = () => {
-    showSuccess('Los reportes de perfil estarán disponibles próximamente');
+    setModalReporteVisible(true);
   };
 
   const handleOpciones = () => {
@@ -163,6 +166,13 @@ export function PerfilPublicoScreen() {
           <Ionicons name="ellipsis-vertical" size={22} color={colors.text.primary} />
         </Pressable>
       </View>
+
+      <ReporteModal
+        visible={modalReporteVisible}
+        tipoContenido="PERFIL"
+        contenidoId={id ?? ''}
+        onClose={() => setModalReporteVisible(false)}
+      />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.perfilCard}>
