@@ -10,6 +10,7 @@ import {
   contarFiltros,
   FILTROS_RECETA_VACIOS,
   FiltrosReceta,
+  UMBRAL_DESPENSA,
 } from '@/constants/filtrosReceta';
 import { useToastStore } from '@/hooks/useToast';
 import { feedService, type RecetaFeed } from '@/services/feedService';
@@ -61,8 +62,13 @@ export function BuscadorRecetasScreen() {
     return () => clearTimeout(timer);
   }, [texto, filtros]);
 
+  // "Solo lo que puedo cocinar" se aplica en cliente sobre la coincidencia de despensa, como el feed.
+  const resultadosVisibles = filtros.soloDespensa
+    ? resultados.filter((r) => r.coincidenciaDespensa >= UMBRAL_DESPENSA)
+    : resultados;
+
   const hayTexto = texto.trim().length > 0;
-  const sinResultados = busquedaLanzada && !isLoading && resultados.length === 0;
+  const sinResultados = busquedaLanzada && !isLoading && resultadosVisibles.length === 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -105,11 +111,11 @@ export function BuscadorRecetasScreen() {
         </Pressable>
       </View>
 
-      {isLoading && resultados.length === 0 ? (
+      {isLoading && resultadosVisibles.length === 0 ? (
         <LoadingScreen />
       ) : hayTexto && !sinResultados ? (
         <FlatList
-          data={resultados}
+          data={resultadosVisibles}
           keyExtractor={(r) => r.id}
           contentContainerStyle={styles.lista}
           keyboardShouldPersistTaps="handled"
@@ -137,6 +143,7 @@ export function BuscadorRecetasScreen() {
       <FiltrosRecetaSheet
         visible={sheetVisible}
         filtros={filtros}
+        mostrarDespensa
         onCerrar={() => setSheetVisible(false)}
         onAplicar={(nuevos) => {
           setSheetVisible(false);

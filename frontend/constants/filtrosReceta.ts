@@ -12,6 +12,11 @@ export interface FiltrosReceta {
   tiempos: string[];
   /** Buckets de personas con formato "min-max". */
   personas: string[];
+  /**
+   * Solo recetas de las que se tienen (casi) todos los ingredientes.
+   * Se aplica en cliente sobre la coincidencia de despensa, no viaja al backend.
+   */
+  soloDespensa: boolean;
 }
 
 export const FILTROS_RECETA_VACIOS: FiltrosReceta = {
@@ -20,7 +25,11 @@ export const FILTROS_RECETA_VACIOS: FiltrosReceta = {
   etiquetas: [],
   tiempos: [],
   personas: [],
+  soloDespensa: false,
 };
+
+/** Umbral de coincidencia con la despensa para "puedo cocinarla" (igual que el feed). */
+export const UMBRAL_DESPENSA = 70;
 
 export const CATEGORIAS_RECETA = [
   'Desayuno',
@@ -57,7 +66,8 @@ export function contarFiltros(f: FiltrosReceta): number {
     f.dificultades.length +
     f.etiquetas.length +
     f.tiempos.length +
-    f.personas.length
+    f.personas.length +
+    (f.soloDespensa ? 1 : 0)
   );
 }
 

@@ -1,5 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState, type ReactNode } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import {
   alternarValor,
   CATEGORIAS_RECETA,
@@ -21,37 +22,64 @@ interface Props {
   filtros: FiltrosReceta;
   onAplicar: (filtros: FiltrosReceta) => void;
   onCerrar: () => void;
+  /** Muestra el switch "solo lo que puedo cocinar" (buscador; en el feed ya está la pestaña Despensa). */
+  mostrarDespensa?: boolean;
 }
 
-export function FiltrosRecetaSheet({ visible, filtros, onAplicar, onCerrar }: Props) {
+export function FiltrosRecetaSheet({ visible, filtros, onAplicar, onCerrar, mostrarDespensa }: Props) {
   const [borrador, setBorrador] = useState<FiltrosReceta>(filtros);
 
   useEffect(() => {
     if (visible) setBorrador(filtros);
   }, [visible, filtros]);
 
-  const toggle = (clave: keyof FiltrosReceta, valor: string) => {
+  const toggle = (clave: 'categorias' | 'dificultades' | 'etiquetas' | 'tiempos' | 'personas', valor: string) => {
     setBorrador((b) => ({ ...b, [clave]: alternarValor(b[clave], valor) }));
   };
 
   const total = contarFiltros(borrador);
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      statusBarTranslucent
-      animationType="slide"
-      onRequestClose={onCerrar}
-    >
+    <Modal visible={visible} transparent statusBarTranslucent animationType="slide" onRequestClose={onCerrar}>
       <View style={styles.container}>
         <Pressable style={StyleSheet.absoluteFillObject} onPress={onCerrar} testID="filtros-overlay" />
+
         <View style={styles.sheet}>
           <View style={styles.handle} />
-          <Text style={styles.titulo}>Filtrar recetas</Text>
+
+          <View style={styles.cabecera}>
+            <Text style={styles.titulo}>Filtrar recetas</Text>
+            {total > 0 && (
+              <View style={styles.contadorPill}>
+                <Text style={styles.contadorPillTexto}>{total}</Text>
+              </View>
+            )}
+          </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-            <Seccion titulo="Tipo de comida">
+            {mostrarDespensa && (
+              <Pressable
+                style={styles.despensaCard}
+                onPress={() => setBorrador((b) => ({ ...b, soloDespensa: !b.soloDespensa }))}
+                testID="filtro-solo-despensa"
+              >
+                <View style={styles.despensaIcono}>
+                  <Ionicons name="basket-outline" size={18} color={colors.primary} />
+                </View>
+                <View style={styles.despensaTexto}>
+                  <Text style={styles.despensaTitulo}>Solo lo que puedo cocinar</Text>
+                  <Text style={styles.despensaSub}>Recetas con (casi) todos los ingredientes en tu despensa</Text>
+                </View>
+                <Switch
+                  value={borrador.soloDespensa}
+                  onValueChange={(v) => setBorrador((b) => ({ ...b, soloDespensa: v }))}
+                  trackColor={{ true: colors.primary, false: colors.gray }}
+                  thumbColor={colors.white}
+                />
+              </Pressable>
+            )}
+
+            <Seccion icono="restaurant-outline" titulo="Tipo de comida">
               {CATEGORIAS_RECETA.map((c) => (
                 <Chip
                   key={c}
@@ -63,7 +91,9 @@ export function FiltrosRecetaSheet({ visible, filtros, onAplicar, onCerrar }: Pr
               ))}
             </Seccion>
 
-            <Seccion titulo="Tiempo de cocinado">
+            <Divisor />
+
+            <Seccion icono="time-outline" titulo="Tiempo de cocinado">
               {TIEMPOS_RECETA.map((t) => (
                 <Chip
                   key={t.value}
@@ -75,7 +105,9 @@ export function FiltrosRecetaSheet({ visible, filtros, onAplicar, onCerrar }: Pr
               ))}
             </Seccion>
 
-            <Seccion titulo="Dificultad">
+            <Divisor />
+
+            <Seccion icono="speedometer-outline" titulo="Dificultad">
               {DIFICULTADES_RECETA.map((d) => (
                 <Chip
                   key={d}
@@ -87,7 +119,9 @@ export function FiltrosRecetaSheet({ visible, filtros, onAplicar, onCerrar }: Pr
               ))}
             </Seccion>
 
-            <Seccion titulo="Personas">
+            <Divisor />
+
+            <Seccion icono="people-outline" titulo="Personas">
               {PERSONAS_RECETA.map((p) => (
                 <Chip
                   key={p.value}
@@ -99,7 +133,9 @@ export function FiltrosRecetaSheet({ visible, filtros, onAplicar, onCerrar }: Pr
               ))}
             </Seccion>
 
-            <Seccion titulo="Etiquetas">
+            <Divisor />
+
+            <Seccion icono="pricetags-outline" titulo="Etiquetas">
               {ETIQUETAS_RECETA.map((e) => (
                 <Chip
                   key={e}
@@ -114,20 +150,17 @@ export function FiltrosRecetaSheet({ visible, filtros, onAplicar, onCerrar }: Pr
 
           <View style={styles.acciones}>
             <Pressable
-              style={styles.btnLimpiar}
+              style={[styles.btnLimpiar, total === 0 && styles.btnLimpiarInactivo]}
               onPress={() => setBorrador(FILTROS_RECETA_VACIOS)}
+              disabled={total === 0}
               testID="filtros-limpiar"
             >
-              <Text style={styles.btnLimpiarTexto}>Limpiar todo</Text>
-            </Pressable>
-            <Pressable
-              style={styles.btnAplicar}
-              onPress={() => onAplicar(borrador)}
-              testID="filtros-aplicar"
-            >
-              <Text style={styles.btnAplicarTexto}>
-                {total > 0 ? `Aplicar (${total})` : 'Aplicar'}
+              <Text style={[styles.btnLimpiarTexto, total === 0 && styles.btnLimpiarTextoInactivo]}>
+                Limpiar
               </Text>
+            </Pressable>
+            <Pressable style={styles.btnAplicar} onPress={() => onAplicar(borrador)} testID="filtros-aplicar">
+              <Text style={styles.btnAplicarTexto}>{total > 0 ? `Aplicar (${total})` : 'Aplicar'}</Text>
             </Pressable>
           </View>
         </View>
@@ -136,13 +169,20 @@ export function FiltrosRecetaSheet({ visible, filtros, onAplicar, onCerrar }: Pr
   );
 }
 
-function Seccion({ titulo, children }: { titulo: string; children: ReactNode }) {
+function Seccion({ icono, titulo, children }: { icono: keyof typeof Ionicons.glyphMap; titulo: string; children: ReactNode }) {
   return (
     <View style={styles.seccion}>
-      <Text style={styles.seccionTitulo}>{titulo}</Text>
+      <View style={styles.seccionCabecera}>
+        <Ionicons name={icono} size={16} color={colors.text.secondary} />
+        <Text style={styles.seccionTitulo}>{titulo}</Text>
+      </View>
       <View style={styles.chips}>{children}</View>
     </View>
   );
+}
+
+function Divisor() {
+  return <View style={styles.divisor} />;
 }
 
 function Chip({
@@ -157,11 +197,7 @@ function Chip({
   testID?: string;
 }) {
   return (
-    <Pressable
-      onPress={onPress}
-      testID={testID}
-      style={[styles.chip, activo && styles.chipActivo]}
-    >
+    <Pressable onPress={onPress} testID={testID} style={[styles.chip, activo && styles.chipActivo]}>
       <Text style={[styles.chipTexto, activo && styles.chipTextoActivo]}>{label}</Text>
     </Pressable>
   );
@@ -171,12 +207,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.45)' },
   sheet: {
     backgroundColor: colors.white,
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     paddingTop: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
-    maxHeight: '85%',
+    paddingBottom: spacing.md,
+    maxHeight: '88%',
   },
   handle: {
     alignSelf: 'center',
@@ -184,28 +219,77 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     backgroundColor: colors.gray,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
-  titulo: { ...typography.heading2, color: colors.text.primary, marginBottom: spacing.md },
-  scroll: { paddingBottom: spacing.md, gap: spacing.lg },
-  seccion: { gap: spacing.sm },
-  seccionTitulo: { ...typography.label, color: colors.text.secondary, fontWeight: '700' },
+  cabecera: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  titulo: { ...typography.heading2, color: colors.text.primary },
+  contadorPill: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 6,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contadorPillTexto: { ...typography.caption, fontSize: 12, color: colors.white, fontWeight: '700' },
+
+  scroll: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
+
+  despensaCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: '#F1F8E4',
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  despensaIcono: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  despensaTexto: { flex: 1, gap: 2 },
+  despensaTitulo: { ...typography.label, color: colors.text.primary, fontWeight: '700' },
+  despensaSub: { ...typography.caption, color: colors.text.secondary },
+
+  seccion: { gap: spacing.sm, paddingVertical: spacing.md },
+  seccionCabecera: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  seccionTitulo: {
+    ...typography.label,
+    color: colors.text.secondary,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    fontSize: 12,
+  },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   chip: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
     backgroundColor: colors.grayLight,
-    borderWidth: 1,
-    borderColor: colors.gray,
   },
-  chipActivo: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipActivo: { backgroundColor: colors.primary },
   chipTexto: { ...typography.caption, color: colors.text.secondary, fontWeight: '600' },
   chipTextoActivo: { color: colors.white },
+
+  divisor: { height: 1, backgroundColor: colors.grayLight },
+
   acciones: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginTop: spacing.md,
+    paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.grayLight,
@@ -218,9 +302,11 @@ const styles = StyleSheet.create({
     borderColor: colors.gray,
     alignItems: 'center',
   },
+  btnLimpiarInactivo: { borderColor: colors.grayLight },
   btnLimpiarTexto: { ...typography.button, color: colors.text.secondary },
+  btnLimpiarTextoInactivo: { color: colors.grayMid },
   btnAplicar: {
-    flex: 1,
+    flex: 2,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.xl,
     backgroundColor: colors.primary,
