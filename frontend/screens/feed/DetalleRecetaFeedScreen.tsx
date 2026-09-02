@@ -2,7 +2,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ModalCompartir } from '@/components/compartir/ModalCompartir';
 import { ErrorScreen } from '@/components/common/ErrorScreen';
@@ -218,7 +228,16 @@ export function DetalleRecetaFeedScreen() {
         onClose={() => setModalReporteVisible(false)}
       />
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+      >
         {imagenUrl ? (
           <Image source={{ uri: imagenUrl }} style={styles.heroImagen} resizeMode="cover" />
         ) : (
@@ -344,6 +363,7 @@ export function DetalleRecetaFeedScreen() {
           </View>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -396,6 +416,7 @@ function SectionHeader({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background.surface },
+  flex: { flex: 1 },
 
   header: {
     flexDirection: 'row',
