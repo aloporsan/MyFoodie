@@ -15,6 +15,8 @@ public interface LoteProductoRepository extends MongoRepository<LoteProducto, St
 
     List<LoteProducto> findByDespensaIdAndFechaCaducidadBefore(String despensaId, LocalDate fecha);
 
+    List<LoteProducto> findByUsuarioIdAndOrigen(String usuarioId, String origen);
+
     default float sumCantidadByProductoId(String productoId) {
         return findByProductoIdAndCantidadGreaterThan(productoId, 0f).stream()
                 .map(LoteProducto::getCantidad)
