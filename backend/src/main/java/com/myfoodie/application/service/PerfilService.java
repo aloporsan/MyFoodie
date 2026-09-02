@@ -43,6 +43,7 @@ public class PerfilService {
     private final RecetaRepository recetaRepository;
     private final RecetaGuardadaRepository recetaGuardadaRepository;
     private final MovimientoProductoRepository movimientoRepository;
+    private final DashboardService dashboardService;
     private final JwtTokenProvider jwtTokenProvider;
     private final RedisTemplate<String, String> redisTemplate;
 
@@ -158,6 +159,9 @@ public class PerfilService {
         int totalRecetasPublicadas = (int) recetaRepository.countByAutorIdAndEstado(usuarioId, "publicada");
         int totalRecetasGuardadas = (int) recetaGuardadaRepository.countByUsuarioId(usuarioId);
 
+        // Aprovechamiento de despensa: se reutiliza el cálculo del dashboard para no duplicar la fórmula
+        double aprovechamientoDespensa = dashboardService.obtenerEstadisticas(usuarioId).aprovechamiento();
+
         EstadisticasPerfilDTO.MotivosEliminacion motivos = calcularMotivosEliminacion(usuarioId, despensa);
 
         return new EstadisticasPerfilDTO(
@@ -166,6 +170,7 @@ public class PerfilService {
                 productosCaducados,
                 totalRecetasPublicadas,
                 totalRecetasGuardadas,
+                aprovechamientoDespensa,
                 usuario.getFechaRegistro(),
                 motivos
         );
