@@ -7,6 +7,8 @@ import com.myfoodie.application.dto.perfil.PerfilResponseDTO;
 import com.myfoodie.application.dto.perfil.PerfilUpdateDTO;
 import com.myfoodie.application.dto.perfil.PreferenciasUpdateDTO;
 import com.myfoodie.application.dto.perfil.PrivacidadUpdateDTO;
+import com.myfoodie.application.dto.receta.RecetaFeedDTO;
+import com.myfoodie.application.service.HistorialInteraccionesService;
 import com.myfoodie.application.service.PerfilService;
 import com.myfoodie.domain.repository.UsuarioRepository;
 import com.myfoodie.exception.ApiException;
@@ -21,9 +23,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.security.Principal;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/perfil")
@@ -31,6 +35,7 @@ import java.security.Principal;
 public class PerfilController {
 
     private final PerfilService perfilService;
+    private final HistorialInteraccionesService historialInteraccionesService;
     private final UsuarioRepository usuarioRepository;
 
     @GetMapping
@@ -76,6 +81,22 @@ public class PerfilController {
     @GetMapping("/estadisticas")
     public ResponseEntity<EstadisticasPerfilDTO> obtenerEstadisticas(Principal principal) {
         return ResponseEntity.ok(perfilService.obtenerEstadisticasPerfil(getUsuarioId(principal)));
+    }
+
+    @GetMapping("/historial-recetas")
+    public ResponseEntity<List<RecetaFeedDTO>> obtenerHistorialRecetas(
+            Principal principal,
+            @RequestParam(defaultValue = "guardadas") String tipo) {
+        String usuarioId = getUsuarioId(principal);
+        List<RecetaFeedDTO> resultado = switch (tipo) {
+            case "guardadas" -> historialInteraccionesService.obtenerGuardadas(usuarioId);
+            case "like" -> historialInteraccionesService.obtenerConLike(usuarioId);
+            case "comentadas" -> historialInteraccionesService.obtenerComentadas(usuarioId);
+            case "vistas" -> historialInteraccionesService.obtenerVistasRecientemente(usuarioId);
+            default -> throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "tipo debe ser uno de: guardadas, like, comentadas, vistas");
+        };
+        return ResponseEntity.ok(resultado);
     }
 
     @PostMapping("/cerrar-sesion")

@@ -9,6 +9,7 @@ import com.myfoodie.domain.model.Paso;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.model.Receta;
 import com.myfoodie.domain.model.RecetaGuardada;
+import com.myfoodie.domain.model.TipoInteraccion;
 import com.myfoodie.domain.model.TipoMatch;
 import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.model.VisibilidadReceta;
@@ -53,6 +54,7 @@ public class RecetaService {
     private final UnidadNormalizadorService unidadNormalizadorService;
     private final MatchingService matchingService;
     private final SocialService socialService;
+    private final InteraccionSocialService interaccionSocialService;
 
     // -------------------------------------------------------------------------
     // CRUD básico
@@ -83,6 +85,19 @@ public class RecetaService {
     public RecetaResponseDTO obtenerReceta(String recetaId, String usuarioId) {
         Receta receta = getReceta(recetaId);
         verificarAccesoLectura(receta, usuarioId);
+        return toDTO(receta);
+    }
+
+    /**
+     * Igual que {@link #obtenerReceta}, pero registra la visita para el historial "vistas recientemente"
+     * (#79). Se usa solo desde los endpoints de detalle de receta; no se registra la visita del propio autor.
+     */
+    public RecetaResponseDTO obtenerRecetaDetalle(String recetaId, String usuarioId) {
+        Receta receta = getReceta(recetaId);
+        verificarAccesoLectura(receta, usuarioId);
+        if (!receta.getAutorId().equals(usuarioId)) {
+            interaccionSocialService.registrarInteraccion(usuarioId, TipoInteraccion.VER_RECETA, "RECETA", recetaId);
+        }
         return toDTO(receta);
     }
 

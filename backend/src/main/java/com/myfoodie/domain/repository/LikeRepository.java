@@ -16,4 +16,6 @@ public interface LikeRepository extends MongoRepository<Like, String> {
     long countByRecetaId(String recetaId);
 
     List<Like> findByRecetaIdInAndUsuarioIdIn(Collection<String> recetaIds, Collection<String> usuarioIds);
+
+    List<Like> findByUsuarioIdOrderByCreatedAtDesc(String usuarioId);
 }
