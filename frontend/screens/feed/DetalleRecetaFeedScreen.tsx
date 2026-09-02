@@ -9,6 +9,7 @@ import { ErrorScreen } from '@/components/common/ErrorScreen';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { ListaComentarios } from '@/components/receta';
+import { ReporteModal } from '@/components/social';
 import { useToast } from '@/hooks/useToast';
 import { despensaService } from '@/services/despensaService';
 import { feedService } from '@/services/feedService';
@@ -45,6 +46,7 @@ export function DetalleRecetaFeedScreen() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalCompartirVisible, setModalCompartirVisible] = useState(false);
+  const [modalReporteVisible, setModalReporteVisible] = useState(false);
   const [numComentarios, setNumComentarios] = useState(0);
 
   useEffect(() => {
@@ -197,6 +199,9 @@ export function DetalleRecetaFeedScreen() {
               color={recetaFeed?.yaGuardada ? colors.primary : colors.text.primary}
             />
           </Pressable>
+          <Pressable testID="btn-reportar-header" onPress={() => setModalReporteVisible(true)} hitSlop={8}>
+            <Ionicons name="flag-outline" size={22} color={colors.text.primary} />
+          </Pressable>
         </View>
       </View>
 
@@ -204,6 +209,13 @@ export function DetalleRecetaFeedScreen() {
         visible={modalCompartirVisible}
         recetaId={receta.id}
         onClose={() => setModalCompartirVisible(false)}
+      />
+
+      <ReporteModal
+        visible={modalReporteVisible}
+        tipoContenido="RECETA"
+        contenidoId={receta.id}
+        onClose={() => setModalReporteVisible(false)}
       />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>

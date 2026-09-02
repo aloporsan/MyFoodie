@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { showConfirm } from '@/hooks/useConfirm';
 import type { Comentario } from '@/services/comentarioService';
 import { borderRadius, colors, spacing, typography } from '@/theme';
 import { formatearFechaRelativa } from '@/utils/fecha';
@@ -7,9 +8,10 @@ import { formatearFechaRelativa } from '@/utils/fecha';
 interface Props {
   comentario: Comentario;
   onEliminar?: (comentario: Comentario) => void;
+  onReportar?: (comentario: Comentario) => void;
 }
 
-export function ComentarioCard({ comentario, onEliminar }: Props) {
+export function ComentarioCard({ comentario, onEliminar, onReportar }: Props) {
   const nombre = comentario.nombreUsuario ?? 'Usuario';
   const inicial = nombre.trim().charAt(0).toUpperCase() || '?';
 
@@ -35,16 +37,34 @@ export function ComentarioCard({ comentario, onEliminar }: Props) {
         <Text style={styles.texto}>{comentario.texto}</Text>
       </View>
 
-      {comentario.esAutor && onEliminar && (
+      {comentario.esAutor && onEliminar ? (
         <Pressable
-          style={styles.eliminar}
+          style={styles.accion}
           onPress={() => onEliminar(comentario)}
           hitSlop={8}
           testID="btn-eliminar-comentario"
         >
           <Ionicons name="trash-outline" size={18} color={colors.error} />
         </Pressable>
-      )}
+      ) : onReportar ? (
+        <Pressable
+          style={styles.accion}
+          onPress={() =>
+            showConfirm('Comentario', undefined, [
+              {
+                text: 'Reportar comentario',
+                style: 'destructive',
+                onPress: () => onReportar(comentario),
+              },
+              { text: 'Cancelar', style: 'cancel' },
+            ])
+          }
+          hitSlop={8}
+          testID="btn-opciones-comentario"
+        >
+          <Ionicons name="ellipsis-horizontal" size={18} color={colors.grayMid} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -72,5 +92,5 @@ const styles = StyleSheet.create({
   nombre: { ...typography.label, color: colors.text.primary, flexShrink: 1 },
   fecha: { ...typography.caption, color: colors.grayMid },
   texto: { ...typography.body, color: colors.text.primary },
-  eliminar: { flexShrink: 0, padding: spacing.xs },
+  accion: { flexShrink: 0, padding: spacing.xs },
 });

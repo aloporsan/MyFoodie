@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ReporteModal } from '@/components/social';
 import { useToast } from '@/hooks/useToast';
 import { showConfirm } from '@/hooks/useConfirm';
 import {
@@ -24,6 +25,7 @@ export function ListaComentarios({ recetaId, onCountChange }: Props) {
   const [cargando, setCargando] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [comentarioAReportar, setComentarioAReportar] = useState<Comentario | null>(null);
 
   const sincronizar = useCallback(
     (lista: Comentario[]) => {
@@ -129,10 +131,22 @@ export function ListaComentarios({ recetaId, onCountChange }: Props) {
       ) : (
         <View style={styles.lista}>
           {comentarios.map((c) => (
-            <ComentarioCard key={c.id} comentario={c} onEliminar={eliminar} />
+            <ComentarioCard
+              key={c.id}
+              comentario={c}
+              onEliminar={eliminar}
+              onReportar={setComentarioAReportar}
+            />
           ))}
         </View>
       )}
+
+      <ReporteModal
+        visible={comentarioAReportar !== null}
+        tipoContenido="COMENTARIO"
+        contenidoId={comentarioAReportar?.id ?? ''}
+        onClose={() => setComentarioAReportar(null)}
+      />
     </View>
   );
 }
