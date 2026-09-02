@@ -2,7 +2,6 @@ package com.myfoodie.application.service;
 
 import com.myfoodie.application.dto.despensa.ProductoUpdateCantidadDTO;
 import com.myfoodie.application.dto.receta.*;
-import com.myfoodie.application.dto.social.SeguimientoResponseDTO;
 import com.myfoodie.application.dto.unidad.UnidadConvertidaDTO;
 import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.IngredienteReceta;
@@ -29,12 +28,10 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -170,66 +167,6 @@ public class RecetaService {
                 .map(r -> toFeedDTO(r, usuarioId))
                 .toList();
     }
-
-    /**
-     * Busca recetas publicadas y accesibles para el usuario cuyo texto libre coincide con el
-     * título, algún ingrediente o alguna etiqueta. Los resultados se ordenan por relevancia
-     * (título &gt; ingrediente &gt; etiqueta) y, a igualdad, por fecha de publicación descendente.
-     */
-    public List<RecetaFeedDTO> buscarRecetas(String usuarioId, String texto) {
-        if (texto == null || texto.isBlank()) {
-            return List.of();
-        }
-        String termino = texto.trim().toLowerCase(Locale.ROOT);
-
-        Set<String> ocultos = socialService.obtenerIdsOcultosPara(usuarioId);
-        Set<String> seguidosIds = socialService.obtenerSeguidos(usuarioId).stream()
-                .map(SeguimientoResponseDTO::usuarioId)
-                .collect(Collectors.toSet());
-
-        Set<String> recetaIdsPorIngrediente = ingredienteRepository
-                .findByNombreContainingIgnoreCase(termino).stream()
-                .map(IngredienteReceta::getRecetaId)
-                .collect(Collectors.toSet());
-
-        return recetaRepository.findByEstado("publicada").stream()
-                .filter(r -> !ocultos.contains(r.getAutorId()))
-                .filter(r -> esVisibleEnBusqueda(r, usuarioId, seguidosIds))
-                .map(r -> new RecetaBusqueda(r, relevanciaBusqueda(r, termino, recetaIdsPorIngrediente)))
-                .filter(rb -> rb.relevancia() > 0)
-                .sorted(Comparator.comparingInt(RecetaBusqueda::relevancia).reversed()
-                        .thenComparing(rb -> rb.receta().getCreatedAt(),
-                                Comparator.nullsLast(Comparator.reverseOrder())))
-                .map(rb -> toFeedDTO(rb.receta(), usuarioId))
-                .toList();
-    }
-
-    private int relevanciaBusqueda(Receta receta, String termino, Set<String> recetaIdsPorIngrediente) {
-        if (receta.getTitulo() != null && receta.getTitulo().toLowerCase(Locale.ROOT).contains(termino)) {
-            return 3;
-        }
-        if (recetaIdsPorIngrediente.contains(receta.getId())) {
-            return 2;
-        }
-        boolean coincideEtiqueta = receta.getEtiquetas() != null && receta.getEtiquetas().stream()
-                .anyMatch(e -> e != null && e.toLowerCase(Locale.ROOT).contains(termino));
-        return coincideEtiqueta ? 1 : 0;
-    }
-
-    private boolean esVisibleEnBusqueda(Receta receta, String usuarioId, Set<String> seguidosIds) {
-        if (receta.getAutorId().equals(usuarioId)) {
-            return true;
-        }
-        VisibilidadReceta visibilidad = receta.getVisibilidad() != null
-                ? receta.getVisibilidad() : VisibilidadReceta.PUBLICA;
-        return switch (visibilidad) {
-            case PUBLICA -> true;
-            case SOLO_SEGUIDORES -> seguidosIds.contains(receta.getAutorId());
-            case PRIVADA -> false;
-        };
-    }
-
-    private record RecetaBusqueda(Receta receta, int relevancia) {}
 
     public List<RecetaResumenDTO> misBorradores(String usuarioId) {
         return recetaRepository.findByAutorIdAndEstado(usuarioId, "borrador")

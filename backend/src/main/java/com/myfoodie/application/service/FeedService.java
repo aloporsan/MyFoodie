@@ -3,6 +3,7 @@ package com.myfoodie.application.service;
 import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.feed.ContextoSocialDTO;
 import com.myfoodie.application.dto.feed.FeedResponseDTO;
+import com.myfoodie.application.dto.feed.FiltrosFeedDTO;
 import com.myfoodie.application.dto.feed.InicializarPerfilRequestDTO;
 import com.myfoodie.application.dto.feed.PerfilGustosResponseDTO;
 import com.myfoodie.application.dto.feed.RecetaFeedDTO;
@@ -36,6 +37,7 @@ import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -50,6 +52,8 @@ public class FeedService {
     private static final int DIAS_REAPARICION_DESCARTE = 30;
     private static final int TAMAÑO_MINIMO_POOL = 50;
     private static final int TAMAÑO_MAXIMO_POOL = 200;
+    // Con filtros activos ampliamos el pool para no dejar fuera recetas más antiguas que sí cumplen.
+    private static final int TAMAÑO_POOL_FILTRADO = 1000;
     private static final int MAXIMO_NOMBRES_LIKES = 3;
 
     private final RecetaRepository recetaRepository;
@@ -69,37 +73,119 @@ public class FeedService {
         return obtenerFeed(usuarioId, pagina, tamaño, null);
     }
 
-    public FeedResponseDTO obtenerFeed(String usuarioId, int pagina, int tamaño, String etiqueta) {
+    public FeedResponseDTO obtenerFeed(String usuarioId, int pagina, int tamaño, FiltrosFeedDTO filtros) {
         Set<String> seguidosIds = obtenerSeguidosIds(usuarioId);
         DescartesInfo descartes = obtenerDescartes(usuarioId);
 
-        int tamañoPool = calcularTamañoPool(tamaño);
-        PageRequest poolRequest = PageRequest.of(0, tamañoPool, Sort.by(Sort.Direction.DESC, "createdAt"));
-        boolean filtrarPorEtiqueta = etiqueta != null && !etiqueta.isBlank();
-        List<Receta> candidatas = filtrarPorEtiqueta
-                ? recetaRepository.findByEstadoAndEtiquetasContainingAndAutorIdNotAndIdNotIn(
-                        ESTADO_PUBLICADA, etiqueta.trim(), usuarioId, descartes.idsRecientes(), poolRequest).getContent()
-                : recetaRepository.findByEstadoAndAutorIdNotAndIdNotIn(
-                        ESTADO_PUBLICADA, usuarioId, descartes.idsRecientes(), poolRequest).getContent();
+        PageRequest poolRequest = poolRequest(tamaño, filtros);
+        List<Receta> candidatas = recetaRepository.findByEstadoAndAutorIdNotAndIdNotIn(
+                ESTADO_PUBLICADA, usuarioId, descartes.idsRecientes(), poolRequest).getContent();
         candidatas = filtrarAccesibles(candidatas, usuarioId, seguidosIds);
+        candidatas = aplicarFiltros(candidatas, filtros);
 
-        return construirRespuesta(candidatas, usuarioId, pagina, tamaño, seguidosIds, descartes, true);
+        return construirRespuesta(candidatas, usuarioId, pagina, tamaño, seguidosIds, descartes, true, filtros);
     }
 
     public FeedResponseDTO obtenerRecetasSeguidos(String usuarioId, int pagina, int tamaño) {
+        return obtenerRecetasSeguidos(usuarioId, pagina, tamaño, null);
+    }
+
+    public FeedResponseDTO obtenerRecetasSeguidos(String usuarioId, int pagina, int tamaño, FiltrosFeedDTO filtros) {
         Set<String> seguidosIds = obtenerSeguidosIds(usuarioId);
         if (seguidosIds.isEmpty()) {
             return new FeedResponseDTO(List.of(), pagina, 0, false);
         }
 
         DescartesInfo descartes = obtenerDescartes(usuarioId);
-        int tamañoPool = calcularTamañoPool(tamaño);
-        PageRequest poolRequest = PageRequest.of(0, tamañoPool, Sort.by(Sort.Direction.DESC, "createdAt"));
+        PageRequest poolRequest = poolRequest(tamaño, filtros);
         List<Receta> candidatas = recetaRepository.findByEstadoAndAutorIdInAndIdNotIn(
                 ESTADO_PUBLICADA, seguidosIds, descartes.idsRecientes(), poolRequest).getContent();
         candidatas = filtrarAccesibles(candidatas, usuarioId, seguidosIds);
+        candidatas = aplicarFiltros(candidatas, filtros);
 
-        return construirRespuesta(candidatas, usuarioId, pagina, tamaño, seguidosIds, descartes, false);
+        return construirRespuesta(candidatas, usuarioId, pagina, tamaño, seguidosIds, descartes, false, filtros);
+    }
+
+    private PageRequest poolRequest(int tamaño, FiltrosFeedDTO filtros) {
+        int tamañoPool = (filtros != null && !filtros.estaVacio())
+                ? TAMAÑO_POOL_FILTRADO
+                : calcularTamañoPool(tamaño);
+        return PageRequest.of(0, tamañoPool, Sort.by(Sort.Direction.DESC, "createdAt"));
+    }
+
+    private List<Receta> aplicarFiltros(List<Receta> recetas, FiltrosFeedDTO filtros) {
+        if (filtros == null || filtros.estaVacio()) {
+            return recetas;
+        }
+        return recetas.stream().filter(r -> FiltrosRecetaMatcher.cumple(r, filtros)).toList();
+    }
+
+    /**
+     * Busca recetas publicadas y accesibles cuyo texto libre coincide con el título, algún
+     * ingrediente o alguna etiqueta, aplicando además los filtros multidimensionales. Devuelve
+     * la misma tarjeta que el feed (con coincidencia de despensa) ordenada por relevancia
+     * (título &gt; ingrediente &gt; etiqueta) y, a igualdad, por fecha de publicación descendente.
+     */
+    public List<RecetaFeedDTO> buscarRecetas(String usuarioId, String texto, FiltrosFeedDTO filtros) {
+        if (texto == null || texto.isBlank()) {
+            return List.of();
+        }
+        String termino = texto.trim().toLowerCase(Locale.ROOT);
+        Set<String> seguidosIds = obtenerSeguidosIds(usuarioId);
+
+        Set<String> recetaIdsPorIngrediente = ingredienteRepository.findByNombreContainingIgnoreCase(termino).stream()
+                .map(IngredienteReceta::getRecetaId)
+                .collect(Collectors.toSet());
+
+        Map<String, Integer> relevanciaPorReceta = new HashMap<>();
+        List<Receta> coincidencias = recetaRepository.findByEstado(ESTADO_PUBLICADA).stream()
+                .filter(r -> FiltrosRecetaMatcher.cumple(r, filtros))
+                .filter(r -> {
+                    int relevancia = relevanciaBusqueda(r, termino, recetaIdsPorIngrediente);
+                    if (relevancia > 0) {
+                        relevanciaPorReceta.put(r.getId(), relevancia);
+                    }
+                    return relevancia > 0;
+                })
+                .toList();
+        coincidencias = filtrarAccesibles(coincidencias, usuarioId, seguidosIds);
+
+        Comparator<Receta> orden = Comparator
+                .comparingInt((Receta r) -> relevanciaPorReceta.getOrDefault(r.getId(), 0)).reversed()
+                .thenComparing(Receta::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()));
+
+        return construirTarjetas(coincidencias, usuarioId, seguidosIds, orden);
+    }
+
+    private int relevanciaBusqueda(Receta receta, String termino, Set<String> recetaIdsPorIngrediente) {
+        if (receta.getTitulo() != null && receta.getTitulo().toLowerCase(Locale.ROOT).contains(termino)) {
+            return 3;
+        }
+        if (recetaIdsPorIngrediente.contains(receta.getId())) {
+            return 2;
+        }
+        boolean coincideEtiqueta = receta.getEtiquetas() != null && receta.getEtiquetas().stream()
+                .anyMatch(e -> e != null && e.toLowerCase(Locale.ROOT).contains(termino));
+        return coincideEtiqueta ? 1 : 0;
+    }
+
+    private List<RecetaFeedDTO> construirTarjetas(List<Receta> recetas, String usuarioId, Set<String> seguidosIds,
+                                                  Comparator<Receta> orden) {
+        List<String> nombresProductosDespensa = despensaService.listarProductos(usuarioId).stream()
+                .map(ProductoResponseDTO::nombre)
+                .filter(nombre -> nombre != null && !nombre.isBlank())
+                .toList();
+
+        List<Receta> ordenadas = recetas.stream().sorted(orden).toList();
+        List<String> ids = ordenadas.stream().map(Receta::getId).toList();
+        Map<String, List<String>> likesDeSeguidosPorReceta = obtenerLikesDeSeguidosPorReceta(ids, seguidosIds);
+        Set<String> recetasCompartidasPorSeguido = obtenerRecetasCompartidasPorSeguido(usuarioId, ids, seguidosIds);
+        Map<String, String> nombresPorUsuarioId = resolverNombresLikers(ids, likesDeSeguidosPorReceta);
+
+        return ordenadas.stream()
+                .map(r -> toFeedDTO(new RecetaPuntuadaDTO(r, 0, null, false), usuarioId, nombresProductosDespensa,
+                        seguidosIds, likesDeSeguidosPorReceta, recetasCompartidasPorSeguido, nombresPorUsuarioId))
+                .toList();
     }
 
     public void resetearPerfilGustos(String usuarioId) {
@@ -180,8 +266,8 @@ public class FeedService {
 
     private FeedResponseDTO construirRespuesta(List<Receta> candidatas, String usuarioId, int pagina, int tamaño,
                                                 Set<String> seguidosIds, DescartesInfo descartes,
-                                                boolean priorizarSeguidos) {
-        PerfilGustos perfilGustos = obtenerOPredeterminarPerfil(usuarioId);
+                                                boolean priorizarSeguidos, FiltrosFeedDTO filtros) {
+        PerfilGustos perfilGustos = neutralizarEjesFiltrados(obtenerOPredeterminarPerfil(usuarioId), filtros);
         List<ProductoResponseDTO> productosDespensa = despensaService.listarProductos(usuarioId);
         List<String> nombresProductosDespensa = productosDespensa.stream()
                 .map(ProductoResponseDTO::nombre)
@@ -224,7 +310,8 @@ public class FeedService {
         int totalPaginas = tamaño == 0 ? 0 : (int) Math.ceil(total / (double) tamaño);
 
         List<RecetaPuntuadaDTO> paginaOrdenada = recetasOrdenadas.subList(desde, hasta);
-        Map<String, String> nombresPorUsuarioId = resolverNombresLikers(paginaOrdenada, likesDeSeguidosPorReceta);
+        Map<String, String> nombresPorUsuarioId = resolverNombresLikers(
+                paginaOrdenada.stream().map(rp -> rp.receta().getId()).toList(), likesDeSeguidosPorReceta);
 
         List<RecetaFeedDTO> recetasPagina = paginaOrdenada.stream()
                 .map(rp -> toFeedDTO(rp, usuarioId, nombresProductosDespensa, seguidosIds, likesDeSeguidosPorReceta,
@@ -232,6 +319,31 @@ public class FeedService {
                 .toList();
 
         return new FeedResponseDTO(recetasPagina, pagina, totalPaginas, hasta < total);
+    }
+
+    /**
+     * Cuando el usuario filtra manualmente por un eje (dificultad, categoría, etiqueta o tiempo),
+     * esa dimensión deja de condicionar el orden: se vacía la preferencia guardada del perfil
+     * para ese eje concreto y se mantiene el resto del sesgo.
+     */
+    private PerfilGustos neutralizarEjesFiltrados(PerfilGustos perfil, FiltrosFeedDTO filtros) {
+        if (filtros == null || filtros.estaVacio()) {
+            return perfil;
+        }
+        return PerfilGustos.builder()
+                .id(perfil.getId())
+                .usuarioId(perfil.getUsuarioId())
+                .categoriasPreferidas(filtros.categorias().isEmpty()
+                        ? perfil.getCategoriasPreferidas() : new HashMap<>())
+                .etiquetasPreferidas(filtros.etiquetas().isEmpty()
+                        ? perfil.getEtiquetasPreferidas() : new HashMap<>())
+                .dificultadesPreferidas(filtros.dificultades().isEmpty()
+                        ? perfil.getDificultadesPreferidas() : new HashMap<>())
+                .tiempoMaximoHabitual(filtros.tiempos().isEmpty() ? perfil.getTiempoMaximoHabitual() : null)
+                .ingredientesHabituales(perfil.getIngredientesHabituales())
+                .totalInteracciones(perfil.getTotalInteracciones())
+                .updatedAt(perfil.getUpdatedAt())
+                .build();
     }
 
     private PerfilGustos obtenerOPredeterminarPerfil(String usuarioId) {
@@ -295,10 +407,10 @@ public class FeedService {
                 .collect(Collectors.toSet());
     }
 
-    private Map<String, String> resolverNombresLikers(List<RecetaPuntuadaDTO> pagina,
+    private Map<String, String> resolverNombresLikers(List<String> recetaIds,
                                                         Map<String, List<String>> likesDeSeguidosPorReceta) {
-        Set<String> idsNecesarios = pagina.stream()
-                .flatMap(rp -> likesDeSeguidosPorReceta.getOrDefault(rp.receta().getId(), List.of()).stream()
+        Set<String> idsNecesarios = recetaIds.stream()
+                .flatMap(id -> likesDeSeguidosPorReceta.getOrDefault(id, List.of()).stream()
                         .limit(MAXIMO_NOMBRES_LIKES))
                 .collect(Collectors.toSet());
 
@@ -367,6 +479,7 @@ public class FeedService {
                 autor != null ? autor.getFotoPerfil() : null,
                 receta.getTiempoEstimado(),
                 receta.getDificultad(),
+                receta.getCategoria(),
                 receta.getNumPersonas(),
                 receta.getEtiquetas(),
                 receta.getImagenUrl(),

@@ -128,13 +128,6 @@ public class RecetaController {
         return ResponseEntity.ok(recetaService.subirImagenReceta(getUsuarioId(principal), id, body.get("imagenUrl")));
     }
 
-    @GetMapping("/buscar")
-    public ResponseEntity<List<RecetaFeedDTO>> buscar(
-            @RequestParam("q") String q,
-            Principal principal) {
-        return ResponseEntity.ok(recetaService.buscarRecetas(getUsuarioId(principal), q));
-    }
-
     @GetMapping("/mis-recetas")
     public ResponseEntity<List<RecetaFeedDTO>> misRecetas(Principal principal) {
         return ResponseEntity.ok(recetaService.misRecetas(getUsuarioId(principal)));
