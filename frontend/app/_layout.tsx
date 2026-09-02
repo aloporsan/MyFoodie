@@ -84,6 +84,7 @@ function RootLayoutNav() {
         <Stack.Screen name="perfil/privacidad"          options={{ headerShown: false }} />
         <Stack.Screen name="perfil/recetas-guardadas"   options={{ headerShown: false }} />
         <Stack.Screen name="perfil/recetas-publicadas"  options={{ headerShown: false }} />
+        <Stack.Screen name="perfil/historial-recetas"   options={{ headerShown: false }} />
         <Stack.Screen name="receta/[id]"                options={{ headerShown: false }} />
         <Stack.Screen name="receta/editar"              options={{ headerShown: false }} />
         <Stack.Screen name="feed/[id]"                  options={{ headerShown: false }} />
@@ -94,6 +95,7 @@ function RootLayoutNav() {
         <Stack.Screen name="social/seguidos"            options={{ headerShown: false }} />
         <Stack.Screen name="social/bloqueados"          options={{ headerShown: false }} />
         <Stack.Screen name="social/perfil/[id]"         options={{ headerShown: false }} />
+        <Stack.Screen name="social/perfil/[id]/recetas" options={{ headerShown: false }} />
         <Stack.Screen name="social"                     options={{ headerShown: false }} />
         <Stack.Screen name="compartir/recibidas"        options={{ headerShown: false }} />
         <Stack.Screen name="compartir/recibidas/[id]"   options={{ headerShown: false }} />
@@ -102,6 +104,7 @@ function RootLayoutNav() {
         <Stack.Screen name="carrito/index"                     options={{ headerShown: false }} />
         <Stack.Screen name="carrito/generar-lista"             options={{ headerShown: false }} />
         <Stack.Screen name="carrito/listas"                    options={{ headerShown: false }} />
+        <Stack.Screen name="carrito/historial"                 options={{ headerShown: false }} />
         <Stack.Screen name="carrito/lista/[id]"                options={{ headerShown: false }} />
         <Stack.Screen name="carrito/lista/[id]/anadir-despensa" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />

@@ -16,9 +16,11 @@ import { ComentarioCard } from './ComentarioCard';
 interface Props {
   recetaId: string;
   onCountChange?: (total: number) => void;
+  /** Se llama cuando el campo de comentario recibe el foco (para que el contenedor haga scroll). */
+  onInputFocus?: () => void;
 }
 
-export function ListaComentarios({ recetaId, onCountChange }: Props) {
+export function ListaComentarios({ recetaId, onCountChange, onInputFocus }: Props) {
   const { showError } = useToast();
   const [comentarios, setComentarios] = useState<Comentario[]>([]);
   const [texto, setTexto] = useState('');
@@ -102,6 +104,7 @@ export function ListaComentarios({ recetaId, onCountChange }: Props) {
           placeholderTextColor={colors.grayMid}
           multiline
           maxLength={COMENTARIO_MAX_LENGTH}
+          onFocus={onInputFocus}
           testID="input-comentario"
         />
         <Pressable

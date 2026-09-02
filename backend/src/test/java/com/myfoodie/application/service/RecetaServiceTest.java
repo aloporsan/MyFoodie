@@ -799,4 +799,32 @@ class RecetaServiceTest {
         verify(despensaService, times(2)).actualizarCantidad(eq("user-1"), anyString(), any(), eq(false));
         verify(carritoInteligenteService, times(1)).actualizarCarritoTrasModificacionDespensa("user-1");
     }
+
+    // -------------------------------------------------------------------------
+    // Recetas publicadas de otro usuario (perfil público)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void recetasPublicadasDeUsuario_devuelve_las_publicadas_del_autor() {
+        when(recetaRepository.findByAutorIdAndEstado("autor-1", "publicada"))
+                .thenReturn(List.of(receta("r1", "autor-1"), receta("r2", "autor-1")));
+
+        List<RecetaFeedDTO> resultado =
+                recetaService.recetasPublicadasDeUsuario("autor-1", "visitante-1");
+
+        assertThat(resultado).hasSize(2);
+        verify(socialService).verificarAccesoListado("autor-1", "visitante-1");
+    }
+
+    @Test
+    void recetasPublicadasDeUsuario_propaga_error_de_acceso_y_no_consulta_recetas() {
+        doThrow(new ApiException(HttpStatus.FORBIDDEN, "Sin permiso"))
+                .when(socialService).verificarAccesoListado("autor-1", "visitante-1");
+
+        assertThatThrownBy(() -> recetaService.recetasPublicadasDeUsuario("autor-1", "visitante-1"))
+                .isInstanceOf(ApiException.class)
+                .satisfies(e -> assertThat(((ApiException) e).getStatus()).isEqualTo(HttpStatus.FORBIDDEN));
+
+        verify(recetaRepository, never()).findByAutorIdAndEstado(anyString(), anyString());
+    }
 }

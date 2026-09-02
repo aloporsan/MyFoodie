@@ -5,7 +5,7 @@ import { borderRadius, colors, spacing, typography } from '@/theme';
 
 interface Props {
   icono: React.ComponentProps<typeof Ionicons>['name'];
-  valor: number;
+  valor: number | string;
   etiqueta: string;
   color?: string;
 }

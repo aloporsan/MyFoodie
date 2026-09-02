@@ -39,7 +39,9 @@ export function MisListasScreen() {
           <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </Pressable>
         <Text style={styles.headerTitulo}>Mis listas de compra</Text>
-        <View style={{ width: 24 }} />
+        <Pressable onPress={() => router.push('/carrito/historial')} hitSlop={8}>
+          <Ionicons name="time-outline" size={24} color={colors.text.primary} />
+        </Pressable>
       </View>
 
       <FlatList

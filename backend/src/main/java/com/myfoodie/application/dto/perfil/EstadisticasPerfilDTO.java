@@ -8,6 +8,7 @@ public record EstadisticasPerfilDTO(
         int totalProductosCaducados,
         int totalRecetasPublicadas,
         int totalRecetasGuardadas,
+        double aprovechamientoDespensa,
         LocalDateTime fechaRegistro,
         MotivosEliminacion motivosEliminacion
 ) {

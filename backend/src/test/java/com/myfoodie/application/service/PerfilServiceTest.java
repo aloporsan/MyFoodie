@@ -6,11 +6,15 @@ import com.myfoodie.application.dto.perfil.PerfilResponseDTO;
 import com.myfoodie.application.dto.perfil.PerfilUpdateDTO;
 import com.myfoodie.application.dto.perfil.PreferenciasUpdateDTO;
 import com.myfoodie.application.dto.perfil.PrivacidadUpdateDTO;
+import com.myfoodie.application.dto.dashboard.EstadisticasDTO;
+import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.Preferencias;
 import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.DespensaRepository;
+import com.myfoodie.domain.repository.MovimientoProductoRepository;
 import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.ProductoRepository;
+import com.myfoodie.domain.repository.RecetaGuardadaRepository;
 import com.myfoodie.domain.repository.RecetaRepository;
 import com.myfoodie.domain.repository.UsuarioRepository;
 import com.myfoodie.exception.ApiException;
@@ -40,6 +44,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -50,6 +55,9 @@ class PerfilServiceTest {
     @Mock private DespensaRepository despensaRepository;
     @Mock private ProductoRepository productoRepository;
     @Mock private RecetaRepository recetaRepository;
+    @Mock private RecetaGuardadaRepository recetaGuardadaRepository;
+    @Mock private MovimientoProductoRepository movimientoRepository;
+    @Mock private DashboardService dashboardService;
     @Mock private JwtTokenProvider jwtTokenProvider;
     @Mock private RedisTemplate<String, String> redisTemplate;
 
@@ -161,6 +169,7 @@ class PerfilServiceTest {
         when(usuarioRepository.findById("user-123")).thenReturn(Optional.of(usuarioMock));
         when(despensaRepository.findByUsuarioId("user-123")).thenReturn(Optional.empty());
         when(recetaRepository.countByAutorIdAndEstado("user-123", "publicada")).thenReturn(0L);
+        when(recetaGuardadaRepository.countByUsuarioId("user-123")).thenReturn(0L);
 
         EstadisticasPerfilDTO result = perfilService.obtenerEstadisticasPerfil("user-123");
 
@@ -170,6 +179,67 @@ class PerfilServiceTest {
         assertThat(result.totalRecetasPublicadas()).isEqualTo(0);
         assertThat(result.totalRecetasGuardadas()).isEqualTo(0);
         assertThat(result.fechaRegistro()).isEqualTo(usuarioMock.getFechaRegistro());
+    }
+
+    @Test
+    void totalRecetasGuardadas_devuelve_conteo_real_no_cero() {
+        when(usuarioRepository.findById("user-123")).thenReturn(Optional.of(usuarioMock));
+        when(despensaRepository.findByUsuarioId("user-123")).thenReturn(Optional.empty());
+        when(recetaRepository.countByAutorIdAndEstado("user-123", "publicada")).thenReturn(0L);
+        when(recetaGuardadaRepository.countByUsuarioId("user-123")).thenReturn(7L);
+
+        EstadisticasPerfilDTO result = perfilService.obtenerEstadisticasPerfil("user-123");
+
+        assertThat(result.totalRecetasGuardadas()).isEqualTo(7);
+    }
+
+    @Test
+    void estadisticas_sin_despensa_no_llama_al_dashboard_y_aprovechamiento_es_100() {
+        when(usuarioRepository.findById("user-123")).thenReturn(Optional.of(usuarioMock));
+        when(despensaRepository.findByUsuarioId("user-123")).thenReturn(Optional.empty());
+        when(recetaRepository.countByAutorIdAndEstado("user-123", "publicada")).thenReturn(0L);
+        when(recetaGuardadaRepository.countByUsuarioId("user-123")).thenReturn(0L);
+
+        EstadisticasPerfilDTO result = perfilService.obtenerEstadisticasPerfil("user-123");
+
+        assertThat(result.aprovechamientoDespensa()).isEqualTo(100.0);
+        verifyNoInteractions(dashboardService);
+    }
+
+    @Test
+    void estadisticas_incluye_aprovechamiento_de_despensa() {
+        Despensa despensa = new Despensa();
+        despensa.setId("desp-123");
+        despensa.setUsuarioId("user-123");
+        when(usuarioRepository.findById("user-123")).thenReturn(Optional.of(usuarioMock));
+        when(despensaRepository.findByUsuarioId("user-123")).thenReturn(Optional.of(despensa));
+        when(recetaRepository.countByAutorIdAndEstado("user-123", "publicada")).thenReturn(0L);
+        when(recetaGuardadaRepository.countByUsuarioId("user-123")).thenReturn(0L);
+        when(dashboardService.obtenerEstadisticas("user-123"))
+                .thenReturn(new EstadisticasDTO(10, 3, 2, "Lácteos", 80.0));
+
+        EstadisticasPerfilDTO result = perfilService.obtenerEstadisticasPerfil("user-123");
+
+        assertThat(result.aprovechamientoDespensa()).isEqualTo(80.0);
+    }
+
+    @Test
+    void estadisticas_reutiliza_aprovechamiento_de_dashboard() {
+        Despensa despensa = new Despensa();
+        despensa.setId("desp-123");
+        despensa.setUsuarioId("user-123");
+        when(usuarioRepository.findById("user-123")).thenReturn(Optional.of(usuarioMock));
+        when(despensaRepository.findByUsuarioId("user-123")).thenReturn(Optional.of(despensa));
+        when(recetaRepository.countByAutorIdAndEstado("user-123", "publicada")).thenReturn(0L);
+        when(recetaGuardadaRepository.countByUsuarioId("user-123")).thenReturn(0L);
+        when(dashboardService.obtenerEstadisticas("user-123"))
+                .thenReturn(new EstadisticasDTO(0, 0, 0, "-", 42.5));
+
+        EstadisticasPerfilDTO result = perfilService.obtenerEstadisticasPerfil("user-123");
+
+        // El valor sale tal cual del cálculo del dashboard, no se recalcula aquí
+        assertThat(result.aprovechamientoDespensa()).isEqualTo(42.5);
+        verify(dashboardService).obtenerEstadisticas("user-123");
     }
 
     @Test

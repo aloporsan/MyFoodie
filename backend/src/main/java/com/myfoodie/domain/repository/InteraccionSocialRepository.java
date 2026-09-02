@@ -10,5 +10,7 @@ public interface InteraccionSocialRepository extends MongoRepository<Interaccion
 
     List<InteraccionSocial> findByUsuarioIdOrderByCreatedAtDesc(String usuarioId);
 
+    List<InteraccionSocial> findByUsuarioIdAndTipoOrderByCreatedAtDesc(String usuarioId, TipoInteraccion tipo);
+
     long countByEntidadIdAndTipo(String entidadId, TipoInteraccion tipo);
 }

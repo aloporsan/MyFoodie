@@ -14,5 +14,7 @@ public interface ComentarioRepository extends MongoRepository<Comentario, String
 
     Optional<Comentario> findByIdAndUsuarioId(String id, String usuarioId);
 
+    List<Comentario> findByUsuarioIdAndEliminadoFalseOrderByCreatedAtDesc(String usuarioId);
+
     void deleteByRecetaId(String recetaId);
 }

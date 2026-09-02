@@ -32,6 +32,7 @@ const mockEstadisticas = {
   totalProductosCaducados: 5,
   totalRecetasPublicadas: 8,
   totalRecetasGuardadas: 15,
+  aprovechamientoDespensa: 88,
   fechaRegistro: '2024-01-15T00:00:00.000Z',
 };
 
@@ -71,6 +72,13 @@ it('renderiza_contadores_correctamente', async () => {
   expect(getByText('30')).toBeTruthy();
   expect(getByText('8')).toBeTruthy();
   expect(getByText('15')).toBeTruthy();
+});
+
+it('muestra_tarjeta_aprovechamiento_de_despensa', async () => {
+  const { getByText } = render(<EstadisticasScreen />);
+  await act(async () => {});
+  expect(getByText('Aprovechamiento de despensa')).toBeTruthy();
+  expect(getByText('88%')).toBeTruthy();
 });
 
 it('muestra_indicador_carga_mientras_carga', () => {

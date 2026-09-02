@@ -9,6 +9,7 @@ import com.myfoodie.domain.model.Paso;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.model.Receta;
 import com.myfoodie.domain.model.RecetaGuardada;
+import com.myfoodie.domain.model.TipoInteraccion;
 import com.myfoodie.domain.model.TipoMatch;
 import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.model.VisibilidadReceta;
@@ -28,6 +29,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -53,6 +55,7 @@ public class RecetaService {
     private final UnidadNormalizadorService unidadNormalizadorService;
     private final MatchingService matchingService;
     private final SocialService socialService;
+    private final InteraccionSocialService interaccionSocialService;
 
     // -------------------------------------------------------------------------
     // CRUD básico
@@ -83,6 +86,19 @@ public class RecetaService {
     public RecetaResponseDTO obtenerReceta(String recetaId, String usuarioId) {
         Receta receta = getReceta(recetaId);
         verificarAccesoLectura(receta, usuarioId);
+        return toDTO(receta);
+    }
+
+    /**
+     * Igual que {@link #obtenerReceta}, pero registra la visita para el historial "vistas recientemente"
+     * (#79). Se usa solo desde los endpoints de detalle de receta; no se registra la visita del propio autor.
+     */
+    public RecetaResponseDTO obtenerRecetaDetalle(String recetaId, String usuarioId) {
+        Receta receta = getReceta(recetaId);
+        verificarAccesoLectura(receta, usuarioId);
+        if (!receta.getAutorId().equals(usuarioId)) {
+            interaccionSocialService.registrarInteraccion(usuarioId, TipoInteraccion.VER_RECETA, "RECETA", recetaId);
+        }
         return toDTO(receta);
     }
 
@@ -165,6 +181,17 @@ public class RecetaService {
         return recetaRepository.findByAutorId(usuarioId)
                 .stream()
                 .map(r -> toFeedDTO(r, usuarioId))
+                .toList();
+    }
+
+    // Recetas publicadas de otro usuario, para su perfil público. Respeta bloqueos y privacidad.
+    public List<RecetaFeedDTO> recetasPublicadasDeUsuario(String autorId, String visitanteId) {
+        socialService.verificarAccesoListado(autorId, visitanteId);
+        return recetaRepository.findByAutorIdAndEstado(autorId, "publicada")
+                .stream()
+                .sorted(Comparator.comparing(Receta::getCreatedAt,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .map(r -> toFeedDTO(r, visitanteId))
                 .toList();
     }
 

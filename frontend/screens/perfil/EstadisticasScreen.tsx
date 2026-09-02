@@ -167,6 +167,14 @@ export function EstadisticasScreen() {
                 color="#888888"
               />
             </View>
+            <View style={[styles.fila, { marginTop: spacing.md }]}>
+              <EstadisticaItem
+                icono="leaf-outline"
+                valor={`${Math.round(estadisticas?.aprovechamientoDespensa ?? 0)}%`}
+                etiqueta="Aprovechamiento de despensa"
+                color={colors.primary}
+              />
+            </View>
           </Seccion>
 
           {/* Motivos de eliminación */}

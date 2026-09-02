@@ -18,6 +18,7 @@ import com.myfoodie.domain.repository.DespensaRepository;
 import com.myfoodie.domain.repository.MovimientoProductoRepository;
 import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.ProductoRepository;
+import com.myfoodie.domain.repository.RecetaGuardadaRepository;
 import com.myfoodie.domain.repository.RecetaRepository;
 import com.myfoodie.domain.repository.UsuarioRepository;
 import com.myfoodie.exception.ApiException;
@@ -40,7 +41,9 @@ public class PerfilService {
     private final DespensaRepository despensaRepository;
     private final ProductoRepository productoRepository;
     private final RecetaRepository recetaRepository;
+    private final RecetaGuardadaRepository recetaGuardadaRepository;
     private final MovimientoProductoRepository movimientoRepository;
+    private final DashboardService dashboardService;
     private final JwtTokenProvider jwtTokenProvider;
     private final RedisTemplate<String, String> redisTemplate;
 
@@ -154,6 +157,14 @@ public class PerfilService {
         }
 
         int totalRecetasPublicadas = (int) recetaRepository.countByAutorIdAndEstado(usuarioId, "publicada");
+        int totalRecetasGuardadas = (int) recetaGuardadaRepository.countByUsuarioId(usuarioId);
+
+        // Aprovechamiento de despensa: se reutiliza el cálculo del dashboard para no duplicar la fórmula.
+        // Si el usuario aún no tiene despensa, el dashboard lanzaría 404, así que devolvemos 100 %
+        // (mismo criterio que DashboardService para una despensa vacía: nada caducado = nada desaprovechado).
+        double aprovechamientoDespensa = despensa != null
+                ? dashboardService.obtenerEstadisticas(usuarioId).aprovechamiento()
+                : 100.0;
 
         EstadisticasPerfilDTO.MotivosEliminacion motivos = calcularMotivosEliminacion(usuarioId, despensa);
 
@@ -162,7 +173,8 @@ public class PerfilService {
                 productosConsumidos,
                 productosCaducados,
                 totalRecetasPublicadas,
-                0,
+                totalRecetasGuardadas,
+                aprovechamientoDespensa,
                 usuario.getFechaRegistro(),
                 motivos
         );

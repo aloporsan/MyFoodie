@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type React from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -58,6 +58,22 @@ export function DetalleRecetaFeedScreen() {
   const [modalCompartirVisible, setModalCompartirVisible] = useState(false);
   const [modalReporteVisible, setModalReporteVisible] = useState(false);
   const [numComentarios, setNumComentarios] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+  const contenidoY = useRef(0);
+  const comentariosY = useRef(0);
+
+  const enfocarComentarios = () => {
+    // Lleva la sección de comentarios al borde superior para que el campo quede por
+    // encima del teclado. El retardo da tiempo a que el teclado termine de abrirse.
+    setTimeout(
+      () =>
+        scrollRef.current?.scrollTo({
+          y: contenidoY.current + comentariosY.current,
+          animated: true,
+        }),
+      Platform.OS === 'android' ? 350 : 100,
+    );
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -233,6 +249,7 @@ export function DetalleRecetaFeedScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -246,7 +263,12 @@ export function DetalleRecetaFeedScreen() {
           </View>
         )}
 
-        <View style={styles.content}>
+        <View
+          style={styles.content}
+          onLayout={(e) => {
+            contenidoY.current = e.nativeEvent.layout.y;
+          }}
+        >
           <View style={styles.card}>
             <Text style={styles.titulo}>{receta.titulo}</Text>
             <Text style={styles.descripcion}>{receta.descripcion}</Text>
@@ -352,14 +374,25 @@ export function DetalleRecetaFeedScreen() {
             </View>
           </View>
 
-          <View style={styles.card}>
+          <View
+            style={styles.card}
+            onLayout={(e) => {
+              comentariosY.current = e.nativeEvent.layout.y;
+            }}
+          >
             <SectionHeader
               icon="chatbubble-outline"
               iconColor={colors.grayDark}
               titulo="Comentarios"
               count={numComentarios}
             />
-            {id ? <ListaComentarios recetaId={id} onCountChange={setNumComentarios} /> : null}
+            {id ? (
+              <ListaComentarios
+                recetaId={id}
+                onCountChange={setNumComentarios}
+                onInputFocus={enfocarComentarios}
+              />
+            ) : null}
           </View>
         </View>
       </ScrollView>

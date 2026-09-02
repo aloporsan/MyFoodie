@@ -61,7 +61,7 @@ public class FeedController {
     public ResponseEntity<RecetaResponseDTO> obtenerDetalle(
             @PathVariable String id,
             Principal principal) {
-        return ResponseEntity.ok(recetaService.obtenerReceta(id, getUsuarioId(principal)));
+        return ResponseEntity.ok(recetaService.obtenerRecetaDetalle(id, getUsuarioId(principal)));
     }
 
     @PostMapping("/recetas/{id}/guardar")

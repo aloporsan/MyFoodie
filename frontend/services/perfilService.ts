@@ -48,6 +48,7 @@ export interface EstadisticasPerfil {
   totalProductosCaducados: number;
   totalRecetasPublicadas: number;
   totalRecetasGuardadas: number;
+  aprovechamientoDespensa: number;
   fechaRegistro: string;
   motivosEliminacion: MotivosEliminacion;
 }

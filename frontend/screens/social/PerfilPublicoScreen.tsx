@@ -9,12 +9,16 @@ import { ErrorScreen } from '@/components/common/ErrorScreen';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { EstadisticaItem } from '@/components/perfil/EstadisticaItem';
+import { RecetaCardVertical } from '@/components/receta';
 import { ReporteModal } from '@/components/social';
 import { showConfirm } from '@/hooks/useConfirm';
 import { useToast } from '@/hooks/useToast';
+import { Receta, recetaService } from '@/services/recetaService';
 import type { PerfilPublico } from '@/services/socialService';
 import { useSocialStore } from '@/store/socialStore';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
+
+const PREVIEW_RECETAS = 3;
 
 type EstadoBotonPerfil = 'seguir' | 'solicitar' | 'siguiendo' | 'pendiente';
 
@@ -47,10 +51,35 @@ export function PerfilPublicoScreen() {
   const desbloquearUsuario = useSocialStore((s) => s.desbloquearUsuario);
 
   const [modalReporteVisible, setModalReporteVisible] = useState(false);
+  const [recetas, setRecetas] = useState<Receta[]>([]);
 
   useEffect(() => {
     if (id) cargarPerfilPublico(id);
   }, [id]);
+
+  const puedeVerListado =
+    !!perfilPublico &&
+    !perfilPublico.estaBloqueado &&
+    (perfilPublico.privacidad !== 'PRIVADA' || perfilPublico.esSeguido);
+
+  useEffect(() => {
+    if (!id || !puedeVerListado) {
+      setRecetas([]);
+      return;
+    }
+    let cancelado = false;
+    recetaService
+      .recetasDeUsuario(id)
+      .then((lista) => {
+        if (!cancelado) setRecetas(lista);
+      })
+      .catch(() => {
+        if (!cancelado) setRecetas([]);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [id, puedeVerListado]);
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/feed'));
 
@@ -147,8 +176,6 @@ export function PerfilPublicoScreen() {
     .join('')
     .toUpperCase();
 
-  const esPrivado = perfilPublico.privacidad === 'PRIVADA';
-  const puedeVerRecetas = !perfilPublico.estaBloqueado && (!esPrivado || perfilPublico.esSeguido);
   const estadoBoton = calcularEstadoBoton(perfilPublico);
   const botonOutline = estadoBoton === 'siguiendo' || estadoBoton === 'solicitar';
 
@@ -268,20 +295,46 @@ export function PerfilPublicoScreen() {
               fondo="rgba(229, 57, 53, 0.12)"
               texto="Has bloqueado a este usuario"
             />
-          ) : !puedeVerRecetas ? (
+          ) : !puedeVerListado ? (
             <InfoBox
               icono="lock-closed"
               color={colors.secondary}
               fondo="#FDEBD0"
               texto="Este perfil es privado"
             />
-          ) : (
+          ) : recetas.length === 0 ? (
             <InfoBox
               icono="book"
               color={colors.primary}
               fondo="#E8F5D0"
-              texto="El listado de recetas publicadas estará disponible próximamente"
+              texto={`${perfilPublico.nombre} aún no ha publicado recetas`}
             />
+          ) : (
+            <View style={styles.recetasLista}>
+              {recetas.slice(0, PREVIEW_RECETAS).map((receta) => (
+                <RecetaCardVertical
+                  key={receta.id}
+                  receta={receta}
+                  onPress={() => router.push({ pathname: '/receta/[id]', params: { id: receta.id } })}
+                />
+              ))}
+              {recetas.length > PREVIEW_RECETAS && (
+                <Pressable
+                  style={styles.verTodasBtn}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/social/perfil/[id]/recetas',
+                      params: { id: perfilPublico.id, nombre: perfilPublico.nombre },
+                    })
+                  }
+                >
+                  <Text style={styles.verTodasTexto}>
+                    Ver las {recetas.length} recetas
+                  </Text>
+                  <Ionicons name="arrow-forward" size={16} color={colors.primary} />
+                </Pressable>
+              )}
+            </View>
           )}
         </View>
       </ScrollView>
@@ -398,6 +451,19 @@ const styles = StyleSheet.create({
   botonAccionTextoOutline: { color: colors.primary },
 
   recetasSeccion: { paddingHorizontal: spacing.lg, marginTop: spacing.xl, gap: spacing.md },
+  recetasLista: { gap: spacing.md },
+  verTodasBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+  },
+  verTodasTexto: { ...typography.label, color: colors.primary, fontWeight: '700' },
   seccionTitulo: {
     fontSize: 12,
     fontFamily: 'Poppins_600SemiBold',
