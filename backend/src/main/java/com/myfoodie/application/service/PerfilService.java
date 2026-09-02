@@ -159,8 +159,12 @@ public class PerfilService {
         int totalRecetasPublicadas = (int) recetaRepository.countByAutorIdAndEstado(usuarioId, "publicada");
         int totalRecetasGuardadas = (int) recetaGuardadaRepository.countByUsuarioId(usuarioId);
 
-        // Aprovechamiento de despensa: se reutiliza el cálculo del dashboard para no duplicar la fórmula
-        double aprovechamientoDespensa = dashboardService.obtenerEstadisticas(usuarioId).aprovechamiento();
+        // Aprovechamiento de despensa: se reutiliza el cálculo del dashboard para no duplicar la fórmula.
+        // Si el usuario aún no tiene despensa, el dashboard lanzaría 404, así que devolvemos 100 %
+        // (mismo criterio que DashboardService para una despensa vacía: nada caducado = nada desaprovechado).
+        double aprovechamientoDespensa = despensa != null
+                ? dashboardService.obtenerEstadisticas(usuarioId).aprovechamiento()
+                : 100.0;
 
         EstadisticasPerfilDTO.MotivosEliminacion motivos = calcularMotivosEliminacion(usuarioId, despensa);
 
