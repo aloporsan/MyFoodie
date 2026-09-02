@@ -1,0 +1,547 @@
+{
+  "info": {
+    "name": "MyFoodie — Búsqueda y descubrimiento (Fase 3 Bloque 5)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",     "value": "http://localhost:8080" },
+    { "key": "token",       "value": "" },
+    { "key": "tokenAutor",  "value": "" },
+    { "key": "emailBuscador", "value": "" },
+    { "key": "emailAutor",  "value": "" },
+    { "key": "r1", "value": "" },
+    { "key": "r2", "value": "" },
+    { "key": "r3", "value": "" },
+    { "key": "r4", "value": "" },
+    { "key": "r5", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "🔧 Setup",
+      "item": [
+        {
+          "name": "Registrar usuario autor (publica las recetas)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "exec": [
+                "pm.collectionVariables.set('emailAutor', 'bd_autor_' + Date.now() + '@test.com');"
+              ] }
+            },
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "if (json.token) pm.collectionVariables.set('tokenAutor', json.token);",
+                "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                "pm.test('Tiene token', () => pm.expect(json.token).to.not.be.empty);"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Autor Recetas\",\n  \"nombreUsuario\": \"bd_autor_{{$timestamp}}\",\n  \"email\": \"{{emailAutor}}\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Registrar usuario buscador (consulta feed y buscador)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "exec": [
+                "pm.collectionVariables.set('emailBuscador', 'bd_buscador_' + Date.now() + '@test.com');"
+              ] }
+            },
+            {
+              "listen": "test",
+              "script": { "exec": [
+                "const json = pm.response.json();",
+                "if (json.token) pm.collectionVariables.set('token', json.token);",
+                "pm.test('Status 201', () => pm.response.to.have.status(201));"
+              ] }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Usuario Buscador\",\n  \"nombreUsuario\": \"bd_buscador_{{$timestamp}}\",\n  \"email\": \"{{emailBuscador}}\",\n  \"password\": \"password123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🍳 Recetas de prueba (autor)",
+      "item": [
+        {
+          "name": "R1 crear 'Ensalada de quinoa' (etiqueta Saludable)",
+          "event": [ { "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "pm.collectionVariables.set('r1', json.id);"
+          ] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{tokenAutor}}" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"titulo\": \"Ensalada de quinoa\",\n  \"descripcion\": \"Ensalada fresca con quinoa y verduras\",\n  \"tiempoEstimado\": 20,\n  \"dificultad\": \"fácil\",\n  \"categoria\": \"ensalada\",\n  \"etiquetas\": [\"Saludable\"]\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas", "host": ["{{baseUrl}}"], "path": ["api", "recetas"] }
+          }
+        },
+        {
+          "name": "R1 añadir ingrediente 'quinoa'",
+          "event": [ { "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{tokenAutor}}" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"quinoa\",\n  \"cantidad\": 200,\n  \"unidad\": \"gramos\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{r1}}/ingredientes", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{r1}}", "ingredientes"] }
+          }
+        },
+        {
+          "name": "R1 añadir paso",
+          "event": [ { "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{tokenAutor}}" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"descripcion\": \"Cocer la quinoa y mezclar con las verduras\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{r1}}/pasos", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{r1}}", "pasos"] }
+          }
+        },
+        {
+          "name": "R1 publicar",
+          "event": [ { "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{tokenAutor}}" } ],
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{r1}}/publicar", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{r1}}", "publicar"] }
+          }
+        },
+
+        {
+          "name": "R2 crear 'Curry vegano de garbanzos' (etiqueta Vegana)",
+          "event": [ { "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "pm.collectionVariables.set('r2', json.id);"
+          ] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{tokenAutor}}" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"titulo\": \"Curry vegano de garbanzos\",\n  \"descripcion\": \"Curry especiado con garbanzos y leche de coco\",\n  \"tiempoEstimado\": 35,\n  \"dificultad\": \"media\",\n  \"categoria\": \"plato principal\",\n  \"etiquetas\": [\"Vegana\"]\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas", "host": ["{{baseUrl}}"], "path": ["api", "recetas"] }
+          }
+        },
+        {
+          "name": "R2 añadir ingrediente 'garbanzos'",
+          "event": [ { "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{tokenAutor}}" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"garbanzos cocidos\",\n  \"cantidad\": 400,\n  \"unidad\": \"gramos\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{r2}}/ingredientes", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{r2}}", "ingredientes"] }
+          }
+        },
+        {
+          "name": "R2 añadir paso",
+          "event": [ { "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{tokenAutor}}" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"descripcion\": \"Sofreír las especias y añadir los garbanzos con la leche de coco\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{r2}}/pasos", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{r2}}", "pasos"] }
+          }
+        },
+        {
+          "name": "R2 publicar",
+          "event": [ { "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{tokenAutor}}" } ],
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{r2}}/publicar", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{r2}}", "publicar"] }
+          }
+        },
+
+        {
+          "name": "R3 crear 'Bizcocho de chocolate' (etiqueta Económica)",
+          "event": [ { "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "pm.collectionVariables.set('r3', json.id);"
+          ] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{tokenAutor}}" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"titulo\": \"Bizcocho de chocolate\",\n  \"descripcion\": \"Bizcocho esponjoso de chocolate para merendar\",\n  \"tiempoEstimado\": 50,\n  \"dificultad\": \"fácil\",\n  \"categoria\": \"postre\",\n  \"etiquetas\": [\"Económica\"]\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas", "host": ["{{baseUrl}}"], "path": ["api", "recetas"] }
+          }
+        },
+        {
+          "name": "R3 añadir ingrediente 'chocolate'",
+          "event": [ { "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{tokenAutor}}" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"chocolate negro\",\n  \"cantidad\": 150,\n  \"unidad\": \"gramos\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{r3}}/ingredientes", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{r3}}", "ingredientes"] }
+          }
+        },
+        {
+          "name": "R3 añadir paso",
+          "event": [ { "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{tokenAutor}}" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"descripcion\": \"Fundir el chocolate y mezclar con el resto de ingredientes\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{r3}}/pasos", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{r3}}", "pasos"] }
+          }
+        },
+        {
+          "name": "R3 publicar",
+          "event": [ { "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{tokenAutor}}" } ],
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{r3}}/publicar", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{r3}}", "publicar"] }
+          }
+        },
+
+        {
+          "name": "R4 crear 'Tomate relleno de atún' (para test de relevancia)",
+          "event": [ { "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "pm.collectionVariables.set('r4', json.id);"
+          ] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{tokenAutor}}" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"titulo\": \"Tomate relleno de atún\",\n  \"descripcion\": \"Tomates rellenos de atún y mayonesa\",\n  \"tiempoEstimado\": 15,\n  \"dificultad\": \"fácil\",\n  \"categoria\": \"entrante\",\n  \"etiquetas\": [\"Alta en proteínas\"]\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas", "host": ["{{baseUrl}}"], "path": ["api", "recetas"] }
+          }
+        },
+        {
+          "name": "R4 añadir ingrediente 'atún'",
+          "event": [ { "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{tokenAutor}}" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"atún en conserva\",\n  \"cantidad\": 2,\n  \"unidad\": \"latas\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{r4}}/ingredientes", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{r4}}", "ingredientes"] }
+          }
+        },
+        {
+          "name": "R4 añadir paso",
+          "event": [ { "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{tokenAutor}}" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"descripcion\": \"Vaciar los tomates y rellenar con el atún\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{r4}}/pasos", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{r4}}", "pasos"] }
+          }
+        },
+        {
+          "name": "R4 publicar",
+          "event": [ { "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{tokenAutor}}" } ],
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{r4}}/publicar", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{r4}}", "publicar"] }
+          }
+        },
+
+        {
+          "name": "R5 crear 'Gazpacho andaluz' (ingrediente tomate, para relevancia)",
+          "event": [ { "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "pm.collectionVariables.set('r5', json.id);"
+          ] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{tokenAutor}}" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"titulo\": \"Gazpacho andaluz\",\n  \"descripcion\": \"Sopa fría de verduras típica del sur\",\n  \"tiempoEstimado\": 10,\n  \"dificultad\": \"fácil\",\n  \"categoria\": \"sopa\",\n  \"etiquetas\": [\"Saludable\"]\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas", "host": ["{{baseUrl}}"], "path": ["api", "recetas"] }
+          }
+        },
+        {
+          "name": "R5 añadir ingrediente 'tomate maduro'",
+          "event": [ { "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{tokenAutor}}" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"tomate maduro\",\n  \"cantidad\": 1,\n  \"unidad\": \"kg\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{r5}}/ingredientes", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{r5}}", "ingredientes"] }
+          }
+        },
+        {
+          "name": "R5 añadir paso",
+          "event": [ { "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{tokenAutor}}" } ],
+            "body": { "mode": "raw", "raw": "{\n  \"descripcion\": \"Triturar todas las verduras y enfriar\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{r5}}/pasos", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{r5}}", "pasos"] }
+          }
+        },
+        {
+          "name": "R5 publicar",
+          "event": [ { "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"] } } ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Authorization", "value": "Bearer {{tokenAutor}}" } ],
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{r5}}/publicar", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{r5}}", "publicar"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏷️ Filtro de feed por etiqueta (#37)",
+      "item": [
+        {
+          "name": "GET /api/feed?etiqueta=Vegana → solo recetas con esa etiqueta",
+          "event": [ { "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Todas las recetas devueltas llevan la etiqueta Vegana', () => {",
+            "  pm.expect(json.recetas).to.be.an('array').that.is.not.empty;",
+            "  json.recetas.forEach(r => pm.expect(r.etiquetas).to.include('Vegana'));",
+            "});",
+            "pm.test('Incluye el Curry vegano de garbanzos', () => {",
+            "  pm.expect(json.recetas.map(r => r.id)).to.include(pm.collectionVariables.get('r2'));",
+            "});"
+          ] } } ],
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/feed?pagina=0&tamaño=50&etiqueta=Vegana",
+              "host": ["{{baseUrl}}"], "path": ["api", "feed"],
+              "query": [ { "key": "pagina", "value": "0" }, { "key": "tamaño", "value": "50" }, { "key": "etiqueta", "value": "Vegana" } ]
+            }
+          }
+        },
+        {
+          "name": "GET /api/feed?etiqueta=Saludable → varias recetas, todas con la etiqueta",
+          "event": [ { "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Todas llevan la etiqueta Saludable', () => {",
+            "  pm.expect(json.recetas).to.be.an('array').that.is.not.empty;",
+            "  json.recetas.forEach(r => pm.expect(r.etiquetas).to.include('Saludable'));",
+            "});",
+            "pm.test('No aparece el Curry vegano (etiqueta distinta)', () => {",
+            "  pm.expect(json.recetas.map(r => r.id)).to.not.include(pm.collectionVariables.get('r2'));",
+            "});"
+          ] } } ],
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/feed?pagina=0&tamaño=50&etiqueta=Saludable",
+              "host": ["{{baseUrl}}"], "path": ["api", "feed"],
+              "query": [ { "key": "pagina", "value": "0" }, { "key": "tamaño", "value": "50" }, { "key": "etiqueta", "value": "Saludable" } ]
+            }
+          }
+        },
+        {
+          "name": "GET /api/feed (sin etiqueta) → devuelve recetas de varias etiquetas",
+          "event": [ { "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Aparecen recetas de al menos 2 etiquetas distintas', () => {",
+            "  const ids = json.recetas.map(r => r.id);",
+            "  pm.expect(ids).to.include(pm.collectionVariables.get('r1'));",
+            "  pm.expect(ids).to.include(pm.collectionVariables.get('r2'));",
+            "});"
+          ] } } ],
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/feed?pagina=0&tamaño=50",
+              "host": ["{{baseUrl}}"], "path": ["api", "feed"],
+              "query": [ { "key": "pagina", "value": "0" }, { "key": "tamaño", "value": "50" } ]
+            }
+          }
+        },
+        {
+          "name": "GET /api/feed?etiqueta=NoExiste → feed vacío",
+          "event": [ { "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('No hay resultados para una etiqueta inexistente', () => {",
+            "  pm.expect(json.recetas).to.be.an('array').that.is.empty;",
+            "});"
+          ] } } ],
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/feed?pagina=0&tamaño=50&etiqueta=NoExiste",
+              "host": ["{{baseUrl}}"], "path": ["api", "feed"],
+              "query": [ { "key": "pagina", "value": "0" }, { "key": "tamaño", "value": "50" }, { "key": "etiqueta", "value": "NoExiste" } ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔎 Buscador de recetas (#104)",
+      "item": [
+        {
+          "name": "GET /api/recetas/buscar?q=quinoa → encuentra por ingrediente",
+          "event": [ { "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Devuelve la Ensalada de quinoa', () => {",
+            "  pm.expect(json).to.be.an('array').that.is.not.empty;",
+            "  pm.expect(json.map(r => r.id)).to.include(pm.collectionVariables.get('r1'));",
+            "});"
+          ] } } ],
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/recetas/buscar?q=quinoa",
+              "host": ["{{baseUrl}}"], "path": ["api", "recetas", "buscar"],
+              "query": [ { "key": "q", "value": "quinoa" } ]
+            }
+          }
+        },
+        {
+          "name": "GET /api/recetas/buscar?q=curry → encuentra por nombre",
+          "event": [ { "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Devuelve el Curry vegano de garbanzos', () => {",
+            "  pm.expect(json.map(r => r.id)).to.include(pm.collectionVariables.get('r2'));",
+            "});"
+          ] } } ],
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/recetas/buscar?q=curry",
+              "host": ["{{baseUrl}}"], "path": ["api", "recetas", "buscar"],
+              "query": [ { "key": "q", "value": "curry" } ]
+            }
+          }
+        },
+        {
+          "name": "GET /api/recetas/buscar?q=Vegana → encuentra por etiqueta",
+          "event": [ { "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Devuelve la receta etiquetada como Vegana', () => {",
+            "  pm.expect(json.map(r => r.id)).to.include(pm.collectionVariables.get('r2'));",
+            "});"
+          ] } } ],
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/recetas/buscar?q=Vegana",
+              "host": ["{{baseUrl}}"], "path": ["api", "recetas", "buscar"],
+              "query": [ { "key": "q", "value": "Vegana" } ]
+            }
+          }
+        },
+        {
+          "name": "GET /api/recetas/buscar?q=CHOCOLATE → búsqueda case-insensitive",
+          "event": [ { "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Encuentra el Bizcocho de chocolate ignorando mayúsculas', () => {",
+            "  pm.expect(json.map(r => r.id)).to.include(pm.collectionVariables.get('r3'));",
+            "});"
+          ] } } ],
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/recetas/buscar?q=CHOCOLATE",
+              "host": ["{{baseUrl}}"], "path": ["api", "recetas", "buscar"],
+              "query": [ { "key": "q", "value": "CHOCOLATE" } ]
+            }
+          }
+        },
+        {
+          "name": "GET /api/recetas/buscar?q=tomate → relevancia: nombre antes que ingrediente",
+          "event": [ { "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Aparecen ambas recetas que coinciden con \"tomate\"', () => {",
+            "  const ids = json.map(r => r.id);",
+            "  pm.expect(ids).to.include(pm.collectionVariables.get('r4'));",
+            "  pm.expect(ids).to.include(pm.collectionVariables.get('r5'));",
+            "});",
+            "pm.test('La coincidencia por nombre (Tomate relleno) va antes que la de ingrediente (Gazpacho)', () => {",
+            "  const ids = json.map(r => r.id);",
+            "  pm.expect(ids.indexOf(pm.collectionVariables.get('r4')))",
+            "    .to.be.below(ids.indexOf(pm.collectionVariables.get('r5')));",
+            "});"
+          ] } } ],
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/recetas/buscar?q=tomate",
+              "host": ["{{baseUrl}}"], "path": ["api", "recetas", "buscar"],
+              "query": [ { "key": "q", "value": "tomate" } ]
+            }
+          }
+        },
+        {
+          "name": "GET /api/recetas/buscar?q=zzzznoexiste → lista vacía",
+          "event": [ { "listen": "test", "script": { "exec": [
+            "const json = pm.response.json();",
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Sin coincidencias devuelve array vacío', () => pm.expect(json).to.be.an('array').that.is.empty);"
+          ] } } ],
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/recetas/buscar?q=zzzznoexiste",
+              "host": ["{{baseUrl}}"], "path": ["api", "recetas", "buscar"],
+              "query": [ { "key": "q", "value": "zzzznoexiste" } ]
+            }
+          }
+        },
+        {
+          "name": "GET /api/recetas/buscar?q= (vacío) → lista vacía",
+          "event": [ { "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Texto en blanco devuelve array vacío', () => pm.expect(pm.response.json()).to.be.an('array').that.is.empty);"
+          ] } } ],
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{token}}" } ],
+            "url": {
+              "raw": "{{baseUrl}}/api/recetas/buscar?q=",
+              "host": ["{{baseUrl}}"], "path": ["api", "recetas", "buscar"],
+              "query": [ { "key": "q", "value": "" } ]
+            }
+          }
+        },
+        {
+          "name": "GET /api/recetas/buscar sin token → 401",
+          "event": [ { "listen": "test", "script": { "exec": [
+            "pm.test('Status 401', () => pm.response.to.have.status(401));"
+          ] } } ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/recetas/buscar?q=quinoa",
+              "host": ["{{baseUrl}}"], "path": ["api", "recetas", "buscar"],
+              "query": [ { "key": "q", "value": "quinoa" } ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
