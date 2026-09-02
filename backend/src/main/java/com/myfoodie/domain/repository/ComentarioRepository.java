@@ -13,4 +13,6 @@ public interface ComentarioRepository extends MongoRepository<Comentario, String
     long countByRecetaIdAndEliminadoFalse(String recetaId);
 
     Optional<Comentario> findByIdAndUsuarioId(String id, String usuarioId);
+
+    void deleteByRecetaId(String recetaId);
 }

@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -129,6 +130,20 @@ public class RecetaService {
         ingredienteRepository.deleteByRecetaId(recetaId);
         pasoRepository.deleteByRecetaId(recetaId);
         recetaRepository.delete(receta);
+    }
+
+    /**
+     * Elimina una receta y su contenido asociado sin comprobar la autoría (retirada por moderación).
+     * Devuelve el id del autor si la receta existía, para poder notificarle.
+     */
+    public Optional<String> eliminarRecetaPorModeracion(String recetaId) {
+        return recetaRepository.findById(recetaId).map(receta -> {
+            ingredienteRepository.deleteByRecetaId(recetaId);
+            pasoRepository.deleteByRecetaId(recetaId);
+            comentarioRepository.deleteByRecetaId(recetaId);
+            recetaRepository.delete(receta);
+            return receta.getAutorId();
+        });
     }
 
     public RecetaResponseDTO guardarComoBorrador(String usuarioId, String recetaId) {

@@ -12,4 +12,6 @@ public interface ReporteRepository extends MongoRepository<Reporte, String> {
             String usuarioReportanteId, TipoContenidoReporte tipoContenido, String contenidoId);
 
     List<Reporte> findByTipoContenidoAndContenidoId(TipoContenidoReporte tipoContenido, String contenidoId);
+
+    long countByTipoContenidoAndContenidoId(TipoContenidoReporte tipoContenido, String contenidoId);
 }
