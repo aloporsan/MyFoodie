@@ -215,9 +215,13 @@ public class CarritoInteligenteService {
 
     public ItemCarritoResponseDTO modificarCantidad(String usuarioId, String itemId, Float nuevaCantidad, String nuevaUnidad) {
         ItemCarrito item = getItemDeUsuario(usuarioId, itemId);
-        item.setCantidad(nuevaCantidad);
-        if (nuevaUnidad != null && !nuevaUnidad.isBlank()) {
-            item.setUnidad(nuevaUnidad);
+        boolean cambiaUnidad = nuevaUnidad != null && !nuevaUnidad.isBlank();
+        UnidadConvertidaDTO compra = cambiaUnidad
+                ? normalizarUnidadDeCompra(nuevaCantidad, nuevaUnidad)
+                : new UnidadConvertidaDTO(nuevaCantidad != null ? nuevaCantidad : 0d, item.getUnidad(), false);
+        item.setCantidad((float) compra.cantidadConvertida());
+        if (cambiaUnidad) {
+            item.setUnidad(compra.unidadConvertida());
         }
         item.setUpdatedAt(LocalDateTime.now());
         return toItemDTO(itemCarritoRepository.save(item), nombresEnDespensa(usuarioId));
@@ -227,11 +231,16 @@ public class CarritoInteligenteService {
         List<MatchItemCarritoDTO> matches = matchingService.buscarItemSimilarEnCarrito(usuarioId, dto.nombre());
         MatchItemCarritoDTO mejorMatch = matches.isEmpty() ? null : matches.get(0);
 
+        // Las unidades subjetivas que el usuario teclea a mano (cucharada, taza, pizca...) se
+        // pasan a la unidad de compra igual que los items generados desde receta (RF-DESP-019),
+        // para que la lista de la compra no acabe mezclando "2 cucharadas" con litros y kilos.
+        UnidadConvertidaDTO compra = normalizarUnidadDeCompra(dto.cantidad(), dto.unidad());
+        float cantidadNormalizada = (float) compra.cantidadConvertida();
+
         if (mejorMatch != null && mejorMatch.tipoMatch() == TipoMatch.AUTOMATICO) {
             ItemCarrito existente = getItemDeUsuario(usuarioId, mejorMatch.item().id());
             float cantidadActual = existente.getCantidad() != null ? existente.getCantidad() : 0f;
-            float cantidadNueva = dto.cantidad() != null ? dto.cantidad() : 0f;
-            existente.setCantidad(cantidadActual + cantidadNueva);
+            existente.setCantidad(cantidadActual + cantidadNormalizada);
             existente.setUpdatedAt(LocalDateTime.now());
             ItemCarritoResponseDTO actualizado = toItemDTO(itemCarritoRepository.save(existente), nombresEnDespensa(usuarioId));
             return new AñadirItemCarritoResponseDTO("actualizado", actualizado, null, mejorMatch.similitud());
@@ -243,8 +252,8 @@ public class CarritoInteligenteService {
         ItemCarrito item = ItemCarrito.builder()
                 .usuarioId(usuarioId)
                 .nombre(dto.nombre())
-                .cantidad(dto.cantidad())
-                .unidad(dto.unidad())
+                .cantidad(cantidadNormalizada)
+                .unidad(compra.unidadConvertida())
                 .categoria(categoria)
                 .prioridad("media")
                 .estado("pendiente")
@@ -746,6 +755,17 @@ public class CarritoInteligenteService {
                 .convertirAUnidadDeCompra(ingrediente.getCantidad(), ingrediente.getUnidad());
         return nuevoItem(ingrediente.getNombre(), (float) compra.cantidadConvertida(), compra.unidadConvertida(),
                 inferirCategoria(ingrediente.getNombre()), prioridad, motivo, recetaId);
+    }
+
+    // Deja cantidad/unidad de un item introducido a mano listas para la lista de la compra:
+    // si la unidad es subjetiva (cucharada, taza...) la pasa a unidad de compra (l/kg); si no,
+    // la devuelve tal cual.
+    private UnidadConvertidaDTO normalizarUnidadDeCompra(Float cantidad, String unidad) {
+        double valor = cantidad != null ? cantidad : 0d;
+        if (unidad == null || !unidadNormalizadorService.esUnidadSubjetiva(unidad)) {
+            return new UnidadConvertidaDTO(valor, unidad, false);
+        }
+        return unidadNormalizadorService.convertirAUnidadDeCompra(valor, unidad);
     }
 
     private Float reposicion(Producto p) {
