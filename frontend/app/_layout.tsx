@@ -22,7 +22,12 @@ import { configurarListeners, solicitarPermisosYRegistrarToken } from '@/utils/n
 
 SplashScreen.preventAutoHideAsync();
 
-function useAuthGuard(isAuthenticated: boolean, ready: boolean, recienRegistrado: boolean) {
+function useAuthGuard(
+  isAuthenticated: boolean,
+  ready: boolean,
+  recienRegistrado: boolean,
+  onboardingVisto: boolean,
+) {
   const segments = useSegments();
   const router = useRouter();
 
@@ -32,15 +37,22 @@ function useAuthGuard(isAuthenticated: boolean, ready: boolean, recienRegistrado
     if (!isAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/login');
     } else if (isAuthenticated && inAuthGroup) {
-      router.replace(recienRegistrado ? '/onboarding-preferencias' : '/(tabs)');
+      if (!onboardingVisto) {
+        router.replace('/onboarding');
+      } else {
+        router.replace(recienRegistrado ? '/onboarding-preferencias' : '/(tabs)');
+      }
     }
-  }, [isAuthenticated, segments, ready, router, recienRegistrado]);
+  }, [isAuthenticated, segments, ready, router, recienRegistrado, onboardingVisto]);
 }
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
   const { isAuthenticated, isReady } = useAuth();
   const recienRegistrado = useAuthStore((s) => s.recienRegistrado);
+  const onboardingVisto = useAuthStore((s) => s.onboardingVisto);
+  const onboardingHidratado = useAuthStore((s) => s.onboardingHidratado);
+  const cargarOnboardingVisto = useAuthStore((s) => s.cargarOnboardingVisto);
   const { visible, tipo, mensaje, hide } = useToastStore();
 
   const [fontsLoaded] = useFonts({
@@ -49,7 +61,16 @@ function RootLayoutNav() {
     Poppins_600SemiBold,
   });
 
-  useAuthGuard(isAuthenticated, fontsLoaded && isReady, recienRegistrado);
+  useAuthGuard(
+    isAuthenticated,
+    fontsLoaded && isReady && onboardingHidratado,
+    recienRegistrado,
+    onboardingVisto,
+  );
+
+  useEffect(() => {
+    cargarOnboardingVisto();
+  }, [cargarOnboardingVisto]);
 
   useEffect(() => {
     if (fontsLoaded) SplashScreen.hideAsync();
@@ -71,6 +92,7 @@ function RootLayoutNav() {
       <Stack>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="onboarding"                 options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="onboarding-preferencias"    options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="despensa/form"              options={{ headerShown: false }} />
         <Stack.Screen name="despensa/ocr"               options={{ headerShown: false }} />
