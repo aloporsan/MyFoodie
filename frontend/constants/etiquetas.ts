@@ -17,6 +17,6 @@ export const ETIQUETAS_SUGERIDAS = [
   'apto niños',
   'mediterráneo',
   'tradicional',
+  'internacional',
   'bajo en calorías',
-  'alto en proteínas',
 ];
