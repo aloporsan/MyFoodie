@@ -10,6 +10,7 @@ public record EstadisticasPerfilDTO(
         int totalRecetasGuardadas,
         double aprovechamientoDespensa,
         LocalDateTime fechaRegistro,
+        int diasEnMyFoodie,
         MotivosEliminacion motivosEliminacion
 ) {
     public record MotivosEliminacion(
@@ -18,6 +19,8 @@ public record EstadisticasPerfilDTO(
             int usado_en_receta,
             int donado,
             int perdido,
-            int otro
+            int otro,
+            // Eliminaciones por error al registrar el producto: no cuentan como desperdicio.
+            int errorTipografia
     ) {}
 }

@@ -74,9 +74,7 @@ export function PerfilScreen() {
 
   if (!perfil) return null;
 
-  const diasMiembro = Math.floor(
-    (Date.now() - new Date(perfil.fechaRegistro).getTime()) / (1000 * 60 * 60 * 24)
-  );
+  const diasMiembro = estadisticas?.diasEnMyFoodie ?? 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

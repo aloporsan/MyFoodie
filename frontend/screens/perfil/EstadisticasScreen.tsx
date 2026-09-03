@@ -45,15 +45,13 @@ function calcularEficiencia(stats: EstadisticasPerfil): number | null {
 
 export function EstadisticasScreen() {
   const router = useRouter();
-  const { perfil, estadisticas, isLoading, cargarEstadisticas } = usePerfilStore();
+  const { estadisticas, isLoading, cargarEstadisticas } = usePerfilStore();
 
   useEffect(() => {
     cargarEstadisticas();
   }, []);
 
-  const diasMiembro = perfil
-    ? Math.floor((Date.now() - new Date(perfil.fechaRegistro).getTime()) / (1000 * 60 * 60 * 24))
-    : 0;
+  const diasMiembro = estadisticas?.diasEnMyFoodie ?? 0;
 
   const nivel = getNivel(estadisticas?.totalProductosRegistrados ?? 0);
   const eficiencia = estadisticas ? calcularEficiencia(estadisticas) : null;

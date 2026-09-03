@@ -29,6 +29,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -176,6 +178,7 @@ public class PerfilService {
                 totalRecetasGuardadas,
                 aprovechamientoDespensa,
                 usuario.getFechaRegistro(),
+                calcularDiasEnMyFoodie(usuario.getFechaRegistro()),
                 motivos
         );
     }
@@ -209,25 +212,37 @@ public class PerfilService {
         usuarioRepository.save(usuario);
     }
 
+    // Días transcurridos desde el registro. Se calcula en el servidor (y no en el cliente a
+    // partir de fechaRegistro) para que el dato sea fiable aunque la pantalla aún no tenga
+    // cargado el perfil completo.
+    private int calcularDiasEnMyFoodie(LocalDateTime fechaRegistro) {
+        if (fechaRegistro == null) {
+            return 0;
+        }
+        long dias = ChronoUnit.DAYS.between(fechaRegistro.toLocalDate(), LocalDate.now());
+        return (int) Math.max(0, dias);
+    }
+
     private EstadisticasPerfilDTO.MotivosEliminacion calcularMotivosEliminacion(String usuarioId, Despensa despensa) {
         if (despensa == null) {
-            return new EstadisticasPerfilDTO.MotivosEliminacion(0, 0, 0, 0, 0, 0);
+            return new EstadisticasPerfilDTO.MotivosEliminacion(0, 0, 0, 0, 0, 0, 0);
         }
         var eliminados = movimientoRepository.findByDespensaIdAndTipo(despensa.getId(), "eliminado");
-        int consumido = 0, caducado = 0, usado_en_receta = 0, donado = 0, perdido = 0, otro = 0;
+        int consumido = 0, caducado = 0, usado_en_receta = 0, donado = 0, perdido = 0, otro = 0, errorTipografia = 0;
         for (var m : eliminados) {
             if (m.getMotivo() == null) continue;
             switch (m.getMotivo()) {
-                case "consumido"      -> consumido++;
-                case "caducado"       -> caducado++;
-                case "usado_en_receta"-> usado_en_receta++;
-                case "donado"         -> donado++;
-                case "perdido"        -> perdido++;
-                case "otro"           -> otro++;
+                case "consumido"        -> consumido++;
+                case "caducado"         -> caducado++;
+                case "usado_en_receta"  -> usado_en_receta++;
+                case "donado"           -> donado++;
+                case "perdido"          -> perdido++;
+                case "otro"             -> otro++;
+                case "error_tipografia" -> errorTipografia++;
             }
         }
         return new EstadisticasPerfilDTO.MotivosEliminacion(
-                consumido, caducado, usado_en_receta, donado, perdido, otro);
+                consumido, caducado, usado_en_receta, donado, perdido, otro, errorTipografia);
     }
 
     private PerfilResponseDTO toPerfilResponse(Usuario usuario) {

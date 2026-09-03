@@ -50,6 +50,7 @@ export interface EstadisticasPerfil {
   totalRecetasGuardadas: number;
   aprovechamientoDespensa: number;
   fechaRegistro: string;
+  diasEnMyFoodie: number;
   motivosEliminacion: MotivosEliminacion;
 }
 
