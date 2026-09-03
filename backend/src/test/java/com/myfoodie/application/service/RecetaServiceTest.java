@@ -91,7 +91,7 @@ class RecetaServiceTest {
                 .id(id).autorId(autorId)
                 .titulo("Paella valenciana").descripcion("Receta tradicional")
                 .tiempoEstimado(60).dificultad("Difícil").categoria("Arroces")
-                .etiquetas(new ArrayList<>()).estado("borrador")
+                .etiquetas(new ArrayList<>()).imagenUrl("/recetas/paella.jpg").estado("borrador")
                 .build();
     }
 

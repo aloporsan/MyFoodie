@@ -488,6 +488,8 @@ public class RecetaService {
             errores.add("La dificultad es obligatoria");
         if (receta.getCategoria() == null || receta.getCategoria().isBlank())
             errores.add("La categoría es obligatoria");
+        if (receta.getImagenUrl() == null || receta.getImagenUrl().isBlank())
+            errores.add("La receta debe tener al menos una foto");
         if (ingredienteRepository.findByRecetaId(recetaId).isEmpty())
             errores.add("La receta debe tener al menos un ingrediente");
         if (pasoRepository.findByRecetaIdOrderByOrdenAsc(recetaId).isEmpty())
