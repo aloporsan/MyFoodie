@@ -9,6 +9,7 @@ import com.myfoodie.application.dto.despensa.ProductoFiltroDTO;
 import com.myfoodie.application.dto.despensa.ProductoRequestDTO;
 import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.dto.despensa.ProductoUpdateCantidadDTO;
+import com.myfoodie.application.dto.despensa.VaciarDespensaResponseDTO;
 import com.myfoodie.application.dto.matching.FusionarProductosRequestDTO;
 import com.myfoodie.application.dto.matching.IgnorarFusionRequestDTO;
 import com.myfoodie.application.dto.matching.MatchProductoDTO;
@@ -88,6 +89,12 @@ public class DespensaController {
             Principal principal) {
         despensaService.eliminarProducto(getUsuarioId(principal), id, dto);
         return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/vaciar")
+    public ResponseEntity<VaciarDespensaResponseDTO> vaciar(Principal principal) {
+        int eliminados = despensaService.vaciarDespensa(getUsuarioId(principal));
+        return ResponseEntity.ok(new VaciarDespensaResponseDTO(eliminados));
     }
 
     @GetMapping("/{id}/historial")

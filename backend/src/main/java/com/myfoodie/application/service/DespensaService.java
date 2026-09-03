@@ -152,6 +152,29 @@ public class DespensaService {
         carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
     }
 
+    // Borrado masivo de toda la despensa. Deja rastro en el historial (un movimiento
+    // "eliminado" por producto con motivo "vaciado_despensa", que no cuenta como
+    // desperdicio en las estadísticas) y limpia los lotes asociados de una vez.
+    public int vaciarDespensa(String usuarioId) {
+        Despensa despensa = getDespensaDeUsuario(usuarioId);
+        List<Producto> productos = productoRepository.findByDespensaId(despensa.getId());
+        if (productos.isEmpty()) {
+            return 0;
+        }
+
+        for (Producto p : productos) {
+            registrarMovimiento(p, usuarioId, "eliminado", "Despensa vaciada por completo",
+                    p.getCantidad(), null, "vaciado_despensa", null);
+        }
+
+        loteProductoRepository.deleteByDespensaId(despensa.getId());
+        productoRepository.deleteAll(productos);
+        actualizarDespensa(despensa);
+        carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
+
+        return productos.size();
+    }
+
     public ProductoResponseDTO actualizarCantidad(String usuarioId, String productoId,
                                                    ProductoUpdateCantidadDTO dto) {
         return actualizarCantidad(usuarioId, productoId, dto, true);
