@@ -5,6 +5,12 @@ import { authService } from '@/services/authService';
 import { setTokenGetter } from '@/services/apiClient';
 import { handleApiError } from '@/utils/errorHandler';
 
+// El tour de bienvenida (5 pantallas) se muestra una sola vez por dispositivo.
+// Persistimos con una clave propia en AsyncStorage, igual que el orden de la
+// despensa (RF-DESP-017), en lugar de meterlo en el estado persistido de auth
+// (que se limpia al cerrar sesión).
+const ONBOARDING_STORAGE_KEY = 'onboardingVisto';
+
 export interface Usuario {
   userId: string;
   email: string;
@@ -26,6 +32,8 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   recienRegistrado: boolean;
+  onboardingVisto: boolean;
+  onboardingHidratado: boolean;
 }
 
 interface AuthActions {
@@ -34,6 +42,8 @@ interface AuthActions {
   logout: () => Promise<void>;
   clearError: () => void;
   marcarOnboardingVisto: () => void;
+  cargarOnboardingVisto: () => Promise<void>;
+  completarOnboarding: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState & AuthActions>()(
@@ -45,6 +55,8 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       isLoading: false,
       error: null,
       recienRegistrado: false,
+      onboardingVisto: false,
+      onboardingHidratado: false,
 
       login: async (email, password) => {
         set({ isLoading: true, error: null });
@@ -86,6 +98,22 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       clearError: () => set({ error: null }),
 
       marcarOnboardingVisto: () => set({ recienRegistrado: false }),
+
+      cargarOnboardingVisto: async () => {
+        try {
+          const guardado = await AsyncStorage.getItem(ONBOARDING_STORAGE_KEY);
+          set({ onboardingVisto: guardado === 'true' });
+        } finally {
+          // Pase lo que pase, marcamos la hidratación como terminada para no
+          // dejar la navegación bloqueada a la espera de esta lectura.
+          set({ onboardingHidratado: true });
+        }
+      },
+
+      completarOnboarding: async () => {
+        set({ onboardingVisto: true });
+        await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+      },
     }),
     {
       name: 'myfoodie-auth',
