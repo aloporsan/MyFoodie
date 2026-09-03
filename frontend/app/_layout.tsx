@@ -19,6 +19,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useToastStore } from '@/hooks/useToast';
 import { useAuthStore } from '@/store/authStore';
 import { configurarListeners, solicitarPermisosYRegistrarToken } from '@/utils/notificacionesConfig';
+import { rutaPostAutenticacion } from '@/utils/rutasAuth';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -37,11 +38,7 @@ function useAuthGuard(
     if (!isAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/login');
     } else if (isAuthenticated && inAuthGroup) {
-      if (!onboardingVisto) {
-        router.replace('/onboarding');
-      } else {
-        router.replace(recienRegistrado ? '/onboarding-preferencias' : '/(tabs)');
-      }
+      router.replace(rutaPostAutenticacion(onboardingVisto, recienRegistrado));
     }
   }, [isAuthenticated, segments, ready, router, recienRegistrado, onboardingVisto]);
 }
