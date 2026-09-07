@@ -8,6 +8,7 @@ export const ETIQUETAS_SUGERIDAS = [
   'vegano',
   'sin gluten',
   'sin lactosa',
+  'keto',
   'rápido',
   'económico',
   'saludable',
