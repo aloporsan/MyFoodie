@@ -125,7 +125,7 @@ class FeedServiceTest {
     /** Stubs mínimos para que el pipeline del feed no lance NPE en un test de filtrado. */
     private void stubsFeedBasicos() {
         lenient().when(recetaDescartadaRepository.findByUsuarioId(anyString())).thenReturn(List.of());
-        lenient().when(ingredienteRepository.findByRecetaId(anyString())).thenReturn(List.of());
+        lenient().when(ingredienteRepository.findByRecetaIdIn(anyCollection())).thenReturn(List.of());
         lenient().when(despensaService.listarProductos(anyString())).thenReturn(List.of());
         lenient().when(usuarioRepository.findById(anyString())).thenReturn(Optional.empty());
     }
@@ -147,7 +147,7 @@ class FeedServiceTest {
         when(recetaRepository.findByEstadoAndAutorIdNotAndIdNotIn(
                 eq("publicada"), eq("user-1"), anyList(), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(r)));
-        when(ingredienteRepository.findByRecetaId("receta-1")).thenReturn(List.of());
+        when(ingredienteRepository.findByRecetaIdIn(anyCollection())).thenReturn(List.of());
         when(despensaService.listarProductos("user-1")).thenReturn(List.of());
         when(usuarioRepository.findById("otro-usuario")).thenReturn(Optional.empty());
 
@@ -173,7 +173,7 @@ class FeedServiceTest {
                 .recetaId("receta-1").nombre("Tomate").cantidad(2).unidad("unidades").build();
         IngredienteReceta pasta = IngredienteReceta.builder()
                 .recetaId("receta-1").nombre("Pasta").cantidad(1).unidad("kg").build();
-        when(ingredienteRepository.findByRecetaId("receta-1")).thenReturn(List.of(tomate, pasta));
+        when(ingredienteRepository.findByRecetaIdIn(anyCollection())).thenReturn(List.of(tomate, pasta));
 
         // El usuario tiene "TOMATE" (mayúsculas) en su despensa: debe coincidir con "Tomate"
         when(despensaService.listarProductos("user-1")).thenReturn(List.of(productoDespensa("TOMATE")));
@@ -203,7 +203,7 @@ class FeedServiceTest {
         when(recetaRepository.findByEstadoAndAutorIdNotAndIdNotIn(
                 anyString(), anyString(), anyList(), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(r)));
-        when(ingredienteRepository.findByRecetaId("receta-1")).thenReturn(List.of());
+        when(ingredienteRepository.findByRecetaIdIn(anyCollection())).thenReturn(List.of());
         when(despensaService.listarProductos("user-1")).thenReturn(List.of());
         when(usuarioRepository.findById("otro-usuario")).thenReturn(Optional.empty());
 
@@ -223,7 +223,7 @@ class FeedServiceTest {
         when(recetaRepository.findByEstadoAndAutorIdNotAndIdNotIn(
                 anyString(), anyString(), anyList(), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(r)));
-        when(ingredienteRepository.findByRecetaId("receta-1")).thenReturn(List.of());
+        when(ingredienteRepository.findByRecetaIdIn(anyCollection())).thenReturn(List.of());
         when(despensaService.listarProductos("user-1")).thenReturn(List.of());
         when(usuarioRepository.findById("otro-usuario")).thenReturn(Optional.empty());
 
@@ -243,7 +243,7 @@ class FeedServiceTest {
         when(recetaRepository.findByEstadoAndAutorIdNotAndIdNotIn(
                 anyString(), anyString(), anyList(), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(bloqueada, visible)));
-        when(ingredienteRepository.findByRecetaId(anyString())).thenReturn(List.of());
+        when(ingredienteRepository.findByRecetaIdIn(anyCollection())).thenReturn(List.of());
         when(despensaService.listarProductos("user-1")).thenReturn(List.of());
         when(usuarioRepository.findById(anyString())).thenReturn(Optional.empty());
 
@@ -420,7 +420,7 @@ class FeedServiceTest {
         lenient().when(usuarioRepository.findById(anyString())).thenReturn(Optional.empty());
         Receta r = recetaConTitulo("r1", "Tomate frito");
         when(recetaRepository.findByEstado("publicada")).thenReturn(List.of(r));
-        when(ingredienteRepository.findByRecetaId("r1")).thenReturn(List.of(
+        when(ingredienteRepository.findByRecetaIdIn(anyCollection())).thenReturn(List.of(
                 IngredienteReceta.builder().recetaId("r1").nombre("Tomate").cantidad(2).unidad("unidades").build()));
         when(despensaService.listarProductos("user-1")).thenReturn(List.of(productoDespensa("Tomate")));
 

@@ -68,6 +68,12 @@ class RecetaServiceTest {
     void configurarNormalizadorPorDefecto() {
         lenient().when(unidadNormalizadorService.normalizarUnidades(anyDouble(), anyString()))
                 .thenAnswer(inv -> new UnidadConvertidaDTO(inv.getArgument(0), inv.getArgument(1), false));
+        // cantidadComparable: comportamiento real (compara por familia de unidad), suficiente para
+        // estos tests, que usan unidades objetivas iguales ("g").
+        UnidadNormalizadorService unidadesReal = new UnidadNormalizadorService();
+        lenient().when(unidadNormalizadorService.cantidadComparable(anyDouble(), any(), any()))
+                .thenAnswer(inv -> unidadesReal.cantidadComparable(
+                        inv.getArgument(0), inv.getArgument(1), inv.getArgument(2)));
         lenient().when(matchingService.calcularSimilitud(anyString(), anyString())).thenAnswer(inv -> {
             String a = inv.getArgument(0);
             String b = inv.getArgument(1);

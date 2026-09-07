@@ -83,6 +83,12 @@ class CarritoInteligenteServiceTest {
                 .thenAnswer(inv -> new UnidadConvertidaDTO(inv.getArgument(0), inv.getArgument(1), false));
         lenient().when(unidadNormalizadorService.convertirAUnidadDeCompra(anyDouble(), anyString()))
                 .thenAnswer(inv -> new UnidadConvertidaDTO(inv.getArgument(0), inv.getArgument(1), false));
+        // cantidadComparable: comportamiento real (compara por familia de unidad), suficiente para
+        // estos tests, que usan unidades objetivas iguales.
+        UnidadNormalizadorService unidadesReal = new UnidadNormalizadorService();
+        lenient().when(unidadNormalizadorService.cantidadComparable(anyDouble(), any(), any()))
+                .thenAnswer(inv -> unidadesReal.cantidadComparable(
+                        inv.getArgument(0), inv.getArgument(1), inv.getArgument(2)));
         lenient().when(matchingService.calcularSimilitud(anyString(), anyString())).thenAnswer(inv -> {
             String a = inv.getArgument(0);
             String b = inv.getArgument(1);
@@ -489,8 +495,8 @@ class CarritoInteligenteServiceTest {
         when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
         when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of());
         when(recetaGuardadaRepository.findByUsuarioId("user-1")).thenReturn(List.of(guardada));
-        when(recetaRepository.findById("receta-1")).thenReturn(Optional.of(receta));
-        when(ingredienteRecetaRepository.findByRecetaId("receta-1")).thenReturn(List.of(ingrediente));
+        when(recetaRepository.findAllById(any())).thenReturn(List.of(receta));
+        when(ingredienteRecetaRepository.findByRecetaIdIn(any())).thenReturn(List.of(ingrediente));
         guardarItemsComoLlegan();
 
         List<ItemCarrito> resultado = carritoInteligenteService.generarRecomendaciones("user-1");
@@ -514,8 +520,8 @@ class CarritoInteligenteServiceTest {
         when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
         when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of());
         when(recetaGuardadaRepository.findByUsuarioId("user-1")).thenReturn(List.of(guardada));
-        when(recetaRepository.findById("receta-1")).thenReturn(Optional.of(receta));
-        when(ingredienteRecetaRepository.findByRecetaId("receta-1")).thenReturn(List.of(ingrediente));
+        when(recetaRepository.findAllById(any())).thenReturn(List.of(receta));
+        when(ingredienteRecetaRepository.findByRecetaIdIn(any())).thenReturn(List.of(ingrediente));
         guardarItemsComoLlegan();
 
         List<ItemCarrito> resultado = carritoInteligenteService.generarRecomendaciones("user-1");

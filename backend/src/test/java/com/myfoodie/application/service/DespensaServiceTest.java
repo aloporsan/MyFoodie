@@ -11,6 +11,7 @@ import com.myfoodie.domain.model.MovimientoProducto;
 import com.myfoodie.domain.model.Preferencias;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.repository.DespensaRepository;
+import com.myfoodie.domain.repository.LoteProductoRepository;
 import com.myfoodie.domain.repository.MovimientoProductoRepository;
 import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.ProductoRepository;
@@ -47,18 +48,24 @@ class DespensaServiceTest {
     @Mock private ProductoRepository productoRepository;
     @Mock private PreferenciasRepository preferenciasRepository;
     @Mock private MovimientoProductoRepository movimientoRepository;
+    @Mock private LoteProductoRepository loteProductoRepository;
     @Mock private CarritoInteligenteService carritoInteligenteService;
     @Mock private UnidadNormalizadorService unidadNormalizadorService;
     @Mock private NotificacionService notificacionService;
+    @Mock private MatchingService matchingService;
 
     @InjectMocks private DespensaService despensaService;
 
     // Por defecto, unidadNormalizadorService devuelve la cantidad/unidad tal cual (comportamiento
     // real para unidades ya objetivas, que es lo que usan la mayoría de los tests de este archivo).
+    // matchingService.esPosibleDuplicado usa el algoritmo real (no depende de repositorios).
     @BeforeEach
     void configurarNormalizadorPorDefecto() {
         lenient().when(unidadNormalizadorService.normalizarUnidades(anyDouble(), anyString()))
                 .thenAnswer(inv -> new UnidadConvertidaDTO(inv.getArgument(0), inv.getArgument(1), false));
+        MatchingService matchingReal = new MatchingService(null, null, null, null, null);
+        lenient().when(matchingService.esPosibleDuplicado(anyString(), anyString()))
+                .thenAnswer(inv -> matchingReal.esPosibleDuplicado(inv.getArgument(0), inv.getArgument(1)));
     }
 
     // -------------------------------------------------------------------------
@@ -106,8 +113,7 @@ class DespensaServiceTest {
         Producto guardado = producto("prod-1", "desp-1", "Leche", 2, null);
 
         when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
-        when(productoRepository.findByDespensaIdAndNombreContainingIgnoreCase("desp-1", "Leche"))
-                .thenReturn(List.of());
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of());
         when(productoRepository.save(any(Producto.class))).thenReturn(guardado);
         when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
 
@@ -126,8 +132,7 @@ class DespensaServiceTest {
         Producto nuevo = producto("prod-1", "desp-1", "Leche", 2, null);
 
         when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
-        when(productoRepository.findByDespensaIdAndNombreContainingIgnoreCase("desp-1", "Leche"))
-                .thenReturn(List.of(existente));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(existente));
         when(productoRepository.save(any(Producto.class))).thenReturn(nuevo);
         when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
 
@@ -151,8 +156,7 @@ class DespensaServiceTest {
         when(unidadNormalizadorService.normalizarUnidades(3, "taza"))
                 .thenReturn(new UnidadConvertidaDTO(750, "ml", true));
         when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
-        when(productoRepository.findByDespensaIdAndNombreContainingIgnoreCase("desp-1", "Leche"))
-                .thenReturn(List.of());
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of());
         when(productoRepository.save(any(Producto.class))).thenReturn(guardado);
         when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
 
@@ -802,8 +806,7 @@ class DespensaServiceTest {
                 .build();
 
         when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
-        when(productoRepository.findByDespensaIdAndNombreContainingIgnoreCase("desp-1", "Sal"))
-                .thenReturn(List.of());
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of());
         when(productoRepository.save(any(Producto.class))).thenReturn(guardado);
         when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
 
