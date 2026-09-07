@@ -7,7 +7,6 @@ import {
   DashboardResumen,
   Estadisticas,
   ProductoPrioritario,
-  RecetaRecomendada,
   dashboardService,
 } from '@/services/dashboardService';
 
@@ -17,7 +16,6 @@ interface DashboardState {
   prioritarios: ProductoPrioritario[];
   estadisticas: Estadisticas | null;
   carritoResumen: CarritoResumen | null;
-  recetasRecomendadas: RecetaRecomendada | null;
   isLoading: boolean;
   error: string | null;
   lastUpdated: Date | null;
@@ -35,7 +33,6 @@ const aplicarDashboard = (dashboard: Dashboard): Partial<DashboardState> => ({
   prioritarios: dashboard.prioritarios,
   estadisticas: dashboard.estadisticas,
   carritoResumen: dashboard.carrito,
-  recetasRecomendadas: dashboard.recetas,
   lastUpdated: new Date(),
 });
 
@@ -46,7 +43,6 @@ export const useDashboardStore = create<DashboardState & DashboardActions>()(
     prioritarios: [],
     estadisticas: null,
     carritoResumen: null,
-    recetasRecomendadas: null,
     isLoading: false,
     error: null,
     lastUpdated: null,

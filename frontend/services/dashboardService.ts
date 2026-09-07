@@ -43,17 +43,12 @@ export interface CarritoResumen {
   sugeridos: string[];
 }
 
-export interface RecetaRecomendada {
-  disponible: boolean;
-}
-
 export interface Dashboard {
   resumen: DashboardResumen;
   alertas: AlertaCaducidad[];
   prioritarios: ProductoPrioritario[];
   estadisticas: Estadisticas;
   carrito: CarritoResumen;
-  recetas: RecetaRecomendada;
 }
 
 export const dashboardService = {
