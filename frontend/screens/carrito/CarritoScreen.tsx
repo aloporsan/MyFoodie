@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  InteractionManager,
   Modal,
   Pressable,
   RefreshControl,
@@ -59,6 +60,7 @@ export function CarritoScreen() {
   const {
     items,
     resumen,
+    error,
     isLoading,
     isGenerando,
     cargarCarrito,
@@ -75,8 +77,15 @@ export function CarritoScreen() {
   const [modalManual, setModalManual] = useState(false);
   const [añadiendoManual, setAñadiendoManual] = useState(false);
 
+  // Se espera a que termine la animación de entrada antes de pedir el carrito: así la
+  // navegación no se congela mientras el hilo JS está ocupado con la petición y el render.
+  // Si el dashboard ya dejó datos en el store, la pantalla se pinta al instante y esto
+  // solo refresca en segundo plano.
   useEffect(() => {
-    cargarCarrito();
+    const tarea = InteractionManager.runAfterInteractions(() => {
+      cargarCarrito();
+    });
+    return () => tarea.cancel();
   }, []);
 
   const handleGenerarLista = useCallback(() => {
@@ -109,7 +118,9 @@ export function CarritoScreen() {
   const rechazados = items.filter((i) => i.estado === 'rechazado');
   const dataTab = tab === 'aceptados' ? aceptados : rechazados;
 
-  if (isLoading && items.length === 0) {
+  // Solo pantalla de carga completa hasta que llegan los primeros datos; los refrescos
+  // posteriores usan el overlay para no vaciar la lista ni parpadear un estado vacío.
+  if (items.length === 0 && resumen === null && error === null) {
     return <LoadingScreen />;
   }
 
@@ -118,22 +129,32 @@ export function CarritoScreen() {
       <LoadingOverlay visible={isLoading && items.length > 0} />
 
       <View style={styles.header}>
-        <Pressable onPress={goBack} hitSlop={8} style={styles.backBtn}>
+        <Pressable onPress={goBack} hitSlop={8} style={styles.iconBtn}>
           <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </Pressable>
         <Text style={styles.titulo}>Carrito inteligente</Text>
-        <Pressable
-          onPress={generarCarrito}
-          disabled={isGenerando}
-          hitSlop={8}
-          style={styles.backBtn}
-        >
-          {isGenerando ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            <Ionicons name="refresh" size={22} color={colors.primary} />
-          )}
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            onPress={() => setModalManual(true)}
+            hitSlop={8}
+            style={styles.iconBtn}
+            testID="btn-añadir-manual"
+          >
+            <Ionicons name="add-circle-outline" size={24} color={colors.primary} />
+          </Pressable>
+          <Pressable
+            onPress={generarCarrito}
+            disabled={isGenerando}
+            hitSlop={8}
+            style={styles.iconBtn}
+          >
+            {isGenerando ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Ionicons name="refresh" size={22} color={colors.primary} />
+            )}
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.resumenWrapper}>
@@ -200,10 +221,6 @@ export function CarritoScreen() {
         />
       )}
 
-      <Pressable style={styles.fab} onPress={() => setModalManual(true)}>
-        <Ionicons name="add" size={28} color={colors.white} />
-      </Pressable>
-
       <View style={styles.footer}>
         <Pressable
           style={[styles.btnFooterLista, aceptados.length === 0 && styles.btnDisabled]}
@@ -259,8 +276,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     backgroundColor: colors.white,
   },
-  backBtn: { width: 24 },
-  titulo: { ...typography.heading2, color: colors.text.primary, flex: 1, textAlign: 'center' },
+  iconBtn: { minWidth: 28, alignItems: 'center', justifyContent: 'center' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  titulo: { ...typography.heading2, color: colors.text.primary, flex: 1, marginLeft: spacing.sm },
   resumenWrapper: {
     padding: spacing.md,
     paddingBottom: spacing.sm,
@@ -327,22 +345,6 @@ const styles = StyleSheet.create({
   },
   btnDisabled: {
     opacity: 0.4,
-  },
-  fab: {
-    position: 'absolute',
-    right: spacing.lg,
-    bottom: 116,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
   },
   modalContainer: {
     flex: 1,
