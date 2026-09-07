@@ -190,13 +190,15 @@ public class FeedService {
 
         List<Receta> ordenadas = recetas.stream().sorted(orden).toList();
         List<String> ids = ordenadas.stream().map(Receta::getId).toList();
+        Map<String, List<IngredienteReceta>> ingredientesPorReceta = obtenerIngredientesPorReceta(ids);
         Map<String, List<String>> likesDeSeguidosPorReceta = obtenerLikesDeSeguidosPorReceta(ids, seguidosIds);
         Set<String> recetasCompartidasPorSeguido = obtenerRecetasCompartidasPorSeguido(usuarioId, ids, seguidosIds);
         Map<String, String> nombresPorUsuarioId = resolverNombresLikers(ids, likesDeSeguidosPorReceta);
 
         return ordenadas.stream()
                 .map(r -> toFeedDTO(new RecetaPuntuadaDTO(r, 0, null, false), usuarioId, nombresProductosDespensa,
-                        seguidosIds, likesDeSeguidosPorReceta, recetasCompartidasPorSeguido, nombresPorUsuarioId))
+                        seguidosIds, ingredientesPorReceta, likesDeSeguidosPorReceta, recetasCompartidasPorSeguido,
+                        nombresPorUsuarioId))
                 .toList();
     }
 
@@ -294,12 +296,16 @@ public class FeedService {
                 .collect(Collectors.toSet());
 
         List<String> idsCandidatas = candidatas.stream().map(Receta::getId).toList();
+        // Ingredientes de todo el pool en una sola consulta: construirCandidato se ejecuta sobre
+        // cada receta del pool (hasta TAMAÑO_POOL_FILTRADO) y antes disparaba un findByRecetaId por receta.
+        Map<String, List<IngredienteReceta>> ingredientesPorReceta = obtenerIngredientesPorReceta(idsCandidatas);
         Map<String, List<String>> likesDeSeguidosPorReceta = obtenerLikesDeSeguidosPorReceta(idsCandidatas, seguidosIds);
         Set<String> recetasCompartidasPorSeguido = obtenerRecetasCompartidasPorSeguido(usuarioId, idsCandidatas, seguidosIds);
 
         List<CandidatoRecetaDTO> candidatos = candidatas.stream()
                 .map(receta -> construirCandidato(
                         receta,
+                        ingredientesPorReceta.getOrDefault(receta.getId(), List.of()),
                         nombresProductosDespensa,
                         ingredientesProximosACaducar,
                         likesDeSeguidosPorReceta.getOrDefault(receta.getId(), List.of()),
@@ -327,8 +333,8 @@ public class FeedService {
                 paginaOrdenada.stream().map(rp -> rp.receta().getId()).toList(), likesDeSeguidosPorReceta);
 
         List<RecetaFeedDTO> recetasPagina = paginaOrdenada.stream()
-                .map(rp -> toFeedDTO(rp, usuarioId, nombresProductosDespensa, seguidosIds, likesDeSeguidosPorReceta,
-                        recetasCompartidasPorSeguido, nombresPorUsuarioId))
+                .map(rp -> toFeedDTO(rp, usuarioId, nombresProductosDespensa, seguidosIds, ingredientesPorReceta,
+                        likesDeSeguidosPorReceta, recetasCompartidasPorSeguido, nombresPorUsuarioId))
                 .toList();
 
         return new FeedResponseDTO(recetasPagina, pagina, totalPaginas, hasta < total);
@@ -561,6 +567,14 @@ public class FeedService {
 
     private record CoincidenciaDespensa(int disponibles, int faltantes, double coincidencia, boolean coincidenciaParcial) {}
 
+    private Map<String, List<IngredienteReceta>> obtenerIngredientesPorReceta(List<String> recetaIds) {
+        if (recetaIds.isEmpty()) {
+            return Map.of();
+        }
+        return ingredienteRepository.findByRecetaIdIn(recetaIds).stream()
+                .collect(Collectors.groupingBy(IngredienteReceta::getRecetaId));
+    }
+
     private Map<String, List<String>> obtenerLikesDeSeguidosPorReceta(List<String> recetaIds, Set<String> seguidosIds) {
         if (recetaIds.isEmpty() || seguidosIds.isEmpty()) {
             return Map.of();
@@ -595,11 +609,11 @@ public class FeedService {
                 .collect(Collectors.toMap(Usuario::getId, Usuario::getNombre));
     }
 
-    private CandidatoRecetaDTO construirCandidato(Receta receta, List<String> nombresProductosDespensa,
+    private CandidatoRecetaDTO construirCandidato(Receta receta, List<IngredienteReceta> ingredientes,
+                                                    List<String> nombresProductosDespensa,
                                                     Set<String> ingredientesProximosACaducar,
                                                     List<String> seguidosQueDieronLike, boolean compartidaPorSeguido,
                                                     LocalDateTime fechaDescarte) {
-        List<IngredienteReceta> ingredientes = ingredienteRepository.findByRecetaId(receta.getId());
         CoincidenciaDespensa coincidenciaInfo = calcularCoincidenciaDespensa(ingredientes, nombresProductosDespensa);
 
         boolean tieneProximosACaducar = ingredientes.stream()
@@ -615,11 +629,13 @@ public class FeedService {
 
     private RecetaFeedDTO toFeedDTO(RecetaPuntuadaDTO recetaPuntuada, String usuarioId,
                                      List<String> nombresProductosDespensa, Set<String> seguidosIds,
+                                     Map<String, List<IngredienteReceta>> ingredientesPorReceta,
                                      Map<String, List<String>> likesDeSeguidosPorReceta,
                                      Set<String> recetasCompartidasPorSeguido,
                                      Map<String, String> nombresPorUsuarioId) {
         Receta receta = recetaPuntuada.receta();
-        List<IngredienteReceta> ingredientes = ingredienteRepository.findByRecetaId(receta.getId());
+        List<IngredienteReceta> ingredientes = ingredientesPorReceta
+                .getOrDefault(receta.getId(), List.of());
         CoincidenciaDespensa coincidenciaInfo = calcularCoincidenciaDespensa(ingredientes, nombresProductosDespensa);
 
         Usuario autor = usuarioRepository.findById(receta.getAutorId()).orElse(null);

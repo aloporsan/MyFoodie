@@ -123,7 +123,8 @@ public class CarritoInteligenteService {
 
         List<Producto> productos = productoRepository.findByDespensaId(despensa.getId());
         int umbral = obtenerGlobalUmbral(usuarioId);
-        List<RecetaGuardada> guardadas = recetaGuardadaRepository.findByUsuarioId(usuarioId);
+        // Recetas guardadas + sus ingredientes en 2 consultas (no una por receta y prioridad).
+        List<RecetaConIngredientes> guardadas = cargarRecetasGuardadas(usuarioId);
 
         Set<String> noVolver = itemCarritoRepository.findByUsuarioIdAndNoVolverTrue(usuarioId)
                 .stream().map(i -> normalizar(i.getNombre())).collect(Collectors.toSet());
@@ -587,12 +588,32 @@ public class CarritoInteligenteService {
         );
     }
 
+    private record RecetaConIngredientes(Receta receta, List<IngredienteReceta> ingredientes) {}
+
+    // Las 3 prioridades recorren las mismas recetas guardadas: se cargan una vez (receta +
+    // ingredientes) en 2 consultas en vez de una por receta y prioridad (N+1).
+    private List<RecetaConIngredientes> cargarRecetasGuardadas(String usuarioId) {
+        List<String> recetaIds = recetaGuardadaRepository.findByUsuarioId(usuarioId).stream()
+                .map(RecetaGuardada::getRecetaId)
+                .distinct()
+                .toList();
+        if (recetaIds.isEmpty()) {
+            return List.of();
+        }
+        Map<String, List<IngredienteReceta>> ingredientesPorReceta = ingredienteRecetaRepository
+                .findByRecetaIdIn(recetaIds).stream()
+                .collect(Collectors.groupingBy(IngredienteReceta::getRecetaId));
+        return recetaRepository.findAllById(recetaIds).stream()
+                .map(r -> new RecetaConIngredientes(r, ingredientesPorReceta.getOrDefault(r.getId(), List.of())))
+                .toList();
+    }
+
     // -------------------------------------------------------------------------
     // Prioridad ALTA
     // -------------------------------------------------------------------------
 
     private List<ItemCarrito> candidatosPrioridadAlta(List<Producto> productos, int umbral,
-                                                        List<RecetaGuardada> guardadas) {
+                                                        List<RecetaConIngredientes> recetasGuardadas) {
         List<ItemCarrito> resultado = new ArrayList<>();
 
         for (Producto p : productos) {
@@ -605,10 +626,9 @@ public class CarritoInteligenteService {
             }
         }
 
-        for (RecetaGuardada guardada : guardadas) {
-            Receta receta = recetaRepository.findById(guardada.getRecetaId()).orElse(null);
-            if (receta == null) continue;
-            List<IngredienteReceta> ingredientes = ingredienteRecetaRepository.findByRecetaId(receta.getId());
+        for (RecetaConIngredientes rci : recetasGuardadas) {
+            Receta receta = rci.receta();
+            List<IngredienteReceta> ingredientes = rci.ingredientes();
             for (IngredienteReceta ingrediente : ingredientes) {
                 double ratio = ratioDisponibilidad(ingrediente, productos);
                 if (ratio == 0) {
@@ -626,7 +646,7 @@ public class CarritoInteligenteService {
     // -------------------------------------------------------------------------
 
     private List<ItemCarrito> candidatosPrioridadMedia(Despensa despensa, List<Producto> productos, int umbral,
-                                                         List<RecetaGuardada> guardadas) {
+                                                         List<RecetaConIngredientes> recetasGuardadas) {
         List<ItemCarrito> resultado = new ArrayList<>();
 
         for (Producto p : productos) {
@@ -651,10 +671,9 @@ public class CarritoInteligenteService {
             }
         }
 
-        for (RecetaGuardada guardada : guardadas) {
-            Receta receta = recetaRepository.findById(guardada.getRecetaId()).orElse(null);
-            if (receta == null) continue;
-            List<IngredienteReceta> ingredientes = ingredienteRecetaRepository.findByRecetaId(receta.getId());
+        for (RecetaConIngredientes rci : recetasGuardadas) {
+            Receta receta = rci.receta();
+            List<IngredienteReceta> ingredientes = rci.ingredientes();
             for (IngredienteReceta ingrediente : ingredientes) {
                 double ratio = ratioDisponibilidad(ingrediente, productos);
                 if (ratio > 0 && ratio < RATIO_INSUFICIENTE) {
@@ -672,7 +691,7 @@ public class CarritoInteligenteService {
     // -------------------------------------------------------------------------
 
     private List<ItemCarrito> candidatosPrioridadBaja(Despensa despensa, List<Producto> productos, int umbral,
-                                                        List<RecetaGuardada> guardadas) {
+                                                        List<RecetaConIngredientes> recetasGuardadas) {
         List<ItemCarrito> resultado = new ArrayList<>();
 
         LocalDateTime ahora = LocalDateTime.now();
@@ -705,10 +724,9 @@ public class CarritoInteligenteService {
             }
         }
 
-        for (RecetaGuardada guardada : guardadas) {
-            Receta receta = recetaRepository.findById(guardada.getRecetaId()).orElse(null);
-            if (receta == null) continue;
-            List<IngredienteReceta> ingredientes = ingredienteRecetaRepository.findByRecetaId(receta.getId());
+        for (RecetaConIngredientes rci : recetasGuardadas) {
+            Receta receta = rci.receta();
+            List<IngredienteReceta> ingredientes = rci.ingredientes();
             if (ingredientes.isEmpty()) continue;
 
             long cubiertos = ingredientes.stream()
