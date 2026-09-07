@@ -123,9 +123,12 @@ public class RecomendacionService {
 
         List<RecetaPuntuadaDTO> puntuados = candidatos.stream()
                 .map(c -> {
-                    double puntuacion = modoFallback
+                    double base = modoFallback
                             ? puntuarRecetaFallback(c.receta(), c.contexto(), preferencias)
                             : puntuarReceta(c.receta(), usuarioId, perfilGustos, seguidosIds, c.contexto(), pocasRecetas);
+                    // En modo fallback las preferencias ya pesan dentro de puntuarRecetaFallback;
+                    // en modo normal se aplican aquí como un empujón suave.
+                    double puntuacion = modoFallback ? base : base * factorPreferencias(c.receta(), preferencias);
                     String motivo = determinarMotivo(c.receta(), seguidosIds, c.contexto(), perfilGustos);
                     return new RecetaPuntuadaDTO(c.receta(), puntuacion, motivo, modoFallback);
                 })
@@ -204,6 +207,24 @@ public class RecomendacionService {
         }
 
         return Math.max(0, 100 - puntuacionCategoria * 15.0);
+    }
+
+    // Empujón suave por preferencias explícitas del perfil que no son filtro duro (tiempo y
+    // dificultad habitual). La dieta/alérgenos ya se aplican como filtro en FeedService.
+    private double factorPreferencias(Receta receta, Preferencias preferencias) {
+        if (preferencias == null) {
+            return 1.0;
+        }
+        double factor = 1.0;
+        if (preferencias.getTiempoCoccionMax() != null && receta.getTiempoEstimado() > 0
+                && receta.getTiempoEstimado() <= preferencias.getTiempoCoccionMax()) {
+            factor *= 1.10;
+        }
+        if (preferencias.getNivelDificultad() != null && receta.getDificultad() != null
+                && preferencias.getNivelDificultad().equalsIgnoreCase(receta.getDificultad())) {
+            factor *= 1.10;
+        }
+        return factor;
     }
 
     private double calcularAfinidadPreferenciasOnboarding(Receta receta, Preferencias preferencias) {
