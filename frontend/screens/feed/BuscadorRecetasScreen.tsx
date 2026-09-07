@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { FiltrosRecetaSheet } from '@/components/feed';
+import { RecetaCardCompacta } from '@/components/receta';
 import {
   contarFiltros,
   FILTROS_RECETA_VACIOS,
@@ -15,7 +15,6 @@ import {
 import { useToastStore } from '@/hooks/useToast';
 import { feedService, type RecetaFeed } from '@/services/feedService';
 import { borderRadius, colors, spacing, typography } from '@/theme';
-import { resolveImagenUrl } from '@/utils/media';
 
 const DEBOUNCE_MS = 400;
 
@@ -121,7 +120,15 @@ export function BuscadorRecetasScreen() {
           keyboardShouldPersistTaps="handled"
           ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
           renderItem={({ item }) => (
-            <ResultadoReceta receta={item} onPress={() => router.push(`/feed/${item.id}`)} />
+            <RecetaCardCompacta
+              receta={item}
+              onPress={() => router.push(`/feed/${item.id}`)}
+              despensa={{
+                disponibles: item.ingredientesDisponibles,
+                faltantes: item.ingredientesFaltantes,
+              }}
+              testID={`resultado-receta-${item.id}`}
+            />
           )}
         />
       ) : (
@@ -151,78 +158,6 @@ export function BuscadorRecetasScreen() {
         }}
       />
     </SafeAreaView>
-  );
-}
-
-const DIFICULTAD_COLOR: Record<string, string> = {
-  'fácil': colors.primary,
-  media: colors.secondary,
-  'difícil': colors.error,
-};
-
-function estadoDespensa(receta: RecetaFeed): { color: string; icono: keyof typeof Ionicons.glyphMap; texto: string } | null {
-  const total = receta.ingredientesDisponibles + receta.ingredientesFaltantes;
-  if (total === 0) return null;
-  if (receta.ingredientesFaltantes === 0) {
-    return { color: colors.primary, icono: 'checkmark-circle', texto: 'Tienes los ingredientes' };
-  }
-  if (receta.ingredientesDisponibles > 0) {
-    return {
-      color: colors.secondary,
-      icono: 'remove-circle',
-      texto: `Tienes ${receta.ingredientesDisponibles}/${total}`,
-    };
-  }
-  return { color: colors.grayMid, icono: 'close-circle', texto: 'Te faltan ingredientes' };
-}
-
-function ResultadoReceta({ receta, onPress }: { receta: RecetaFeed; onPress: () => void }) {
-  const imagenUrl = resolveImagenUrl(receta.imagenUrl);
-  const despensa = estadoDespensa(receta);
-  const dificultadColor = DIFICULTAD_COLOR[receta.dificultad?.toLowerCase()] ?? colors.grayMid;
-
-  return (
-    <Pressable style={styles.card} onPress={onPress} testID={`resultado-receta-${receta.id}`}>
-      {imagenUrl ? (
-        <Image source={{ uri: imagenUrl }} style={styles.cardImagen} contentFit="cover" />
-      ) : (
-        <View style={[styles.cardImagen, styles.cardImagenPlaceholder]}>
-          <Ionicons name="restaurant-outline" size={24} color={colors.white} />
-        </View>
-      )}
-      <View style={styles.cardCuerpo}>
-        <Text style={styles.cardTitulo} numberOfLines={1}>
-          {receta.titulo}
-        </Text>
-
-        <View style={styles.cardIconos}>
-          <View style={[styles.pill, { backgroundColor: dificultadColor }]}>
-            <Text style={styles.pillTexto}>{receta.dificultad}</Text>
-          </View>
-          {receta.categoria && (
-            <View style={styles.metaItem}>
-              <Ionicons name="restaurant-outline" size={13} color={colors.text.secondary} />
-              <Text style={styles.metaTexto}>{receta.categoria}</Text>
-            </View>
-          )}
-          <View style={styles.metaItem}>
-            <Ionicons name="people-outline" size={13} color={colors.text.secondary} />
-            <Text style={styles.metaTexto}>{receta.numPersonas}</Text>
-          </View>
-          <View style={styles.metaItem}>
-            <Ionicons name="time-outline" size={13} color={colors.text.secondary} />
-            <Text style={styles.metaTexto}>{receta.tiempoEstimado} min</Text>
-          </View>
-        </View>
-
-        {despensa && (
-          <View style={styles.despensaRow}>
-            <Ionicons name={despensa.icono} size={14} color={despensa.color} />
-            <Text style={[styles.despensaTexto, { color: despensa.color }]}>{despensa.texto}</Text>
-          </View>
-        )}
-      </View>
-    </Pressable>
   );
 }
 
@@ -272,29 +207,6 @@ const styles = StyleSheet.create({
   badgeTexto: { ...typography.caption, fontSize: 10, lineHeight: 12, color: colors.white, fontWeight: '700' },
 
   lista: { padding: spacing.lg, paddingBottom: spacing.xxxl },
-  card: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-    padding: spacing.sm,
-  },
-  cardImagen: { width: 80, height: 80, borderRadius: borderRadius.md },
-  cardImagenPlaceholder: {
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardCuerpo: { flex: 1, justifyContent: 'center', gap: spacing.xs },
-  cardTitulo: { ...typography.label, color: colors.text.primary, fontWeight: '700' },
-  cardIconos: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm },
-  pill: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.full },
-  pillTexto: { ...typography.caption, fontSize: 10, color: colors.white, fontWeight: '700' },
-  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  metaTexto: { ...typography.caption, color: colors.text.secondary },
-  despensaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: 2 },
-  despensaTexto: { ...typography.caption, fontWeight: '600' },
 
   vacio: { flex: 1, alignItems: 'center', paddingHorizontal: spacing.xl, paddingTop: spacing.xxxl, gap: spacing.sm },
   vacioIcono: {

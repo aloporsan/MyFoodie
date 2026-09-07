@@ -8,5 +8,6 @@ export { ImagenReceta } from './ImagenReceta';
 export { ListaIngredientes } from './ListaIngredientes';
 export { ListaPasos } from './ListaPasos';
 export { ModalRecetaRealizada } from './ModalRecetaRealizada';
+export { RecetaCardCompacta, type RecetaCardDatos } from './RecetaCardCompacta';
 export { RecetaCardVertical } from './RecetaCardVertical';
 export { ValidacionReceta } from './ValidacionReceta';
