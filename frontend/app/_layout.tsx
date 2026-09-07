@@ -98,6 +98,7 @@ function RootLayoutNav() {
         <Stack.Screen name="despensa/duplicados"        options={{ headerShown: false }} />
         <Stack.Screen name="perfil/editar"              options={{ headerShown: false }} />
         <Stack.Screen name="perfil/estadisticas"        options={{ headerShown: false }} />
+        <Stack.Screen name="perfil/ayuda"               options={{ headerShown: false }} />
         <Stack.Screen name="perfil/preferencias"        options={{ headerShown: false }} />
         <Stack.Screen name="perfil/gustos"              options={{ headerShown: false }} />
         <Stack.Screen name="perfil/privacidad"          options={{ headerShown: false }} />
