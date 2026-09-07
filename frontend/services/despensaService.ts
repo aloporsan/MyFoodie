@@ -113,6 +113,13 @@ export const despensaService = {
     await apiClient.delete(`/despensa/productos/${id}`, { data: body });
   },
 
+  vaciarDespensa: async (): Promise<number> => {
+    const { data } = await apiClient.delete<{ productosEliminados: number }>(
+      '/despensa/productos/vaciar'
+    );
+    return data.productosEliminados;
+  },
+
   obtenerHistorial: async (id: string): Promise<MovimientoProducto[]> => {
     const { data } = await apiClient.get<MovimientoProducto[]>(
       `/despensa/productos/${id}/historial`

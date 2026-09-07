@@ -40,6 +40,11 @@ jest.mock('@/store/perfilStore', () => ({
   usePerfilStore: jest.fn(),
 }));
 
+const mockVaciarDespensa = jest.fn();
+jest.mock('@/store/despensaStore', () => ({
+  useDespensaStore: jest.fn(() => ({ vaciarDespensa: mockVaciarDespensa })),
+}));
+
 const { usePerfilStore } = require('@/store/perfilStore');
 
 const makeStore = (overrides = {}) => ({

@@ -35,6 +35,7 @@ interface DespensaActions {
   añadirProducto: (datos: ProductoInput) => Promise<Producto>;
   editarProducto: (id: string, datos: ProductoInput) => Promise<void>;
   eliminarProducto: (id: string, motivo?: MotivoEliminacion, motivoDetalle?: string) => Promise<void>;
+  vaciarDespensa: () => Promise<number>;
   actualizarCantidad: (id: string, delta: number, motivo?: MotivoEliminacion, motivoDetalle?: string) => Promise<Producto>;
   cargarHistorial: (productoId: string) => Promise<void>;
   buscarSimilares: (nombre: string) => Promise<void>;
@@ -139,6 +140,20 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
         isLoading: false,
       }));
       useDashboardStore.getState().cargarDashboard();
+    } catch (e) {
+      set({ error: handleApiError(e), isLoading: false });
+      throw e;
+    }
+  },
+
+  vaciarDespensa: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const eliminados = await despensaService.vaciarDespensa();
+      set({ productos: [], isLoading: false });
+      useDashboardStore.getState().cargarDashboard();
+      useFusionStore.getState().cargarDuplicados();
+      return eliminados;
     } catch (e) {
       set({ error: handleApiError(e), isLoading: false });
       throw e;

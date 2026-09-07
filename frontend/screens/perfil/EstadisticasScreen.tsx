@@ -13,6 +13,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { EstadisticaItem } from '@/components/perfil/EstadisticaItem';
 import { usePerfilStore } from '@/store/perfilStore';
+import { useDespensaStore } from '@/store/despensaStore';
+import { showConfirm } from '@/hooks/useConfirm';
+import { useToast } from '@/hooks/useToast';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
 import type { EstadisticasPerfil, MotivosEliminacion } from '@/services/perfilService';
 
@@ -46,10 +49,52 @@ function calcularEficiencia(stats: EstadisticasPerfil): number | null {
 export function EstadisticasScreen() {
   const router = useRouter();
   const { estadisticas, isLoading, cargarEstadisticas } = usePerfilStore();
+  const { vaciarDespensa } = useDespensaStore();
+  const toast = useToast();
 
   useEffect(() => {
     cargarEstadisticas();
   }, []);
+
+  const confirmarVaciarDespensa = async () => {
+    try {
+      const eliminados = await vaciarDespensa();
+      await cargarEstadisticas();
+      toast.showSuccess(
+        eliminados > 0
+          ? `Despensa vaciada: ${eliminados} producto${eliminados === 1 ? '' : 's'} eliminado${eliminados === 1 ? '' : 's'}`
+          : 'Tu despensa ya estaba vacía',
+      );
+    } catch {
+      toast.showError('No se pudo vaciar la despensa. Inténtalo de nuevo.');
+    }
+  };
+
+  const handleVaciarDespensa = () => {
+    showConfirm(
+      'Vaciar despensa',
+      'Se eliminarán todos los productos y sus lotes de tu despensa. Esta acción no se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Continuar',
+          style: 'destructive',
+          onPress: () => {
+            showConfirm(
+              '¿Estás completamente seguro?',
+              'Perderás todo el contenido de tu despensa. Tu historial y tus estadísticas se conservan.',
+              [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'Vaciar definitivamente', style: 'destructive', onPress: confirmarVaciarDespensa },
+              ],
+              { icon: 'warning-outline' },
+            );
+          },
+        },
+      ],
+      { icon: 'trash-outline' },
+    );
+  };
 
   const diasMiembro = estadisticas?.diasEnMyFoodie ?? 0;
 
@@ -231,6 +276,23 @@ export function EstadisticasScreen() {
             </View>
           </Seccion>
 
+          {/* Zona de peligro */}
+          <Seccion titulo="Zona de peligro">
+            <Text style={styles.peligroTexto}>
+              Elimina de golpe todos los productos de tu despensa. Tu historial y tus estadísticas se
+              mantienen.
+            </Text>
+            <Pressable
+              style={styles.peligroBtn}
+              onPress={handleVaciarDespensa}
+              disabled={isLoading}
+              testID="btn-vaciar-despensa"
+            >
+              <Ionicons name="trash-outline" size={18} color={colors.error} />
+              <Text style={styles.peligroBtnTexto}>Vaciar despensa</Text>
+            </Pressable>
+          </Seccion>
+
         </ScrollView>
       ) : null}
     </SafeAreaView>
@@ -396,6 +458,26 @@ const styles = StyleSheet.create({
   nivelDias: {
     fontSize: 20,
     fontFamily: 'Poppins_700Bold',
+  },
+  peligroTexto: {
+    ...typography.caption,
+    color: colors.text.secondary,
+    marginBottom: spacing.md,
+  },
+  peligroBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1.5,
+    borderColor: colors.error,
+    backgroundColor: '#FFEBEE',
+  },
+  peligroBtnTexto: {
+    ...typography.button,
+    color: colors.error,
   },
 });
 
