@@ -112,8 +112,9 @@ export function FormProductoScreen() {
 
   useEffect(() => () => limpiarSimilares(), []);
 
-  // Ordenamos los AUTOMATICO (>=85%) primero, pero seguimos exigiendo un toque explícito
-  // para seleccionarlos: el matching automático lo confirma el usuario, no el sistema.
+  // Ordenamos los AUTOMATICO (>=99%, casi nombre idéntico) primero, pero seguimos exigiendo
+  // un toque explícito para seleccionarlos: el matching automático lo confirma el usuario, no
+  // el sistema.
   const sugerencias = [...similaresSugeridos].sort((a, b) =>
     a.tipoMatch === b.tipoMatch ? 0 : a.tipoMatch === 'AUTOMATICO' ? -1 : 1
   );
