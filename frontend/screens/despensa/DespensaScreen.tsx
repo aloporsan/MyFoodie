@@ -21,8 +21,9 @@ import {
   FiltrosBar,
   ProductoCard,
 } from '@/components/despensa';
+import { showConfirm } from '@/hooks/useConfirm';
 import { useToast } from '@/hooks/useToast';
-import { EstadoProducto, MotivoEliminacion } from '@/services/despensaService';
+import { ConsumoLote, EstadoProducto, MotivoEliminacion } from '@/services/despensaService';
 import { useDespensaStore } from '@/store/despensaStore';
 import { useFusionStore } from '@/store/fusionStore';
 import { borderRadius } from '@/theme/borderRadius';
@@ -57,6 +58,7 @@ export function DespensaScreen() {
     limpiarFiltros,
     setOrden,
     inicializarOrden,
+    cargarLotes,
   } = useDespensaStore();
   const { duplicados, cargarDuplicados } = useFusionStore();
 
@@ -75,6 +77,8 @@ export function DespensaScreen() {
   const [pendingCantidadUnidad, setPendingCantidadUnidad] = useState('');
   const [pendingCantidadModo, setPendingCantidadModo] = useState<'sumar' | 'restar'>('restar');
   const [pendingCantidadDisponible, setPendingCantidadDisponible] = useState(0);
+  // Aviso de qué lote se consumirá primero (FIFO por caducidad), igual que en el detalle.
+  const [avisoLoteRestar, setAvisoLoteRestar] = useState<string | undefined>(undefined);
 
   const [estadosPresentesBase, setEstadosPresentesBase] = useState<EstadoProducto[]>([]);
   const [categoriasBase, setCategoriasBase] = useState<string[]>([]);
@@ -151,19 +155,45 @@ export function DespensaScreen() {
     setPendingDeleteId(null);
   };
 
+  const formatFechaLote = (fecha?: string | null) => {
+    if (!fecha) return 'sin fecha';
+    const [y, m, d] = fecha.split('-');
+    return `${d}/${m}/${y}`;
+  };
+
   // Cantidad con motivo
   const handleDecrementar = useCallback((id: string, unidad: string, cantidadDisponible: number) => {
     setPendingCantidadId(id);
     setPendingCantidadUnidad(unidad);
     setPendingCantidadModo('restar');
     setPendingCantidadDisponible(cantidadDisponible);
-  }, []);
+    setAvisoLoteRestar(undefined);
+    // Se carga el lote más próximo a caducar para avisar de dónde se descontará (FIFO).
+    cargarLotes(id).then(() => {
+      const lote = useDespensaStore.getState().lotesProductoActual[0];
+      if (lote) {
+        setAvisoLoteRestar(
+          `Se descontará primero del lote que caduca ${
+            lote.fechaCaducidad ? `el ${formatFechaLote(lote.fechaCaducidad)}` : 'antes'
+          } (${lote.cantidad} ${lote.unidad}).`,
+        );
+      }
+    });
+  }, [cargarLotes]);
 
   const handleIncrementar = useCallback((id: string, unidad: string) => {
     setPendingCantidadId(id);
     setPendingCantidadUnidad(unidad);
     setPendingCantidadModo('sumar');
   }, []);
+
+  const mostrarResumenConsumo = (consumos: ConsumoLote[], unidad: string) => {
+    const lineas = consumos.map((c) => {
+      const linea = `Lote del ${formatFechaLote(c.fechaCaducidad)}: -${c.cantidadConsumida} ${unidad}`;
+      return c.loteEliminado ? `${linea} (agotado)` : `${linea} · quedan ${c.cantidadRestante}`;
+    });
+    showConfirm('Consumido de tus lotes', lineas.join('\n'), undefined, { icon: 'layers-outline' });
+  };
 
   const confirmarCantidad = async (
     cantidad: number,
@@ -172,12 +202,17 @@ export function DespensaScreen() {
   ) => {
     if (!pendingCantidadId) return;
     const id = pendingCantidadId;
+    const unidad = pendingCantidadUnidad;
     const delta = pendingCantidadModo === 'sumar' ? cantidad : -cantidad;
     // Se cierra el sheet al instante (la actualización es optimista); no se deja
     // "pensando" con la cantidad en pantalla.
     setPendingCantidadId(null);
+    setAvisoLoteRestar(undefined);
     try {
-      await actualizarCantidad(id, delta, motivo, motivoDetalle);
+      const actualizado = await actualizarCantidad(id, delta, motivo, motivoDetalle);
+      if (actualizado?.consumosFifo && actualizado.consumosFifo.length > 0) {
+        mostrarResumenConsumo(actualizado.consumosFifo, unidad);
+      }
     } catch {
       showError('No puedes quitar más cantidad de la que tienes disponible');
     }
@@ -394,8 +429,9 @@ export function DespensaScreen() {
         unidad={pendingCantidadUnidad}
         modo={pendingCantidadModo}
         maxCantidad={pendingCantidadModo === 'restar' ? pendingCantidadDisponible : undefined}
+        aviso={pendingCantidadModo === 'restar' ? avisoLoteRestar : undefined}
         onConfirm={confirmarCantidad}
-        onCancelar={() => setPendingCantidadId(null)}
+        onCancelar={() => { setPendingCantidadId(null); setAvisoLoteRestar(undefined); }}
       />
     </SafeAreaView>
   );
