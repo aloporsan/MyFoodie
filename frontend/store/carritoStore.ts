@@ -132,9 +132,14 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
     );
     set({ error: null, items: itemsOptimistas, resumen: calcularResumen(itemsOptimistas) });
 
+    // Solo interesa reconciliar si el servidor devolvió algo distinto del estado optimista:
+    // así se evita un segundo re-render de toda la lista medio segundo después (se nota como
+    // un tirón en móviles con poca RAM).
     carritoService.aceptarItem(id)
       .then((actualizado) => {
         set((s) => {
+          const actual = s.items.find((i) => i.id === id);
+          if (actual && actual.estado === actualizado.estado) return s;
           const items = s.items.map((i) => (i.id === id ? actualizado : i));
           return { items, resumen: calcularResumen(items) };
         });
@@ -159,6 +164,8 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
     carritoService.rechazarItem(id)
       .then((actualizado) => {
         set((s) => {
+          const actual = s.items.find((i) => i.id === id);
+          if (actual && actual.estado === actualizado.estado) return s;
           const items = s.items.map((i) => (i.id === id ? actualizado : i));
           return { items, resumen: calcularResumen(items) };
         });

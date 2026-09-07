@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
-import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { FormItemManual, ItemCarritoCard, ResumenCarritoHeader } from '@/components/carrito';
 import { ItemCarrito, ItemCarritoInput } from '@/services/carritoService';
 import { useCarritoStore } from '@/store/carritoStore';
@@ -81,9 +80,14 @@ export function CarritoScreen() {
   // navegación no se congela mientras el hilo JS está ocupado con la petición y el render.
   // Si el dashboard ya dejó datos en el store, la pantalla se pinta al instante y esto
   // solo refresca en segundo plano.
+  const [preparando, setPreparando] = useState(true);
   useEffect(() => {
-    const tarea = InteractionManager.runAfterInteractions(() => {
-      cargarCarrito();
+    const tarea = InteractionManager.runAfterInteractions(async () => {
+      try {
+        await cargarCarrito();
+      } finally {
+        setPreparando(false);
+      }
     });
     return () => tarea.cancel();
   }, []);
@@ -118,10 +122,24 @@ export function CarritoScreen() {
   const rechazados = items.filter((i) => i.estado === 'rechazado');
   const dataTab = tab === 'aceptados' ? aceptados : rechazados;
 
-  // Solo pantalla de carga completa hasta que llegan los primeros datos; los refrescos
-  // posteriores usan el overlay para no vaciar la lista ni parpadear un estado vacío.
-  if (items.length === 0 && resumen === null && error === null) {
-    return <LoadingScreen />;
+  // Mientras se prepara el carrito (sin datos aún) se muestra un indicador claro con el
+  // botón de volver disponible, en vez de una pantalla congelada sin feedback.
+  if (preparando && items.length === 0 && resumen === null && error === null) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <View style={styles.header}>
+          <Pressable onPress={goBack} hitSlop={8} style={styles.iconBtn}>
+            <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+          </Pressable>
+          <Text style={styles.titulo}>Carrito inteligente</Text>
+          <View style={styles.headerActions} />
+        </View>
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.emptySubtitulo}>Preparando tu carrito…</Text>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (

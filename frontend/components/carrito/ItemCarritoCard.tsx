@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -34,7 +34,7 @@ interface Props {
   onRecuperar?: () => void;
 }
 
-export function ItemCarritoCard({
+function ItemCarritoCardBase({
   item, onAceptar, onRechazar, onNoVolver, onModificarCantidad, onRecuperar,
 }: Props) {
   const [modalCantidadVisible, setModalCantidadVisible] = useState(false);
@@ -261,6 +261,12 @@ export function ItemCarritoCard({
     </GestureDetector>
   );
 }
+
+// Memo por identidad del item: al aceptar/rechazar uno se re-renderiza toda la lista, y
+// repintar las tarjetas cuyo item no cambió es lo que se nota como tirón en móviles con
+// poca RAM. Los callbacks se ignoran a propósito: son flechas nuevas en cada render pero
+// cierran sobre un item.id estable y sobre funciones estables del store.
+export const ItemCarritoCard = memo(ItemCarritoCardBase, (prev, next) => prev.item === next.item);
 
 const styles = StyleSheet.create({
   wrapper: {
