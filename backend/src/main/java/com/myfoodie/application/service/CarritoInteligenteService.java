@@ -272,6 +272,14 @@ public class CarritoInteligenteService {
         itemCarritoRepository.delete(getItemDeUsuario(usuarioId, itemId));
     }
 
+    // Borra en bloque todos los items rechazados del usuario. Es permanente: no vuelven a
+    // proponerse salvo que se regeneren las recomendaciones desde cero.
+    public int eliminarItemsRechazados(String usuarioId) {
+        List<ItemCarrito> rechazados = itemCarritoRepository.findByUsuarioIdAndEstado(usuarioId, "rechazado");
+        itemCarritoRepository.deleteAll(rechazados);
+        return rechazados.size();
+    }
+
     @Async
     public void actualizarCarritoTrasModificacionDespensa(String usuarioId) {
         List<ItemCarrito> pendientesAutomaticos = itemCarritoRepository

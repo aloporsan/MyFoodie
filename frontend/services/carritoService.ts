@@ -138,6 +138,10 @@ export const carritoService = {
     await apiClient.delete(`/carrito/items/${id}`);
   },
 
+  eliminarItemsRechazados: async (): Promise<void> => {
+    await apiClient.delete('/carrito/items/rechazados');
+  },
+
   generarListaCompra: async (nombre?: string): Promise<ListaCompra> => {
     const { data } = await apiClient.post<ListaCompra>('/carrito/lista', nombre ? { nombre } : {});
     return data;

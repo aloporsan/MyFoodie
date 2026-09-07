@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { FormItemManual, ItemCarritoCard, ResumenCarritoHeader } from '@/components/carrito';
+import { showConfirm } from '@/hooks/useConfirm';
 import { ItemCarrito, ItemCarritoInput } from '@/services/carritoService';
 import { useCarritoStore } from '@/store/carritoStore';
 import { borderRadius } from '@/theme/borderRadius';
@@ -69,6 +70,7 @@ export function CarritoScreen() {
     recuperarItem,
     modificarCantidad,
     añadirYAceptarItemManual,
+    eliminarItemsRechazados,
   } = useCarritoStore();
 
   const [tab, setTab] = useState<TabId>('recomendaciones');
@@ -100,6 +102,18 @@ export function CarritoScreen() {
   const handleGenerarLista = useCallback(() => {
     router.push('/carrito/generar-lista');
   }, [router]);
+
+  const handleEliminarRechazados = useCallback(() => {
+    showConfirm(
+      'Eliminar rechazados',
+      'Se borrarán de forma permanente todos los productos rechazados. Esta acción no se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: () => eliminarItemsRechazados() },
+      ],
+      { icon: 'trash-outline' }
+    );
+  }, [eliminarItemsRechazados]);
 
   // dismissTo cierra de golpe cualquier pantalla apilada del flujo del carrito
   // (evita tener que pulsar "atrás" más de una vez para volver al Dashboard).
@@ -260,14 +274,27 @@ export function CarritoScreen() {
       )}
 
       <View style={styles.footer}>
-        <Pressable
-          style={[styles.btnFooterLista, aceptados.length === 0 && styles.btnDisabled]}
-          onPress={handleGenerarLista}
-          disabled={aceptados.length === 0}
-        >
-          <Ionicons name="list-outline" size={18} color={colors.white} />
-          <Text style={styles.btnFooterListaText}>Generar lista de compra</Text>
-        </Pressable>
+        {tab === 'rechazados' && rechazados.length > 0 ? (
+          <Pressable
+            style={styles.btnFooterEliminar}
+            onPress={handleEliminarRechazados}
+            testID="btn-eliminar-rechazados"
+          >
+            <Ionicons name="trash-outline" size={18} color={colors.error} />
+            <Text style={styles.btnFooterEliminarText}>
+              Eliminar rechazados ({rechazados.length})
+            </Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            style={[styles.btnFooterLista, aceptados.length === 0 && styles.btnDisabled]}
+            onPress={handleGenerarLista}
+            disabled={aceptados.length === 0}
+          >
+            <Ionicons name="list-outline" size={18} color={colors.white} />
+            <Text style={styles.btnFooterListaText}>Generar lista de compra</Text>
+          </Pressable>
+        )}
       </View>
 
       <Modal
@@ -380,6 +407,21 @@ const styles = StyleSheet.create({
   btnFooterListaText: {
     ...typography.button,
     color: colors.white,
+  },
+  btnFooterEliminar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.error,
+    borderRadius: borderRadius.xl,
+    paddingVertical: spacing.md,
+  },
+  btnFooterEliminarText: {
+    ...typography.button,
+    color: colors.error,
   },
   btnDisabled: {
     opacity: 0.4,

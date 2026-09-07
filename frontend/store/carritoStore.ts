@@ -41,6 +41,7 @@ interface CarritoActions {
   añadirItemManual: (datos: ItemCarritoInput) => Promise<void>;
   añadirYAceptarItemManual: (datos: ItemCarritoInput) => Promise<void>;
   eliminarItem: (id: string) => Promise<void>;
+  eliminarItemsRechazados: () => Promise<void>;
   generarListaCompra: (nombre?: string) => Promise<ListaCompra>;
   cargarListas: () => Promise<void>;
   cargarLista: (id: string) => Promise<void>;
@@ -283,6 +284,19 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
       });
     } catch (e) {
       set({ error: handleApiError(e) });
+      throw e;
+    }
+  },
+
+  eliminarItemsRechazados: async () => {
+    const snapshotItems = get().items;
+    // Actualización optimista: quita los rechazados de la lista al instante.
+    const itemsOptimistas = snapshotItems.filter((i) => i.estado !== 'rechazado');
+    set({ error: null, items: itemsOptimistas, resumen: calcularResumen(itemsOptimistas) });
+    try {
+      await carritoService.eliminarItemsRechazados();
+    } catch (e) {
+      set({ error: handleApiError(e), items: snapshotItems, resumen: calcularResumen(snapshotItems) });
       throw e;
     }
   },

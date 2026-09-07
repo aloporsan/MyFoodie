@@ -89,6 +89,12 @@ public class CarritoController {
         return ResponseEntity.ok(matchingService.buscarItemSimilarEnCarrito(getUsuarioId(principal), nombre));
     }
 
+    @DeleteMapping("/items/rechazados")
+    public ResponseEntity<Void> eliminarItemsRechazados(Principal principal) {
+        carritoInteligenteService.eliminarItemsRechazados(getUsuarioId(principal));
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/items/{id}")
     public ResponseEntity<Void> eliminarItem(@PathVariable String id, Principal principal) {
         carritoInteligenteService.eliminarItem(getUsuarioId(principal), id);
