@@ -38,6 +38,7 @@ const mockEstadisticas = {
   totalRecetasGuardadas: 15,
   aprovechamientoDespensa: 88,
   fechaRegistro: '2024-01-15T00:00:00.000Z',
+  diasEnMyFoodie: 240,
   motivosEliminacion: {
     consumido: 20,
     caducado: 5,
