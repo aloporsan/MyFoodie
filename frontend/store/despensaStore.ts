@@ -174,6 +174,16 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
       set((s) => ({
         productos: s.productos.map((p) => (p.id === id ? actualizado : p)),
       }));
+      // Si el producto se gestiona por lotes, el backend acaba de recalcular su agregado a
+      // partir de los lotes (consumo FIFO al restar): el listado de lotes del store también
+      // quedó desfasado y hay que refrescarlo para que la pantalla lo refleje.
+      if (actualizado.tieneLotes) {
+        try {
+          set({ lotesProductoActual: await loteService.listar(id) });
+        } catch {
+          // el listado se recargará solo al abrir el detalle
+        }
+      }
       useDashboardStore.getState().cargarDashboard();
       return actualizado;
     } catch (e) {

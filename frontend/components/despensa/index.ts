@@ -9,3 +9,8 @@ export { LoteCard } from './LoteCard';
 export { ModalFusion } from './ModalFusion';
 export { ProductoCard } from './ProductoCard';
 export { ProductoEstadoBadge } from './ProductoEstadoBadge';
+export {
+  ModalesControlCantidad,
+  useControlCantidadProducto,
+  type ControlCantidad,
+} from './useControlCantidadProducto';

@@ -17,13 +17,12 @@ import { LoadingScreen } from '@/components/common/LoadingScreen';
 import {
   AlertaDuplicados,
   BuscadorDespensa,
-  CantidadMotivoSheet,
   FiltrosBar,
+  ModalesControlCantidad,
   ProductoCard,
+  useControlCantidadProducto,
 } from '@/components/despensa';
-import { showConfirm } from '@/hooks/useConfirm';
-import { useToast } from '@/hooks/useToast';
-import { ConsumoLote, EstadoProducto, MotivoEliminacion } from '@/services/despensaService';
+import { EstadoProducto, MotivoEliminacion } from '@/services/despensaService';
 import { useDespensaStore } from '@/store/despensaStore';
 import { useFusionStore } from '@/store/fusionStore';
 import { borderRadius } from '@/theme/borderRadius';
@@ -44,23 +43,24 @@ const MOTIVOS_ELIMINAR: { key: MotivoEliminacion; label: string; icono: string }
 
 export function DespensaScreen() {
   const router = useRouter();
-  const { showError } = useToast();
   const {
     productos,
     isLoading,
     busquedaActiva,
     ordenActivo,
     cargarProductos,
-    actualizarCantidad,
     eliminarProducto,
     setBusqueda,
     setFiltros,
     limpiarFiltros,
     setOrden,
     inicializarOrden,
-    cargarLotes,
   } = useDespensaStore();
   const { duplicados, cargarDuplicados } = useFusionStore();
+
+  // Mismo flujo de "+ / -" que el detalle del producto: elegir lote al sumar, aviso + resumen
+  // FIFO al restar (ver useControlCantidadProducto).
+  const control = useControlCantidadProducto();
 
   const [filtroActivo, setFiltroActivo] = useState<FiltroId>('todos');
   const [categoriaActiva, setCategoriaActiva] = useState('');
@@ -71,14 +71,6 @@ export function DespensaScreen() {
   const [pendingDeleteNombre, setPendingDeleteNombre] = useState('');
   const [motivoEliminar, setMotivoEliminar] = useState<MotivoEliminacion | null>(null);
   const [motivoDetalleEliminar, setMotivoDetalleEliminar] = useState('');
-
-  // Estado para el sheet de cantidad
-  const [pendingCantidadId, setPendingCantidadId] = useState<string | null>(null);
-  const [pendingCantidadUnidad, setPendingCantidadUnidad] = useState('');
-  const [pendingCantidadModo, setPendingCantidadModo] = useState<'sumar' | 'restar'>('restar');
-  const [pendingCantidadDisponible, setPendingCantidadDisponible] = useState(0);
-  // Aviso de qué lote se consumirá primero (FIFO por caducidad), igual que en el detalle.
-  const [avisoLoteRestar, setAvisoLoteRestar] = useState<string | undefined>(undefined);
 
   const [estadosPresentesBase, setEstadosPresentesBase] = useState<EstadoProducto[]>([]);
   const [categoriasBase, setCategoriasBase] = useState<string[]>([]);
@@ -153,69 +145,6 @@ export function DespensaScreen() {
         : undefined;
     await eliminarProducto(pendingDeleteId, motivoEliminar, detalle);
     setPendingDeleteId(null);
-  };
-
-  const formatFechaLote = (fecha?: string | null) => {
-    if (!fecha) return 'sin fecha';
-    const [y, m, d] = fecha.split('-');
-    return `${d}/${m}/${y}`;
-  };
-
-  // Cantidad con motivo
-  const handleDecrementar = useCallback((id: string, unidad: string, cantidadDisponible: number) => {
-    setPendingCantidadId(id);
-    setPendingCantidadUnidad(unidad);
-    setPendingCantidadModo('restar');
-    setPendingCantidadDisponible(cantidadDisponible);
-    setAvisoLoteRestar(undefined);
-    // Se carga el lote más próximo a caducar para avisar de dónde se descontará (FIFO).
-    cargarLotes(id).then(() => {
-      const lote = useDespensaStore.getState().lotesProductoActual[0];
-      if (lote) {
-        setAvisoLoteRestar(
-          `Se descontará primero del lote que caduca ${
-            lote.fechaCaducidad ? `el ${formatFechaLote(lote.fechaCaducidad)}` : 'antes'
-          } (${lote.cantidad} ${lote.unidad}).`,
-        );
-      }
-    });
-  }, [cargarLotes]);
-
-  const handleIncrementar = useCallback((id: string, unidad: string) => {
-    setPendingCantidadId(id);
-    setPendingCantidadUnidad(unidad);
-    setPendingCantidadModo('sumar');
-  }, []);
-
-  const mostrarResumenConsumo = (consumos: ConsumoLote[], unidad: string) => {
-    const lineas = consumos.map((c) => {
-      const linea = `Lote del ${formatFechaLote(c.fechaCaducidad)}: -${c.cantidadConsumida} ${unidad}`;
-      return c.loteEliminado ? `${linea} (agotado)` : `${linea} · quedan ${c.cantidadRestante}`;
-    });
-    showConfirm('Consumido de tus lotes', lineas.join('\n'), undefined, { icon: 'layers-outline' });
-  };
-
-  const confirmarCantidad = async (
-    cantidad: number,
-    motivo?: MotivoEliminacion,
-    motivoDetalle?: string
-  ) => {
-    if (!pendingCantidadId) return;
-    const id = pendingCantidadId;
-    const unidad = pendingCantidadUnidad;
-    const delta = pendingCantidadModo === 'sumar' ? cantidad : -cantidad;
-    // Se cierra el sheet al instante (la actualización es optimista); no se deja
-    // "pensando" con la cantidad en pantalla.
-    setPendingCantidadId(null);
-    setAvisoLoteRestar(undefined);
-    try {
-      const actualizado = await actualizarCantidad(id, delta, motivo, motivoDetalle);
-      if (actualizado?.consumosFifo && actualizado.consumosFifo.length > 0) {
-        mostrarResumenConsumo(actualizado.consumosFifo, unidad);
-      }
-    } catch {
-      showError('No puedes quitar más cantidad de la que tienes disponible');
-    }
   };
 
   const estaFiltrandoOBuscando = busquedaActiva.trim() || filtroActivo !== 'todos' || categoriaActiva;
@@ -302,8 +231,8 @@ export function DespensaScreen() {
             onPress={() => router.push(`/despensa/${item.id}`)}
             onEditar={() => router.push({ pathname: '/despensa/form', params: { id: item.id } })}
             onEliminar={() => handleEliminar(item.id, item.nombre)}
-            onIncrementar={() => handleIncrementar(item.id, item.unidad)}
-            onDecrementar={() => handleDecrementar(item.id, item.unidad, item.cantidad)}
+            onIncrementar={() => control.abrirSumar(item)}
+            onDecrementar={() => control.abrirRestar(item)}
           />
         )}
         ListEmptyComponent={
@@ -379,7 +308,7 @@ export function DespensaScreen() {
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setPendingDeleteId(null)} />
           <View style={styles.motivoSheet}>
             <Text style={styles.motivoTitulo}>
-              ¿Por qué eliminas "{pendingDeleteNombre}"?
+              ¿Por qué eliminas «{pendingDeleteNombre}»?
             </Text>
             {MOTIVOS_ELIMINAR.map((m) => (
               <Pressable
@@ -423,16 +352,8 @@ export function DespensaScreen() {
         </View>
       </Modal>
 
-      {/* Sheet cantidad con motivo */}
-      <CantidadMotivoSheet
-        visible={pendingCantidadId !== null}
-        unidad={pendingCantidadUnidad}
-        modo={pendingCantidadModo}
-        maxCantidad={pendingCantidadModo === 'restar' ? pendingCantidadDisponible : undefined}
-        aviso={pendingCantidadModo === 'restar' ? avisoLoteRestar : undefined}
-        onConfirm={confirmarCantidad}
-        onCancelar={() => { setPendingCantidadId(null); setAvisoLoteRestar(undefined); }}
-      />
+      {/* Flujo de cantidad (+ / -) compartido con el detalle del producto */}
+      <ModalesControlCantidad control={control} />
     </SafeAreaView>
   );
 }
