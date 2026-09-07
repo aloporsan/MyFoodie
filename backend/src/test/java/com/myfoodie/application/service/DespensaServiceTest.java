@@ -143,6 +143,43 @@ class DespensaServiceTest {
     }
 
     @Test
+    @DisplayName("añadirProducto detecta duplicado por familia de sinónimo aunque no compartan substring (C4)")
+    void añadirProducto_detecta_duplicado_por_sinonimo_sin_substring() {
+        Despensa d = despensa("desp-1", "user-1");
+        // "Tomate frito" y "Tomate triturado" no se contienen: la búsqueda por substring anterior
+        // no lo pillaba; el motor de matching sí (ambos -> "tomate").
+        Producto existente = producto("prod-0", "desp-1", "Tomate frito", 1, null);
+        Producto nuevo = producto("prod-1", "desp-1", "Tomate triturado", 1, null);
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(existente));
+        when(productoRepository.save(any(Producto.class))).thenReturn(nuevo);
+        when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
+
+        ProductoResponseDTO resultado = despensaService.añadirProducto("user-1", dto("Tomate triturado", 1));
+
+        assertThat(resultado.posiblesDuplicados()).hasSize(1);
+        assertThat(resultado.posiblesDuplicados().get(0).nombre()).isEqualTo("Tomate frito");
+    }
+
+    @Test
+    @DisplayName("añadirProducto no marca duplicado si el producto existente no se parece")
+    void añadirProducto_sinDuplicado_siNoSeParece() {
+        Despensa d = despensa("desp-1", "user-1");
+        Producto existente = producto("prod-0", "desp-1", "Lentejas", 1, null);
+        Producto nuevo = producto("prod-1", "desp-1", "Leche", 2, null);
+
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(existente));
+        when(productoRepository.save(any(Producto.class))).thenReturn(nuevo);
+        when(despensaRepository.save(any(Despensa.class))).thenReturn(d);
+
+        ProductoResponseDTO resultado = despensaService.añadirProducto("user-1", dto("Leche", 2));
+
+        assertThat(resultado.posiblesDuplicados()).isNull();
+    }
+
+    @Test
     @DisplayName("añadirProducto normaliza una unidad subjetiva y conserva la unidad original (RF-DESP-019)")
     void añadirProducto_normalizaUnidadSubjetiva_yConservaUnidadOriginal() {
         Despensa d = despensa("desp-1", "user-1");

@@ -542,6 +542,20 @@ class CarritoInteligenteServiceTest {
         verify(itemCarritoRepository).delete(i);
     }
 
+    @Test
+    @DisplayName("eliminarItemsRechazados borra en bloque solo los items rechazados y devuelve cuántos")
+    void eliminarItemsRechazados_borraEnBloque() {
+        List<ItemCarrito> rechazados = List.of(
+                item("i-1", "user-1", "Leche", "alta", "rechazado"),
+                item("i-2", "user-1", "Pan", "media", "rechazado"));
+        when(itemCarritoRepository.findByUsuarioIdAndEstado("user-1", "rechazado")).thenReturn(rechazados);
+
+        int borrados = carritoInteligenteService.eliminarItemsRechazados("user-1");
+
+        assertThat(borrados).isEqualTo(2);
+        verify(itemCarritoRepository).deleteAll(rechazados);
+    }
+
     // -------------------------------------------------------------------------
     // generarListaCompra
     // -------------------------------------------------------------------------

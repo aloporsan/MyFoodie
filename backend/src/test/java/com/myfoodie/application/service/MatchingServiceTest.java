@@ -204,6 +204,25 @@ class MatchingServiceTest {
     }
 
     // -------------------------------------------------------------------------
+    // esPosibleDuplicado (C4 — aviso al crear producto)
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("esPosibleDuplicado marca como duplicado nombres de la misma familia por sinónimo")
+    void esPosibleDuplicado_true_para_sinonimos() {
+        // "tomate frito" y "tomate triturado" no comparten substring pero ambos normalizan a "tomate".
+        assertThat(matchingService.esPosibleDuplicado("Tomate frito", "Tomate triturado")).isTrue();
+        assertThat(matchingService.esPosibleDuplicado("Leche", "Leche entera")).isTrue();
+    }
+
+    @Test
+    @DisplayName("esPosibleDuplicado no marca nombres claramente distintos")
+    void esPosibleDuplicado_false_para_distintos() {
+        assertThat(matchingService.esPosibleDuplicado("Leche", "Pan de molde")).isFalse();
+        assertThat(matchingService.esPosibleDuplicado("Arroz", "Lentejas")).isFalse();
+    }
+
+    // -------------------------------------------------------------------------
     // buscarProductoSimilarEnDespensa (RF-DESP-021)
     // -------------------------------------------------------------------------
 

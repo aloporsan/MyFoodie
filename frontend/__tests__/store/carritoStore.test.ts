@@ -263,6 +263,38 @@ it('eliminarItem_quita_el_item_de_items_listas_listaActiva_y_listaEnCurso', asyn
   expect(useCarritoStore.getState().listaEnCurso?.items).toHaveLength(0);
 });
 
+it('eliminarItemsRechazados_quita_solo_los_rechazados_de_items', async () => {
+  useCarritoStore.setState({
+    ...estadoInicial,
+    items: [
+      { ...mockItem, id: 'a', estado: 'pendiente' },
+      { ...mockItem, id: 'b', estado: 'rechazado' },
+      { ...mockItem, id: 'c', estado: 'rechazado' },
+      { ...mockItem, id: 'd', estado: 'aceptado' },
+    ],
+  });
+  mockService.eliminarItemsRechazados.mockResolvedValue(undefined);
+
+  await useCarritoStore.getState().eliminarItemsRechazados();
+
+  expect(mockService.eliminarItemsRechazados).toHaveBeenCalled();
+  expect(useCarritoStore.getState().items.map((i) => i.id)).toEqual(['a', 'd']);
+});
+
+it('eliminarItemsRechazados_revierte_si_falla_la_peticion', async () => {
+  const items = [
+    { ...mockItem, id: 'a', estado: 'pendiente' as const },
+    { ...mockItem, id: 'b', estado: 'rechazado' as const },
+  ];
+  useCarritoStore.setState({ ...estadoInicial, items });
+  mockService.eliminarItemsRechazados.mockRejectedValue(new Error('Error de red'));
+
+  await expect(useCarritoStore.getState().eliminarItemsRechazados()).rejects.toThrow('Error de red');
+
+  expect(useCarritoStore.getState().items).toHaveLength(2);
+  expect(useCarritoStore.getState().error).toBe('Error de red');
+});
+
 // -------------------------------------------------------------------------
 // generarListaCompra / cargarListas / cargarLista / cargarListaEnCurso
 // -------------------------------------------------------------------------

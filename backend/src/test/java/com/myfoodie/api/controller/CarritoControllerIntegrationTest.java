@@ -218,6 +218,27 @@ class CarritoControllerIntegrationTest {
                 .andExpect(jsonPath("$.items").isEmpty());
     }
 
+    @Test
+    @DisplayName("DELETE /items/rechazados devuelve 204 y borra solo los items rechazados")
+    void DELETE_itemsRechazados_borraSoloLosRechazados() throws Exception {
+        String rechazado1 = añadirItemYObtenerId(tokenA, "Sal", 1, "paquetes");
+        String rechazado2 = añadirItemYObtenerId(tokenA, "Azúcar", 1, "paquetes");
+        String pendiente = añadirItemYObtenerId(tokenA, "Leche", 2, "litros");
+        mockMvc.perform(put("/api/carrito/items/" + rechazado1 + "/rechazar")
+                .header("Authorization", "Bearer " + tokenA));
+        mockMvc.perform(put("/api/carrito/items/" + rechazado2 + "/rechazar")
+                .header("Authorization", "Bearer " + tokenA));
+
+        mockMvc.perform(delete("/api/carrito/items/rechazados")
+                        .header("Authorization", "Bearer " + tokenA))
+                .andExpect(status().isNoContent());
+
+        // Solo queda el pendiente; el endpoint literal no colisiona con DELETE /items/{id}.
+        mockMvc.perform(get("/api/carrito").header("Authorization", "Bearer " + tokenA))
+                .andExpect(jsonPath("$.items", hasSize(1)))
+                .andExpect(jsonPath("$.items[0].id").value(pendiente));
+    }
+
     // -------------------------------------------------------------------------
     // POST /api/carrito/lista
     // -------------------------------------------------------------------------
