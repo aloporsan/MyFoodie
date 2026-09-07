@@ -18,6 +18,7 @@ jest.mock('expo-router', () => ({ useRouter: jest.fn() }));
 jest.mock('@/services/apiClient', () => ({
   apiClient: { post: jest.fn(), get: jest.fn() },
   setTokenGetter: jest.fn(),
+  setUnauthorizedHandler: jest.fn(),
 }));
 
 const mockReplace = jest.fn();

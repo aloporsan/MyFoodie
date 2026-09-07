@@ -7,6 +7,7 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 jest.mock('@/services/apiClient', () => ({
   apiClient: { post: jest.fn(), get: jest.fn() },
   setTokenGetter: jest.fn(),
+  setUnauthorizedHandler: jest.fn(),
 }));
 jest.mock('@/services/authService');
 
