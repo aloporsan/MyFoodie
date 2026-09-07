@@ -222,19 +222,20 @@ public class DespensaService {
         if (Boolean.TRUE.equals(p.getTieneLotes()) && dto.delta() > 0) {
             double antes = p.getCantidad();
             List<LoteProducto> lotes = loteProductoRepository.findByProductoIdOrderByFechaCaducidadAsc(productoId);
+            float deltaFloat = dto.delta().floatValue();
             if (lotes.isEmpty()) {
                 loteProductoRepository.save(LoteProducto.builder()
                         .productoId(productoId)
                         .despensaId(despensa.getId())
                         .usuarioId(usuarioId)
-                        .cantidad((float) dto.delta())
+                        .cantidad(deltaFloat)
                         .unidad(p.getUnidad())
                         .fechaCompra(LocalDate.now())
                         .origen("manual")
                         .build());
             } else {
                 LoteProducto destino = lotes.get(lotes.size() - 1);
-                destino.setCantidad((destino.getCantidad() != null ? destino.getCantidad() : 0f) + (float) dto.delta());
+                destino.setCantidad((destino.getCantidad() != null ? destino.getCantidad() : 0f) + deltaFloat);
                 destino.setUpdatedAt(LocalDateTime.now());
                 loteProductoRepository.save(destino);
             }
