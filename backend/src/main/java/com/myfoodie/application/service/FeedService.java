@@ -90,6 +90,7 @@ public class FeedService {
         candidatas = filtrarAccesibles(candidatas, usuarioId, seguidosIds);
         candidatas = aplicarFiltros(candidatas, filtros);
         candidatas = filtrarPorPreferenciasAlimentarias(candidatas, preferencias);
+        candidatas = filtrarPorPreferenciasDeOrden(candidatas, preferencias, filtros);
 
         return construirRespuesta(candidatas, usuarioId, pagina, tamaño, seguidosIds, descartes, true, filtros, preferencias);
     }
@@ -112,6 +113,7 @@ public class FeedService {
         candidatas = filtrarAccesibles(candidatas, usuarioId, seguidosIds);
         candidatas = aplicarFiltros(candidatas, filtros);
         candidatas = filtrarPorPreferenciasAlimentarias(candidatas, preferencias);
+        candidatas = filtrarPorPreferenciasDeOrden(candidatas, preferencias, filtros);
 
         return construirRespuesta(candidatas, usuarioId, pagina, tamaño, seguidosIds, descartes, false, filtros, preferencias);
     }
@@ -377,6 +379,33 @@ public class FeedService {
         return trasDieta.stream()
                 .filter(r -> ingredientesPorReceta.getOrDefault(r.getId(), List.of()).stream()
                         .noneMatch(i -> ingredienteContieneTerminoVetado(i.getNombre(), terminosVetados)))
+                .toList();
+    }
+
+    /**
+     * Las preferencias de dificultad y tiempo de cocción del perfil funcionan como filtros
+     * por defecto del feed ("filtros prediseñados"): si el usuario NO ha activado un filtro
+     * manual en ese eje, solo se muestran las recetas que las cumplen. Un filtro manual en
+     * el feed manda sobre la preferencia guardada para ese eje concreto.
+     */
+    private List<Receta> filtrarPorPreferenciasDeOrden(List<Receta> recetas, Preferencias preferencias,
+                                                       FiltrosFeedDTO filtros) {
+        if (preferencias == null || recetas.isEmpty()) {
+            return recetas;
+        }
+        boolean dificultadManual = filtros != null && !filtros.dificultades().isEmpty();
+        boolean tiempoManual = filtros != null && !filtros.tiempos().isEmpty();
+
+        String dificultadPref = preferencias.getNivelDificultad();
+        Integer tiempoPref = preferencias.getTiempoCoccionMax();
+
+        boolean filtraDificultad = !dificultadManual && dificultadPref != null && !dificultadPref.isBlank();
+        boolean filtraTiempo = !tiempoManual && tiempoPref != null;
+
+        return recetas.stream()
+                .filter(r -> !filtraDificultad || dificultadPref.equalsIgnoreCase(r.getDificultad()))
+                .filter(r -> !filtraTiempo
+                        || (r.getTiempoEstimado() > 0 && r.getTiempoEstimado() <= tiempoPref))
                 .toList();
     }
 
