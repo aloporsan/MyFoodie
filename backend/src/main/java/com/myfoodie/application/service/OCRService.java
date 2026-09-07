@@ -176,6 +176,12 @@ public class OCRService {
         return new ArrayList<>(fusionados.values());
     }
 
+    // Decisión de diseño: el matching de líneas de ticket contra la despensa es mayoritariamente
+    // manual a propósito. El OCR de un ticket introduce mucho ruido (abreviaturas, cortes, códigos)
+    // y confundir dos productos distintos al actualizar stock es peor que pedir una confirmación de
+    // más. Por eso el umbral AUTOMATICO de MatchingService está en 0,99: solo se actualiza sin
+    // preguntar cuando el nombre es casi idéntico; el resto cae en "sugerencia" y decide el usuario.
+    // Es un sesgo conservador buscado, no una limitación del algoritmo.
     public List<ResultadoOCRDTO> procesarProductosTicket(String usuarioId, List<ProductoTicketDTO> productosDetectados) {
         List<ProductoTicketDTO> productos = fusionarLineasDuplicadas(productosDetectados);
         List<ResultadoOCRDTO> resultados = new ArrayList<>();
