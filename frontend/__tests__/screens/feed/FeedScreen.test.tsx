@@ -77,7 +77,7 @@ const estadoInicial = {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  useFeedStore.setState({ ...estadoInicial });
+  useFeedStore.setState({ ...estadoInicial, idsOcultos: new Set<string>() });
   useToastStore.setState({ visible: false, mensaje: '', tipo: 'success' });
   useRouter.mockReturnValue({ push: jest.fn() });
 });

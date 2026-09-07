@@ -16,6 +16,7 @@ import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.IngredienteRecetaRepository;
 import com.myfoodie.domain.repository.LikeRepository;
 import com.myfoodie.domain.repository.PerfilGustosRepository;
+import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.RecetaCompartidaRepository;
 import com.myfoodie.domain.repository.RecetaDescartadaRepository;
 import com.myfoodie.domain.repository.RecetaGuardadaRepository;
@@ -63,6 +64,7 @@ class FeedServiceTest {
     @Mock private IngredienteRecetaRepository ingredienteRepository;
     @Mock private UsuarioRepository usuarioRepository;
     @Mock private PerfilGustosRepository perfilGustosRepository;
+    @Mock private PreferenciasRepository preferenciasRepository;
     @Mock private DespensaService despensaService;
     @Mock private SocialService socialService;
     @Mock private MatchingService matchingService;
@@ -75,6 +77,7 @@ class FeedServiceTest {
     // comportamiento que tenía este servicio antes de introducir MatchingService).
     @BeforeEach
     void configurarMatchingPorDefecto() {
+        lenient().when(preferenciasRepository.findByUsuarioId(anyString())).thenReturn(Optional.empty());
         lenient().when(matchingService.calcularSimilitud(anyString(), anyString())).thenAnswer(inv -> {
             String a = inv.getArgument(0);
             String b = inv.getArgument(1);
@@ -347,7 +350,7 @@ class FeedServiceTest {
                 new FiltrosFeedDTO(null, List.of("Media"), null, null, null));
 
         ArgumentCaptor<PerfilGustos> captor = ArgumentCaptor.forClass(PerfilGustos.class);
-        verify(recomendacionService).ordenarFeed(anyList(), eq("user-1"), any(), captor.capture());
+        verify(recomendacionService).ordenarFeed(anyList(), eq("user-1"), any(), captor.capture(), any());
         assertThat(captor.getValue().getDificultadesPreferidas()).isEmpty();
         assertThat(captor.getValue().getCategoriasPreferidas()).containsEntry("Almuerzo", 5);
     }
