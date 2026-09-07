@@ -30,6 +30,12 @@ interface FeedState {
   isLoadingMas: boolean;
   error: string | null;
   ultimaAccion: AccionFeed | null;
+  /**
+   * IDs de recetas guardadas o descartadas en esta sesión. El backend tarda un instante en
+   * persistir la acción, así que si una página llega antes de que confirme, la receta podría
+   * volver a aparecer: la ocultamos localmente hasta que se recargue el feed desde cero.
+   */
+  idsOcultos: Set<string>;
   perfilGustos: PerfilGustos | null;
   isLoadingPerfilGustos: boolean;
 }
@@ -59,6 +65,7 @@ const ESTADO_INICIAL: FeedState = {
   isLoadingMas: false,
   error: null,
   ultimaAccion: null,
+  idsOcultos: new Set<string>(),
   perfilGustos: null,
   isLoadingPerfilGustos: false,
 };
@@ -83,8 +90,9 @@ export const useFeedStore = create<FeedState & FeedActions>()((set, get) => ({
     set({ isLoading: true, error: null, fuente });
     try {
       const respuesta = await cargarPagina(fuente, filtros, 0);
+      const { idsOcultos } = get();
       set({
-        recetas: respuesta.recetas,
+        recetas: respuesta.recetas.filter((r) => !idsOcultos.has(r.id)),
         pagina: respuesta.pagina,
         hayMas: respuesta.hayMas,
         isLoading: false,
@@ -106,12 +114,18 @@ export const useFeedStore = create<FeedState & FeedActions>()((set, get) => ({
     set({ isLoadingMas: true, error: null });
     try {
       const respuesta = await cargarPagina(fuente, filtros, pagina + 1);
-      set((s) => ({
-        recetas: [...s.recetas, ...respuesta.recetas],
-        pagina: respuesta.pagina,
-        hayMas: respuesta.hayMas,
-        isLoadingMas: false,
-      }));
+      set((s) => {
+        const yaEnLista = new Set(s.recetas.map((r) => r.id));
+        const nuevas = respuesta.recetas.filter(
+          (r) => !s.idsOcultos.has(r.id) && !yaEnLista.has(r.id),
+        );
+        return {
+          recetas: [...s.recetas, ...nuevas],
+          pagina: respuesta.pagina,
+          hayMas: respuesta.hayMas,
+          isLoadingMas: false,
+        };
+      });
     } catch (e) {
       set({ error: handleApiError(e), isLoadingMas: false });
     }
@@ -124,17 +138,23 @@ export const useFeedStore = create<FeedState & FeedActions>()((set, get) => ({
     const indice = snapshotRecetas.findIndex((r) => r.id === id);
     const receta = indice >= 0 ? snapshotRecetas[indice] : undefined;
 
-    set({
+    set((s) => ({
       error: null,
       recetas: snapshotRecetas.filter((r) => r.id !== id),
+      idsOcultos: new Set(s.idsOcultos).add(id),
       ultimaAccion: { tipo: 'guardada', recetaId: id, receta, indice },
-    });
+    }));
 
     feedService.guardarReceta(id).catch((e) => {
-      set({
-        error: handleApiError(e),
-        recetas: snapshotRecetas,
-        ultimaAccion: snapshotUltimaAccion,
+      set((s) => {
+        const idsOcultos = new Set(s.idsOcultos);
+        idsOcultos.delete(id);
+        return {
+          error: handleApiError(e),
+          recetas: snapshotRecetas,
+          idsOcultos,
+          ultimaAccion: snapshotUltimaAccion,
+        };
       });
     });
   },
@@ -146,17 +166,23 @@ export const useFeedStore = create<FeedState & FeedActions>()((set, get) => ({
     const indice = snapshotRecetas.findIndex((r) => r.id === id);
     const receta = indice >= 0 ? snapshotRecetas[indice] : undefined;
 
-    set({
+    set((s) => ({
       error: null,
       recetas: snapshotRecetas.filter((r) => r.id !== id),
+      idsOcultos: new Set(s.idsOcultos).add(id),
       ultimaAccion: { tipo: 'descartada', recetaId: id, receta, indice },
-    });
+    }));
 
     feedService.descartarReceta(id).catch((e) => {
-      set({
-        error: handleApiError(e),
-        recetas: snapshotRecetas,
-        ultimaAccion: snapshotUltimaAccion,
+      set((s) => {
+        const idsOcultos = new Set(s.idsOcultos);
+        idsOcultos.delete(id);
+        return {
+          error: handleApiError(e),
+          recetas: snapshotRecetas,
+          idsOcultos,
+          ultimaAccion: snapshotUltimaAccion,
+        };
       });
     });
   },
@@ -204,11 +230,13 @@ export const useFeedStore = create<FeedState & FeedActions>()((set, get) => ({
         switch (accion.tipo) {
           case 'guardada':
           case 'descartada': {
-            if (!accion.receta) return { ultimaAccion: null };
+            const idsOcultos = new Set(s.idsOcultos);
+            idsOcultos.delete(accion.recetaId);
+            if (!accion.receta) return { idsOcultos, ultimaAccion: null };
             const recetas = [...s.recetas];
             const indice = Math.min(accion.indice ?? 0, recetas.length);
             recetas.splice(indice, 0, accion.receta);
-            return { recetas, ultimaAccion: null };
+            return { recetas, idsOcultos, ultimaAccion: null };
           }
           case 'like':
             return {
@@ -236,7 +264,7 @@ export const useFeedStore = create<FeedState & FeedActions>()((set, get) => ({
     }
   },
 
-  limpiarFeed: () => set({ ...ESTADO_INICIAL }),
+  limpiarFeed: () => set({ ...ESTADO_INICIAL, idsOcultos: new Set<string>() }),
 
   cargarPerfilGustos: async () => {
     set({ isLoadingPerfilGustos: true, error: null });
@@ -263,6 +291,7 @@ export const useFeedStore = create<FeedState & FeedActions>()((set, get) => ({
     set({ error: null });
     try {
       await feedService.limpiarDescartadas();
+      set({ idsOcultos: new Set<string>() });
       await get().cargarFeed(get().fuente);
     } catch (e) {
       set({ error: handleApiError(e) });

@@ -131,11 +131,12 @@ export function DetalleRecetaFeedScreen() {
 
   const handleGuardar = async () => {
     if (!id || recetaFeed?.yaGuardada) return;
-    try {
-      await guardarReceta(id);
-      showSuccess('Receta guardada');
-    } catch {
-      showError('No se pudo guardar la receta');
+    // Guardado optimista: el store quita la receta del feed al instante y confirma en
+    // segundo plano. Volvemos al feed sin esperar, igual de fluido que descartar.
+    guardarReceta(id);
+    showSuccess('Receta guardada');
+    if (recetaFeed) {
+      router.back();
     }
   };
 
