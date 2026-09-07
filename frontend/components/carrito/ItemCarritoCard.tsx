@@ -3,11 +3,10 @@ import { memo, useState } from 'react';
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
-  Easing,
-  interpolate,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
+  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { ItemCarrito, PrioridadCarrito, UNIDADES_CARRITO } from '@/services/carritoService';
@@ -17,8 +16,8 @@ import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
-const UMBRAL_SWIPE = 90;
-const DURACION_SALIDA = 300;
+const UMBRAL_SWIPE = 100;
+const DURACION_SALIDA = 200;
 const ANCHO_PANTALLA = Dimensions.get('window').width;
 
 const PRIORIDAD_CONFIG: Record<PrioridadCarrito, { bg: string; text: string; label: string }> = {
@@ -49,36 +48,35 @@ function ItemCarritoCardBase({
 
   const translateX = useSharedValue(0);
 
-  // Salida suave: acelera-desacelera (cubic) hasta fuera de pantalla y se queda ahí (la
-  // tarjeta se desmonta al filtrarse el item); nada de "latigazo" ni vuelta al centro.
-  const animarSalida = (direccion: 1 | -1) => {
-    translateX.value = withTiming(direccion * ANCHO_PANTALLA, {
-      duration: DURACION_SALIDA,
-      easing: Easing.inOut(Easing.cubic),
-    });
+  // Igual que el swipe del feed: la tarjeta sigue al dedo 1:1 y, al soltar pasado el umbral,
+  // se desliza hasta salir de la pantalla; solo entonces se dispara la acción (aceptar /
+  // rechazar), para que se vea salir del todo antes de desmontarse.
+  const animarSalida = (direccion: 1 | -1, alTerminar?: () => void) => {
+    translateX.value = withTiming(
+      direccion * ANCHO_PANTALLA,
+      { duration: DURACION_SALIDA },
+      (finished) => {
+        if (finished && alTerminar) runOnJS(alTerminar)();
+      },
+    );
   };
 
   const handleAceptar = () => {
     if (esAceptado) return;
-    animarSalida(1);
-    onAceptar?.();
+    animarSalida(1, onAceptar);
   };
 
   const handleRechazar = () => {
     if (esRechazado) return;
-    animarSalida(-1);
-    onRechazar?.();
+    animarSalida(-1, onRechazar);
   };
 
   // activeOffsetX deja pasar el gesto vertical al ScrollView/FlatList mientras no
   // haya un desplazamiento horizontal claro (evita robar el scroll de la lista).
   const panGesture = Gesture.Pan()
-    .activeOffsetX([-12, 12])
+    .activeOffsetX([-10, 10])
     .onUpdate((event) => {
-      // Resistencia progresiva: el dedo tira 1:1 al principio y cada vez menos, así el
-      // gesto se siente elástico en vez de brusco.
-      const x = event.translationX;
-      translateX.value = Math.sign(x) * Math.pow(Math.abs(x), 0.92);
+      translateX.value = event.translationX;
     })
     .onEnd((event) => {
       if (event.translationX > UMBRAL_SWIPE && !esAceptado) {
@@ -86,17 +84,12 @@ function ItemCarritoCardBase({
       } else if (event.translationX < -UMBRAL_SWIPE && !esRechazado) {
         runOnJS(handleRechazar)();
       } else {
-        translateX.value = withTiming(0, { duration: 220, easing: Easing.out(Easing.quad) });
+        translateX.value = withSpring(0);
       }
     });
 
   const cardAnimStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
-    opacity: interpolate(
-      Math.abs(translateX.value),
-      [0, ANCHO_PANTALLA * 0.5, ANCHO_PANTALLA],
-      [1, 1, 0.4],
-    ),
   }));
 
   const overlayAceptarStyle = useAnimatedStyle(() => ({
