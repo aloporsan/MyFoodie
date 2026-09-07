@@ -161,6 +161,14 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
   },
 
   actualizarCantidad: async (id, delta, motivo, motivoDetalle) => {
+    // Actualización optimista: el número cambia al instante y se revierte si el servidor
+    // rechaza la operación (mismo patrón que el swipe del feed).
+    const snapshot = get().productos;
+    set({
+      productos: snapshot.map((p) =>
+        p.id === id ? { ...p, cantidad: Math.max(0, p.cantidad + delta) } : p,
+      ),
+    });
     try {
       const actualizado = await despensaService.actualizarCantidad(id, delta, motivo, motivoDetalle);
       set((s) => ({
@@ -169,7 +177,7 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
       useDashboardStore.getState().cargarDashboard();
       return actualizado;
     } catch (e) {
-      set({ error: handleApiError(e) });
+      set({ error: handleApiError(e), productos: snapshot });
       throw e;
     }
   },

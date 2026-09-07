@@ -171,10 +171,13 @@ export function DespensaScreen() {
     motivoDetalle?: string
   ) => {
     if (!pendingCantidadId) return;
+    const id = pendingCantidadId;
     const delta = pendingCantidadModo === 'sumar' ? cantidad : -cantidad;
+    // Se cierra el sheet al instante (la actualización es optimista); no se deja
+    // "pensando" con la cantidad en pantalla.
+    setPendingCantidadId(null);
     try {
-      await actualizarCantidad(pendingCantidadId, delta, motivo, motivoDetalle);
-      setPendingCantidadId(null);
+      await actualizarCantidad(id, delta, motivo, motivoDetalle);
     } catch {
       showError('No puedes quitar más cantidad de la que tienes disponible');
     }
