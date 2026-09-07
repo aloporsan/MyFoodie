@@ -52,6 +52,7 @@ public class DespensaService {
     private final CarritoInteligenteService carritoInteligenteService;
     private final UnidadNormalizadorService unidadNormalizadorService;
     private final NotificacionService notificacionService;
+    private final MatchingService matchingService;
 
     // -------------------------------------------------------------------------
     // CRUD básico
@@ -61,8 +62,12 @@ public class DespensaService {
         Despensa despensa = getDespensaDeUsuario(usuarioId);
         int globalUmbral = obtenerGlobalUmbral(usuarioId);
 
-        List<Producto> similares = productoRepository
-                .findByDespensaIdAndNombreContainingIgnoreCase(despensa.getId(), dto.nombre().trim());
+        // Aviso de posible duplicado: mismo motor de matching (Jaro-Winkler + sinónimos) y mismo
+        // umbral que la pantalla de duplicados de la despensa, en vez de una comparación por
+        // substring que no detecta "Leche" vs "Leche entera" ni erratas.
+        List<Producto> similares = productoRepository.findByDespensaId(despensa.getId()).stream()
+                .filter(p -> matchingService.esPosibleDuplicado(dto.nombre().trim(), p.getNombre()))
+                .toList();
 
         UnidadConvertidaDTO normalizado = unidadNormalizadorService.normalizarUnidades(dto.cantidad(), dto.unidad());
 
