@@ -1,10 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  InteractionManager,
   Modal,
   Pressable,
   RefreshControl,
@@ -82,14 +81,20 @@ export function CarritoScreen() {
   // solo refresca en segundo plano.
   const [preparando, setPreparando] = useState(true);
   useEffect(() => {
-    const tarea = InteractionManager.runAfterInteractions(async () => {
+    let cancelado = false;
+    // Un respiro corto para que pinte la transición de entrada y el spinner, y en cuanto
+    // termina (con o sin datos) se quita el estado "preparando" — nunca se queda colgado.
+    const t = setTimeout(async () => {
       try {
         await cargarCarrito();
       } finally {
-        setPreparando(false);
+        if (!cancelado) setPreparando(false);
       }
-    });
-    return () => tarea.cancel();
+    }, 120);
+    return () => {
+      cancelado = true;
+      clearTimeout(t);
+    };
   }, []);
 
   const handleGenerarLista = useCallback(() => {
@@ -121,6 +126,21 @@ export function CarritoScreen() {
   const aceptados = items.filter((i) => i.estado === 'aceptado');
   const rechazados = items.filter((i) => i.estado === 'rechazado');
   const dataTab = tab === 'aceptados' ? aceptados : rechazados;
+
+  // Lista aplanada (cabecera de prioridad + items) para que la FlatList virtualice de verdad:
+  // antes se montaban todas las tarjetas de golpe dentro de un .map y eso congelaba ~1s al
+  // entrar con muchas recomendaciones.
+  type FilaReco = { tipo: 'header'; key: string; label: string } | { tipo: 'item'; key: string; item: ItemCarrito };
+  const filasRecomendaciones = useMemo<FilaReco[]>(() => {
+    const filas: FilaReco[] = [];
+    for (const grupo of PRIORIDADES) {
+      const delGrupo = pendientes.filter((i) => i.prioridad === grupo.key);
+      if (delGrupo.length === 0) continue;
+      filas.push({ tipo: 'header', key: `h-${grupo.key}`, label: grupo.label });
+      for (const item of delGrupo) filas.push({ tipo: 'item', key: item.id, item });
+    }
+    return filas;
+  }, [pendientes]);
 
   // Mientras se prepara el carrito (sin datos aún) se muestra un indicador claro con el
   // botón de volver disponible, en vez de una pantalla congelada sin feedback.
@@ -193,31 +213,28 @@ export function CarritoScreen() {
 
       {tab === 'recomendaciones' ? (
         <FlatList
-          data={PRIORIDADES}
-          keyExtractor={(p) => p.key}
+          data={filasRecomendaciones}
+          keyExtractor={(f) => f.key}
           contentContainerStyle={styles.lista}
+          initialNumToRender={6}
+          windowSize={7}
+          removeClippedSubviews
           refreshControl={
             <RefreshControl refreshing={isGenerando} onRefresh={generarCarrito} tintColor={colors.primary} />
           }
-          renderItem={({ item: grupo }) => {
-            const itemsGrupo = pendientes.filter((i) => i.prioridad === grupo.key);
-            if (itemsGrupo.length === 0) return null;
-            return (
-              <View style={styles.grupo}>
-                <Text style={styles.grupoTitulo}>{grupo.label}</Text>
-                {itemsGrupo.map((item) => (
-                  <ItemCarritoCard
-                    key={item.id}
-                    item={item}
-                    onAceptar={() => aceptarItem(item.id)}
-                    onRechazar={() => rechazarItem(item.id)}
-                    onNoVolver={() => marcarNoVolver(item.id)}
-                    onModificarCantidad={(cantidad, unidad) => modificarCantidad(item.id, cantidad, unidad)}
-                  />
-                ))}
-              </View>
-            );
-          }}
+          renderItem={({ item: fila }) =>
+            fila.tipo === 'header' ? (
+              <Text style={styles.grupoTitulo}>{fila.label}</Text>
+            ) : (
+              <ItemCarritoCard
+                item={fila.item}
+                onAceptar={() => aceptarItem(fila.item.id)}
+                onRechazar={() => rechazarItem(fila.item.id)}
+                onNoVolver={() => marcarNoVolver(fila.item.id)}
+                onModificarCantidad={(cantidad, unidad) => modificarCantidad(fila.item.id, cantidad, unidad)}
+              />
+            )
+          }
           ListEmptyComponent={<EmptyTab tab="recomendaciones" />}
         />
       ) : (
@@ -225,6 +242,9 @@ export function CarritoScreen() {
           data={dataTab}
           keyExtractor={(i) => i.id}
           contentContainerStyle={styles.lista}
+          initialNumToRender={6}
+          windowSize={7}
+          removeClippedSubviews
           refreshControl={
             <RefreshControl refreshing={isLoading} onRefresh={cargarCarrito} tintColor={colors.primary} />
           }
@@ -326,10 +346,10 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   lista: { paddingHorizontal: spacing.md, paddingBottom: spacing.xxxl, flexGrow: 1 },
-  grupo: { marginBottom: spacing.md },
   grupoTitulo: {
     ...typography.label,
     color: colors.text.secondary,
+    marginTop: spacing.md,
     marginBottom: spacing.sm,
   },
   centered: {
