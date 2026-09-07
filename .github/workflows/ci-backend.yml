@@ -52,8 +52,8 @@ jobs:
       - name: Ejecutar tests unitarios e integración
         run: mvn test --batch-mode
         env:
-          # Apuntar al MongoDB del servicio de CI
-          SPRING_DATA_MONGODB_URI: mongodb://localhost:27017/myfoodie_test
+          # Apuntar al MongoDB del servicio de CI (Spring Boot 4: prefijo spring.mongodb.*)
+          SPRING_MONGODB_URI: mongodb://localhost:27017/myfoodie_test
           # Clave ficticia para que el EmailService arranque sin fallar
           RESEND_API_KEY: ci-dummy-key-not-used-in-tests
 
