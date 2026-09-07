@@ -68,7 +68,8 @@ export type MotivoEliminacion =
   | 'usado_en_receta'
   | 'donado'
   | 'perdido'
-  | 'otro';
+  | 'otro'
+  | 'error_tipografia';
 
 export interface MovimientoProducto {
   id: string;

@@ -15,12 +15,13 @@ import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
 const MOTIVOS: { key: MotivoEliminacion; label: string; icono: string }[] = [
-  { key: 'consumido',       label: 'Consumido',       icono: 'checkmark-circle-outline' },
-  { key: 'caducado',        label: 'Caducado',        icono: 'warning-outline' },
-  { key: 'usado_en_receta', label: 'Usado en receta', icono: 'restaurant-outline' },
-  { key: 'donado',          label: 'Donado',          icono: 'heart-outline' },
-  { key: 'perdido',         label: 'Perdido',         icono: 'help-circle-outline' },
-  { key: 'otro',            label: 'Otro motivo',     icono: 'ellipsis-horizontal-circle-outline' },
+  { key: 'consumido',        label: 'Consumido',          icono: 'checkmark-circle-outline' },
+  { key: 'caducado',         label: 'Caducado',           icono: 'warning-outline' },
+  { key: 'usado_en_receta',  label: 'Usado en receta',    icono: 'restaurant-outline' },
+  { key: 'donado',           label: 'Donado',             icono: 'heart-outline' },
+  { key: 'perdido',          label: 'Perdido',            icono: 'help-circle-outline' },
+  { key: 'error_tipografia', label: 'Lo añadí por error', icono: 'create-outline' },
+  { key: 'otro',             label: 'Otro motivo',        icono: 'ellipsis-horizontal-circle-outline' },
 ];
 
 interface Props {

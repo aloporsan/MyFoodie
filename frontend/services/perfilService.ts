@@ -40,6 +40,7 @@ export interface MotivosEliminacion {
   donado: number;
   perdido: number;
   otro: number;
+  errorTipografia: number;
 }
 
 export interface EstadisticasPerfil {
