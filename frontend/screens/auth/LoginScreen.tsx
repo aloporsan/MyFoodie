@@ -12,6 +12,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Input } from '@/components/ui';
 import { useAuthStore } from '@/store/authStore';
 import { colors } from '@/theme/colors';
@@ -24,6 +25,7 @@ export function LoginScreen() {
   const router = useRouter();
   const { login, isLoading, error, clearError } = useAuthStore();
   const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -62,7 +64,12 @@ export function LoginScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Cabecera verde con logo */}
-        <View style={[styles.header, { minHeight: height * 0.22 }]}>
+        <View
+          style={[
+            styles.header,
+            { minHeight: height * 0.3, paddingTop: insets.top + spacing.xxxl },
+          ]}
+        >
           <View style={styles.logoWrapper}>
             <Image
               source={require('@/assets/images/logo-myfoodie.png')}
@@ -79,7 +86,7 @@ export function LoginScreen() {
         </View>
 
         {/* Formulario */}
-        <View style={styles.card}>
+        <View style={[styles.card, { paddingBottom: insets.bottom + spacing.xxxl }]}>
           <Text style={styles.title}>¡Bienvenido a MyFoodie!</Text>
           <Text style={styles.subtitle}>Accede a tu cuenta para continuar</Text>
 

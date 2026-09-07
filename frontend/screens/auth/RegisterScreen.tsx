@@ -12,6 +12,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Input } from '@/components/ui';
 import { useAuthStore } from '@/store/authStore';
 import { colors } from '@/theme/colors';
@@ -25,6 +26,7 @@ export function RegisterScreen() {
   const router = useRouter();
   const { register, isLoading, error, clearError } = useAuthStore();
   const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const [nombre, setNombre] = useState('');
   const [nombreUsuario, setNombreUsuario] = useState('');
@@ -96,7 +98,12 @@ export function RegisterScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Cabecera */}
-        <View style={[styles.header, { minHeight: height * 0.22 }]}>
+        <View
+          style={[
+            styles.header,
+            { minHeight: height * 0.26, paddingTop: insets.top + spacing.xxxl },
+          ]}
+        >
           <View style={styles.logoWrapper}>
             <Image
               source={require('@/assets/images/logo-myfoodie.png')}
@@ -112,7 +119,7 @@ export function RegisterScreen() {
         </View>
 
         {/* Formulario */}
-        <View style={styles.card}>
+        <View style={[styles.card, { paddingBottom: insets.bottom + spacing.xxxl }]}>
           <Text style={styles.title}>Crear cuenta</Text>
           <Text style={styles.subtitle}>Únete a la comunidad MyFoodie</Text>
 
