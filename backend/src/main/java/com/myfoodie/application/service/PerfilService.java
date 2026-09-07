@@ -85,12 +85,24 @@ public class PerfilService {
         Preferencias pref = preferenciasRepository.findByUsuarioId(usuarioId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Preferencias no encontradas"));
 
-        if (dto.tipoDieta() != null) pref.setTipoDieta(dto.tipoDieta());
-        if (dto.alergias() != null) pref.setAlergenos(dto.alergias());
-        if (dto.ingredientesNoDeseados() != null) pref.setIngredientesNoDeseados(dto.ingredientesNoDeseados());
-        if (dto.nivelDificultad() != null) pref.setNivelDificultad(dto.nivelDificultad());
-        if (dto.tiempoCoccionMax() != null) pref.setTiempoCoccionMax(dto.tiempoCoccionMax());
+        // La pantalla de preferencias es un formulario completo: siempre manda todos los
+        // campos, así que este PUT reemplaza el bloque entero. Un valor nulo/"Ninguna"
+        // significa "sin restricción" y debe poder limpiar lo que hubiera antes (si solo
+        // asignáramos cuando != null, el usuario nunca podría quitar una alergia o dieta).
+        String tipoDieta = normalizarTipoDieta(dto.tipoDieta());
+        pref.setTipoDieta(tipoDieta);
+        pref.setAlergenos(dto.alergias() != null ? dto.alergias() : new java.util.ArrayList<>());
+        pref.setIngredientesNoDeseados(dto.ingredientesNoDeseados());
+        pref.setNivelDificultad("Cualquiera".equalsIgnoreCase(dto.nivelDificultad()) ? null : dto.nivelDificultad());
+        pref.setTiempoCoccionMax(dto.tiempoCoccionMax());
         if (dto.stockMinimoGlobal() != null) pref.setStockMinimoGlobal(dto.stockMinimoGlobal());
+
+        // Mantiene sincronizados los flags booleanos que usan otros flujos (onboarding, feed)
+        // con la dieta elegida por texto.
+        String dietaNorm = tipoDieta == null ? "" : tipoDieta.trim().toLowerCase(java.util.Locale.ROOT);
+        pref.setVegetariano(dietaNorm.startsWith("vegetarian") || dietaNorm.startsWith("vegan"));
+        pref.setVegano(dietaNorm.startsWith("vegan"));
+        pref.setSinGluten(dietaNorm.contains("sin gluten"));
 
         return toPreferenciasDTO(preferenciasRepository.save(pref));
     }
@@ -255,6 +267,14 @@ public class PerfilService {
                 usuario.getBiografia(),
                 usuario.getFechaRegistro()
         );
+    }
+
+    // "Ninguna" (o vacío) desde la UI = sin dieta concreta -> se guarda como null.
+    private String normalizarTipoDieta(String tipoDieta) {
+        if (tipoDieta == null || tipoDieta.isBlank() || "Ninguna".equalsIgnoreCase(tipoDieta.trim())) {
+            return null;
+        }
+        return tipoDieta.trim();
     }
 
     private PreferenciasUpdateDTO toPreferenciasDTO(Preferencias pref) {

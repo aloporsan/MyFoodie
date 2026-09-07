@@ -36,6 +36,12 @@ interface FeedState {
    * volver a aparecer: la ocultamos localmente hasta que se recargue el feed desde cero.
    */
   idsOcultos: Set<string>;
+  /**
+   * El feed se cargó una vez al montar la pantalla y no vuelve a pedirse solo. Cuando cambian
+   * las preferencias alimentarias (u otra cosa que altera el pool de recetas) marcamos esto y
+   * la pantalla del feed recarga desde cero la próxima vez que gana foco.
+   */
+  feedObsoleto: boolean;
   perfilGustos: PerfilGustos | null;
   isLoadingPerfilGustos: boolean;
 }
@@ -50,6 +56,7 @@ interface FeedActions {
   quitarLike: (id: string) => Promise<void>;
   deshacerUltimaAccion: () => Promise<void>;
   limpiarFeed: () => void;
+  marcarFeedObsoleto: () => void;
   cargarPerfilGustos: () => Promise<void>;
   resetearPerfilGustos: () => Promise<void>;
   limpiarDescartadas: () => Promise<void>;
@@ -66,6 +73,7 @@ const ESTADO_INICIAL: FeedState = {
   error: null,
   ultimaAccion: null,
   idsOcultos: new Set<string>(),
+  feedObsoleto: false,
   perfilGustos: null,
   isLoadingPerfilGustos: false,
 };
@@ -96,6 +104,7 @@ export const useFeedStore = create<FeedState & FeedActions>()((set, get) => ({
         pagina: respuesta.pagina,
         hayMas: respuesta.hayMas,
         isLoading: false,
+        feedObsoleto: false,
       });
     } catch (e) {
       set({ error: handleApiError(e), isLoading: false });
@@ -265,6 +274,8 @@ export const useFeedStore = create<FeedState & FeedActions>()((set, get) => ({
   },
 
   limpiarFeed: () => set({ ...ESTADO_INICIAL, idsOcultos: new Set<string>() }),
+
+  marcarFeedObsoleto: () => set({ feedObsoleto: true }),
 
   cargarPerfilGustos: async () => {
     set({ isLoadingPerfilGustos: true, error: null });

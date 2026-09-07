@@ -380,23 +380,39 @@ public class FeedService {
                 .toList();
     }
 
+    // La dieta elegida en la UI ("Vegetariana", "Vegana", "Mediterránea"...) no coincide
+    // literalmente con la etiqueta de la receta ("vegetariano", "vegano", "mediterráneo"):
+    // este mapa la lleva a la etiqueta canónica. Una dieta sin etiqueta equivalente (Keto,
+    // "Ninguna"...) no añade filtro duro para no vaciar el feed.
+    private static final Map<String, String> DIETA_A_ETIQUETA = Map.of(
+            "vegetariano", "vegetariano",
+            "vegetariana", "vegetariano",
+            "vegano", "vegano",
+            "vegana", "vegano",
+            "sin gluten", "sin gluten",
+            "sin lactosa", "sin lactosa",
+            "mediterranea", "mediterraneo",
+            "mediterraneo", "mediterraneo");
+
     private List<String> etiquetasDietaRequeridas(Preferencias p) {
         Set<String> req = new HashSet<>();
         if (p.isVegano()) req.add("vegano");
         if (p.isVegetariano()) req.add("vegetariano");
         if (p.isSinGluten()) req.add("sin gluten");
-        if (p.getTipoDieta() != null && !p.getTipoDieta().isBlank()) {
-            req.add(p.getTipoDieta().trim().toLowerCase(Locale.ROOT));
+        String etiquetaDieta = DIETA_A_ETIQUETA.get(normalizarTexto(p.getTipoDieta()));
+        if (etiquetaDieta != null) {
+            req.add(etiquetaDieta);
         }
         return new ArrayList<>(req);
     }
 
     // "vegetariano" en preferencias también acepta recetas marcadas solo como "vegano".
+    // Comparación sin acentos por ambos lados ("mediterráneo" == "mediterraneo").
     private boolean cumpleAlgunaEtiqueta(Receta receta, List<String> etiquetasRequeridas) {
         List<String> etiquetasReceta = receta.getEtiquetas() == null ? List.of()
-                : receta.getEtiquetas().stream().map(e -> e.trim().toLowerCase(Locale.ROOT)).toList();
+                : receta.getEtiquetas().stream().map(this::normalizarTexto).toList();
         return etiquetasRequeridas.stream().allMatch(req ->
-                etiquetasReceta.contains(req)
+                etiquetasReceta.contains(normalizarTexto(req))
                         || ("vegetariano".equals(req) && etiquetasReceta.contains("vegano")));
     }
 
@@ -404,6 +420,14 @@ public class FeedService {
         Set<String> terminos = new HashSet<>();
         agregarTerminosVetados(terminos, p.getAlergenos());
         agregarTerminosVetados(terminos, p.getIngredientesNoDeseados());
+        // Una dieta "sin gluten" / "sin lactosa" equivale a vetar esos ingredientes.
+        String dieta = normalizarTexto(p.getTipoDieta());
+        if (dieta.contains("sin gluten")) {
+            agregarTerminosVetados(terminos, List.of("gluten"));
+        }
+        if (dieta.contains("sin lactosa")) {
+            agregarTerminosVetados(terminos, List.of("lactosa"));
+        }
         return terminos;
     }
 
