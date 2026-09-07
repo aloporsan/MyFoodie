@@ -31,7 +31,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -404,8 +403,14 @@ public class RecetaService {
         Producto producto = match.producto();
         boolean enDespensa = producto != null;
 
-        boolean comparable = enDespensa && unidadesCompatibles(normalizado.unidadConvertida(), producto.getUnidad());
-        double disponible = comparable ? producto.getCantidad() : 0;
+        // Disponibilidad comparada por familia de unidad (peso/volumen se convierten, conteo se
+        // compara tal cual); empty si las unidades no son comparables (p. ej. "g" contra "unidad").
+        Optional<Double> disponibleComparable = enDespensa
+                ? unidadNormalizadorService.cantidadComparable(
+                        producto.getCantidad(), producto.getUnidad(), normalizado.unidadConvertida())
+                : Optional.empty();
+        boolean comparable = disponibleComparable.isPresent();
+        double disponible = disponibleComparable.orElse(0d);
         boolean suficiente = comparable && disponible >= cantidadCalculada;
         boolean noComparable = enDespensa && !comparable;
 
@@ -414,10 +419,6 @@ public class RecetaService {
                 enDespensa, disponible, suficiente, noComparable, match.tipoMatch(),
                 producto != null ? producto.getId() : null,
                 producto != null ? producto.getNombre() : null);
-    }
-
-    private boolean unidadesCompatibles(String unidadIngrediente, String unidadProducto) {
-        return normalizar(unidadIngrediente).equals(normalizar(unidadProducto));
     }
 
     private ProductoMatchResult buscarProductoCoincidente(List<Producto> productos, String nombreIngrediente) {
@@ -435,10 +436,6 @@ public class RecetaService {
     }
 
     private record ProductoMatchResult(Producto producto, TipoMatch tipoMatch) {}
-
-    private String normalizar(String texto) {
-        return texto == null ? "" : texto.trim().toLowerCase(Locale.ROOT);
-    }
 
     // -------------------------------------------------------------------------
     // Etiquetas e imagen

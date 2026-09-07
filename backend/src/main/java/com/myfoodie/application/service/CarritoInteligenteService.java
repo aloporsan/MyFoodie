@@ -793,25 +793,27 @@ public class CarritoInteligenteService {
     private double ratioDisponibilidad(IngredienteReceta ingrediente, List<Producto> productos) {
         UnidadConvertidaDTO normalizado = unidadNormalizadorService
                 .normalizarUnidades(ingrediente.getCantidad(), ingrediente.getUnidad());
+        String unidadIngrediente = normalizado.unidadConvertida();
+        // Se compara por familia de unidad (peso, volumen, conteo), no por igualdad exacta de
+        // string: dentro de peso/volumen se convierte el valor; en conteo se comparan los
+        // números tal cual. Así "2 dientes" en la receta cuenta contra "1 unidad" de ajo en la
+        // despensa en vez de dar 0 disponible.
         double disponible = productos.stream()
                 .filter(p -> esCoincidenciaFuerte(ingrediente.getNombre(), p.getNombre()))
-                .filter(p -> unidadesCompatibles(normalizado.unidadConvertida(), p.getUnidad()))
-                .mapToDouble(Producto::getCantidad)
+                .mapToDouble(p -> unidadNormalizadorService
+                        .cantidadComparable(p.getCantidad(), p.getUnidad(), unidadIngrediente)
+                        .orElse(0d))
                 .sum();
         if (normalizado.cantidadConvertida() <= 0) return disponible > 0 ? 1 : 0;
         return disponible / normalizado.cantidadConvertida();
     }
 
-    // Umbral AUTOMATICO (>= 0.85): evita, p. ej., recomendar comprar "Leche entera" cuando
-    // el usuario ya tiene "Leche" en la despensa, sin caer tan bajo (0.60) que ingredientes
-    // realmente distintos se den por disponibles y se pierdan recomendaciones útiles.
+    // "Coincidencia fuerte" = el matching la clasifica como AUTOMATICO (>= UMBRAL_AUTOMATICO, 0.99):
+    // prácticamente el mismo nombre. Se exige ese nivel para no dar por disponible un ingrediente
+    // frente a un producto que solo se le parece y perder así recomendaciones de compra útiles.
     private boolean esCoincidenciaFuerte(String nombreIngrediente, String nombreProducto) {
         double puntuacion = matchingService.calcularSimilitud(nombreIngrediente, nombreProducto).puntuacion();
         return matchingService.clasificarMatch(puntuacion) == TipoMatch.AUTOMATICO;
-    }
-
-    private boolean unidadesCompatibles(String unidadIngrediente, String unidadProducto) {
-        return normalizar(unidadIngrediente).equals(normalizar(unidadProducto));
     }
 
     private boolean enDespensaConStockSuficiente(String nombre, List<Producto> productos, int umbral) {
