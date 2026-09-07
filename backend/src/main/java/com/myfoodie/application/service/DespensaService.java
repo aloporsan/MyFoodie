@@ -80,7 +80,22 @@ public class DespensaService {
                 .stockMinimo(dto.stockMinimo())
                 .build();
 
+        producto.setTieneLotes(true);
         Producto saved = productoRepository.save(producto);
+
+        // La gestión por lotes es obligatoria: todo producto nace con su primer lote, así el
+        // total del producto es siempre la suma de sus lotes y no hay un camino "sin lotes".
+        loteProductoRepository.save(LoteProducto.builder()
+                .productoId(saved.getId())
+                .despensaId(despensa.getId())
+                .usuarioId(usuarioId)
+                .cantidad((float) saved.getCantidad())
+                .unidad(saved.getUnidad())
+                .fechaCaducidad(saved.getFechaCaducidad())
+                .fechaCompra(saved.getFechaCompra() != null ? saved.getFechaCompra() : LocalDate.now())
+                .origen("manual")
+                .build());
+
         actualizarDespensa(despensa);
         registrarMovimiento(saved, usuarioId, "añadido", "Producto añadido a la despensa",
                 null, saved.getCantidad(), null, null);
@@ -122,10 +137,14 @@ public class DespensaService {
         Producto p = getProductoDeUsuario(despensa.getId(), productoId);
 
         p.setNombre(dto.nombre());
-        p.setCantidad(dto.cantidad());
+        // En un producto por lotes la cantidad y la caducidad son derivadas (suma de lotes /
+        // lote más próximo): se gestionan desde la sección de lotes, no desde este formulario.
+        if (!Boolean.TRUE.equals(p.getTieneLotes())) {
+            p.setCantidad(dto.cantidad());
+            p.setFechaCaducidad(dto.fechaCaducidad());
+        }
         p.setUnidad(dto.unidad());
         p.setCategoria(dto.categoria());
-        p.setFechaCaducidad(dto.fechaCaducidad());
         p.setFechaCompra(dto.fechaCompra());
         p.setMarca(dto.marca());
         p.setNotas(dto.notas());
@@ -195,6 +214,41 @@ public class DespensaService {
             }
             Producto actualizado = getProductoDeUsuario(despensa.getId(), productoId);
             return toDTO(actualizado, null, resolverUmbral(actualizado, globalUmbral), consumos);
+        }
+
+        // Sumar en un producto por lotes tiene que ir a un lote concreto, si no el total del
+        // producto se desincroniza de la suma de sus lotes. Se añade al lote que caduca más
+        // tarde (el menos urgente); si no hubiera ninguno, se crea uno nuevo.
+        if (Boolean.TRUE.equals(p.getTieneLotes()) && dto.delta() > 0) {
+            double antes = p.getCantidad();
+            List<LoteProducto> lotes = loteProductoRepository.findByProductoIdOrderByFechaCaducidadAsc(productoId);
+            if (lotes.isEmpty()) {
+                loteProductoRepository.save(LoteProducto.builder()
+                        .productoId(productoId)
+                        .despensaId(despensa.getId())
+                        .usuarioId(usuarioId)
+                        .cantidad((float) dto.delta())
+                        .unidad(p.getUnidad())
+                        .fechaCompra(LocalDate.now())
+                        .origen("manual")
+                        .build());
+            } else {
+                LoteProducto destino = lotes.get(lotes.size() - 1);
+                destino.setCantidad((destino.getCantidad() != null ? destino.getCantidad() : 0f) + (float) dto.delta());
+                destino.setUpdatedAt(LocalDateTime.now());
+                loteProductoRepository.save(destino);
+            }
+            recalcularAgregadoDesdeLotes(p);
+            Producto guardado = productoRepository.save(p);
+            actualizarDespensa(despensa);
+            String desc = dto.descripcion() != null ? dto.descripcion() : "Cantidad actualizada";
+            registrarMovimiento(guardado, usuarioId, "cantidad_actualizada", desc,
+                    antes, guardado.getCantidad(), dto.motivo(), dto.motivoDetalle());
+            if (actualizarCarrito) {
+                carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
+                notificacionService.generarNotificacionesCaducidad(usuarioId);
+            }
+            return toDTO(guardado, null, resolverUmbral(guardado, globalUmbral));
         }
 
         double cantidadAnterior = p.getCantidad();

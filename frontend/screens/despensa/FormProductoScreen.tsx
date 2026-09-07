@@ -139,7 +139,8 @@ export function FormProductoScreen() {
     const e: Record<string, string> = {};
     if (!nombre.trim()) e.nombre = 'El nombre es obligatorio';
     const cant = parseFloat(cantidad);
-    if (!cantidad || isNaN(cant) || cant < 0) e.cantidad = 'Cantidad válida requerida';
+    // Al editar, la cantidad y la caducidad son derivadas de los lotes: no se piden aquí.
+    if (!esEdicion && (!cantidad || isNaN(cant) || cant < 0)) e.cantidad = 'Cantidad válida requerida';
     if (!unidad) e.unidad = 'Selecciona una unidad';
     if (stockMinimo) {
       const sm = parseInt(stockMinimo, 10);
@@ -277,22 +278,30 @@ export function FormProductoScreen() {
             </View>
           )}
 
-          {/* Cantidad */}
-          <Campo label="Cantidad *" error={errores.cantidad}>
-            <TextInput
-              style={[styles.input, errores.cantidad && styles.inputError]}
-              value={cantidad}
-              onChangeText={(t) => { setCantidad(t); setErrores((e) => ({ ...e, cantidad: '' })); }}
-              placeholder="ej. 2"
-              placeholderTextColor={colors.grayMid}
-              keyboardType="decimal-pad"
-            />
-          </Campo>
+          {/* Cantidad: solo al crear. Al editar se gestiona desde los lotes del producto. */}
+          {!esEdicion && (
+            <Campo label="Cantidad *" error={errores.cantidad}>
+              <TextInput
+                style={[styles.input, errores.cantidad && styles.inputError]}
+                value={cantidad}
+                onChangeText={(t) => { setCantidad(t); setErrores((e) => ({ ...e, cantidad: '' })); }}
+                placeholder="ej. 2"
+                placeholderTextColor={colors.grayMid}
+                keyboardType="decimal-pad"
+              />
+            </Campo>
+          )}
 
           {/* Unidad */}
           <Campo label="Unidad *" error={errores.unidad}>
             <ChipSelector opciones={UNIDADES_OBJETIVAS} valor={unidad} onSelect={setUnidad} getLabel={etiquetaUnidad} />
           </Campo>
+
+          {esEdicion && (
+            <Text style={styles.hintLotes}>
+              La cantidad y la fecha de caducidad se gestionan desde los lotes del producto.
+            </Text>
+          )}
 
           {/* Categoría, marca, notas y stock mínimo son atributos del producto en sí: si ya
               hay uno seleccionado (se va a actualizar su cantidad, no a crear uno nuevo),
@@ -309,10 +318,12 @@ export function FormProductoScreen() {
             </Campo>
           )}
 
-          {/* Fecha caducidad */}
-          <Campo label="Fecha caducidad">
-            <DateFieldInput value={fechaCaducidad} onChange={setFechaCaducidad} />
-          </Campo>
+          {/* Fecha caducidad: solo al crear (al editar es el lote más próximo). */}
+          {!esEdicion && (
+            <Campo label="Fecha caducidad">
+              <DateFieldInput value={fechaCaducidad} onChange={setFechaCaducidad} />
+            </Campo>
+          )}
 
           {/* Fecha compra */}
           <Campo label="Fecha compra">
@@ -521,6 +532,12 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   inputError: { borderColor: colors.error },
+  hintLotes: {
+    ...typography.caption,
+    color: colors.text.secondary,
+    fontStyle: 'italic',
+    marginTop: -spacing.xs,
+  },
   textarea: { minHeight: 80, textAlignVertical: 'top' },
   btnGuardar: {
     backgroundColor: colors.primary,

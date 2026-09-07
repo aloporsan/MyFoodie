@@ -50,7 +50,6 @@ export function DetalleProductoScreen() {
     cargarHistorial,
     lotesProductoActual,
     cargarLotes,
-    activarLotes,
     añadirLote,
     editarLote,
     eliminarLote,
@@ -66,21 +65,16 @@ export function DetalleProductoScreen() {
   const [cantidadSheet, setCantidadSheet] = useState(false);
   const [cantidadModo, setCantidadModo] = useState<'sumar' | 'restar'>('restar');
 
-  // Gestión por lotes: "Gestionar por lotes" solo hace falta para revelar la sección en un
-  // producto que aún no tiene lotes — el primer lote que se añade ya activa tieneLotes en el
-  // backend (crearLoteYRecalcular), así que a partir de ahí la sección queda siempre visible.
-  const [seccionLotesAbierta, setSeccionLotesAbierta] = useState(false);
+  // La gestión por lotes es obligatoria: todo producto tiene al menos un lote y la sección
+  // está siempre visible. Al pulsar "+" se elige a qué lote concreto se añade la cantidad
+  // (o se crea uno nuevo) en vez de sumar a ciegas — ver handleMas.
   const [modalLote, setModalLote] = useState(false);
   const [loteEditando, setLoteEditando] = useState<LoteProducto | null>(null);
   const [guardandoLote, setGuardandoLote] = useState(false);
-  // Al pulsar "+" en un producto con lotes, en vez de sumar a ciegas hay que elegir a qué
-  // lote concreto se añade la cantidad (o crear uno nuevo) — ver handleMas.
   const [loteObjetivoSuma, setLoteObjetivoSuma] = useState<LoteProducto | null>(null);
   const [modalElegirLote, setModalElegirLote] = useState(false);
-  const [activandoLotes, setActivandoLotes] = useState(false);
 
   const producto = productos.find((p) => p.id === id);
-  const mostrarSeccionLotes = producto?.tieneLotes || seccionLotesAbierta;
 
   // Recarga historial y lotes cada vez que la pantalla gana foco
   useFocusEffect(
@@ -117,16 +111,9 @@ export function DetalleProductoScreen() {
     return `${d}/${m}/${y}`;
   };
 
-  // En un producto con lotes, sumar a ciegas desincroniza el total del producto respecto a
-  // sus lotes (el descuento por caducidad solo se aplica al restar). Por eso aquí hay que
-  // decidir explícitamente a qué lote va esa cantidad, o si se trata de una compra nueva.
+  // Sumar a ciegas desincronizaría el total del producto respecto a sus lotes. Por eso hay
+  // que decidir explícitamente a qué lote va esa cantidad, o si se trata de una compra nueva.
   const handleMas = () => {
-    if (!producto?.tieneLotes) {
-      setLoteObjetivoSuma(null);
-      setCantidadModo('sumar');
-      setCantidadSheet(true);
-      return;
-    }
     setModalElegirLote(true);
   };
 
@@ -239,21 +226,6 @@ export function DetalleProductoScreen() {
       showError('No se pudo guardar el lote');
     } finally {
       setGuardandoLote(false);
-    }
-  };
-
-  // Envuelve el stock actual del producto en un primer lote (misma cantidad/fecha que ya
-  // tenía) en vez de partir de una sección vacía que obligaría a volver a introducirlo a mano.
-  const handleGestionarLotes = async () => {
-    if (activandoLotes) return;
-    setActivandoLotes(true);
-    try {
-      await activarLotes(id);
-      setSeccionLotesAbierta(true);
-    } catch {
-      showError('No se pudo activar la gestión por lotes');
-    } finally {
-      setActivandoLotes(false);
     }
   };
 
@@ -370,40 +342,27 @@ export function DetalleProductoScreen() {
           />
         </View>
 
-        {/* Gestión por lotes */}
-        {!producto.tieneLotes && !seccionLotesAbierta && (
-          <Pressable
-            style={[styles.btnGestionarLotes, activandoLotes && styles.btnDisabled]}
-            onPress={handleGestionarLotes}
-            disabled={activandoLotes}
-          >
-            <Ionicons name="layers-outline" size={18} color={colors.primary} />
-            <Text style={styles.btnGestionarLotesText}>Gestionar por lotes</Text>
-          </Pressable>
-        )}
-
-        {mostrarSeccionLotes && (
-          <View style={styles.lotesCard}>
-            <View style={styles.lotesHeader}>
-              <Text style={styles.lotesTitulo}>Lotes</Text>
-            </View>
-            <ListaLotes
-              lotes={lotesProductoActual}
-              onEditar={handleEditarLote}
-              onEliminar={handleEliminarLote}
-            />
-            <Pressable style={styles.btnNuevaCompra} onPress={handleNuevoLote}>
-              <Ionicons name="add" size={18} color={colors.primary} />
-              <Text style={styles.btnNuevaCompraText}>Añadir nueva compra</Text>
-            </Pressable>
-            {lotesProductoActual.length > 1 && (
-              <Pressable style={styles.btnCompactarLotes} onPress={handleCompactarLotes}>
-                <Ionicons name="contract-outline" size={18} color={colors.text.secondary} />
-                <Text style={styles.btnCompactarLotesText}>Compactar lotes</Text>
-              </Pressable>
-            )}
+        {/* Gestión por lotes (siempre activa) */}
+        <View style={styles.lotesCard}>
+          <View style={styles.lotesHeader}>
+            <Text style={styles.lotesTitulo}>Lotes</Text>
           </View>
-        )}
+          <ListaLotes
+            lotes={lotesProductoActual}
+            onEditar={handleEditarLote}
+            onEliminar={handleEliminarLote}
+          />
+          <Pressable style={styles.btnNuevaCompra} onPress={handleNuevoLote}>
+            <Ionicons name="add" size={18} color={colors.primary} />
+            <Text style={styles.btnNuevaCompraText}>Añadir nueva compra</Text>
+          </Pressable>
+          {lotesProductoActual.length > 1 && (
+            <Pressable style={styles.btnCompactarLotes} onPress={handleCompactarLotes}>
+              <Ionicons name="contract-outline" size={18} color={colors.text.secondary} />
+              <Text style={styles.btnCompactarLotesText}>Compactar lotes</Text>
+            </Pressable>
+          )}
+        </View>
 
         {/* Historial de movimientos */}
         {historialProducto.length > 0 && (
@@ -694,19 +653,6 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   historialTitulo: { ...typography.label, color: colors.text.secondary, marginBottom: spacing.xs },
-  btnGestionarLotes: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.xl,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    backgroundColor: colors.white,
-  },
-  btnGestionarLotesText: { ...typography.label, color: colors.primary },
-  btnDisabled: { opacity: 0.5 },
   lotesCard: {
     backgroundColor: colors.white,
     borderRadius: borderRadius.lg,
