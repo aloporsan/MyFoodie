@@ -482,7 +482,8 @@ public class DespensaService {
         float totalDisponible = lotes.stream().map(LoteProducto::getCantidad).filter(Objects::nonNull)
                 .reduce(0f, Float::sum);
         if (cantidadAConsumir > totalDisponible) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "La cantidad no puede ser negativa");
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "No puedes consumir más de lo que hay repartido en los lotes");
         }
 
         List<ConsumoLoteDTO> consumos = new ArrayList<>();
