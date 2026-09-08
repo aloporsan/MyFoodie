@@ -112,7 +112,7 @@ export function EditarRecetaScreen() {
       !!recetaActual.titulo, !!recetaActual.descripcion,
       recetaActual.tiempoEstimado > 0, !!recetaActual.dificultad,
       !!recetaActual.categoria, recetaActual.ingredientes.length > 0,
-      recetaActual.pasos.length > 0,
+      recetaActual.pasos.length > 0, !!recetaActual.imagenUrl,
     ];
     return Math.round((checks.filter(Boolean).length / checks.length) * 100);
   }, [recetaActual]);
@@ -311,6 +311,7 @@ export function EditarRecetaScreen() {
                   !recetaActual?.categoria && 'categoría',
                   !(recetaActual?.ingredientes.length) && 'ingredientes',
                   !(recetaActual?.pasos.length) && 'pasos',
+                  !recetaActual?.imagenUrl && 'foto de portada',
                 ].filter(Boolean).join(', ')}
               </Text>
             )}
@@ -342,7 +343,12 @@ export function EditarRecetaScreen() {
 
           {/* Imagen */}
           <View style={styles.card}>
-            <SeccionHeader icono="image-outline" titulo="Imagen de portada" opcional />
+            <SeccionHeader icono="image-outline" titulo="Imagen de portada" />
+            {!recetaActual?.imagenUrl && (
+              <Text style={styles.progresoHint}>
+                Añade una foto para poder publicar la receta.
+              </Text>
+            )}
             <ImagenReceta
               imagenUrl={resolveImagenUrl(recetaActual?.imagenUrl)}
               onActualizar={(url) => actualizarImagen(id, url)}

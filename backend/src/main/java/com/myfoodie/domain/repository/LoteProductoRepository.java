@@ -17,6 +17,8 @@ public interface LoteProductoRepository extends MongoRepository<LoteProducto, St
 
     List<LoteProducto> findByUsuarioIdAndOrigen(String usuarioId, String origen);
 
+    void deleteByDespensaId(String despensaId);
+
     default float sumCantidadByProductoId(String productoId) {
         return findByProductoIdAndCantidadGreaterThan(productoId, 0f).stream()
                 .map(LoteProducto::getCantidad)

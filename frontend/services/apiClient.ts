@@ -41,6 +41,15 @@ export const setTokenGetter = (fn: () => string | null) => {
 
 export const getAuthToken = (): string | null => _getToken();
 
+// Se invoca cuando el backend rechaza una petición autenticada con 401 (token
+// caducado, inválido o en lista negra tras cerrar sesión). Lo registra authStore
+// para limpiar la sesión y que el guard de navegación lleve al login.
+let _onUnauthorized: (() => void) | null = null;
+
+export const setUnauthorizedHandler = (fn: () => void) => {
+  _onUnauthorized = fn;
+};
+
 apiClient.interceptors.request.use((config) => {
   const token = _getToken();
   if (token) {
@@ -59,6 +68,13 @@ apiClient.interceptors.response.use(
       status: error.response?.status,
       data: error.response?.data,
     });
+
+    // Un 401 en cualquier petición que no sea de /auth (login, registro, validar token)
+    // significa que la sesión ya no vale: se avisa para cerrarla y redirigir al login.
+    const requestUrl: string = error.config?.url ?? '';
+    if (error.response?.status === 401 && !requestUrl.startsWith('/auth/')) {
+      _onUnauthorized?.();
+    }
 
     const serverMessage: string | undefined = error.response?.data?.message;
     if (serverMessage) {

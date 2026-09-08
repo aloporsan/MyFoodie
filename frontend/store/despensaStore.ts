@@ -35,6 +35,7 @@ interface DespensaActions {
   añadirProducto: (datos: ProductoInput) => Promise<Producto>;
   editarProducto: (id: string, datos: ProductoInput) => Promise<void>;
   eliminarProducto: (id: string, motivo?: MotivoEliminacion, motivoDetalle?: string) => Promise<void>;
+  vaciarDespensa: () => Promise<number>;
   actualizarCantidad: (id: string, delta: number, motivo?: MotivoEliminacion, motivoDetalle?: string) => Promise<Producto>;
   cargarHistorial: (productoId: string) => Promise<void>;
   buscarSimilares: (nombre: string) => Promise<void>;
@@ -145,16 +146,48 @@ export const useDespensaStore = create<DespensaState & DespensaActions>()((set, 
     }
   },
 
+  vaciarDespensa: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const eliminados = await despensaService.vaciarDespensa();
+      set({ productos: [], isLoading: false });
+      useDashboardStore.getState().cargarDashboard();
+      useFusionStore.getState().cargarDuplicados();
+      return eliminados;
+    } catch (e) {
+      set({ error: handleApiError(e), isLoading: false });
+      throw e;
+    }
+  },
+
   actualizarCantidad: async (id, delta, motivo, motivoDetalle) => {
+    // Actualización optimista: el número cambia al instante y se revierte si el servidor
+    // rechaza la operación (mismo patrón que el swipe del feed).
+    const snapshot = get().productos;
+    set({
+      productos: snapshot.map((p) =>
+        p.id === id ? { ...p, cantidad: Math.max(0, p.cantidad + delta) } : p,
+      ),
+    });
     try {
       const actualizado = await despensaService.actualizarCantidad(id, delta, motivo, motivoDetalle);
       set((s) => ({
         productos: s.productos.map((p) => (p.id === id ? actualizado : p)),
       }));
+      // Si el producto se gestiona por lotes, el backend acaba de recalcular su agregado a
+      // partir de los lotes (consumo FIFO al restar): el listado de lotes del store también
+      // quedó desfasado y hay que refrescarlo para que la pantalla lo refleje.
+      if (actualizado.tieneLotes) {
+        try {
+          set({ lotesProductoActual: await loteService.listar(id) });
+        } catch {
+          // el listado se recargará solo al abrir el detalle
+        }
+      }
       useDashboardStore.getState().cargarDashboard();
       return actualizado;
     } catch (e) {
-      set({ error: handleApiError(e) });
+      set({ error: handleApiError(e), productos: snapshot });
       throw e;
     }
   },

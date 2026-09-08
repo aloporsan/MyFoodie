@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
-import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { FormItemManual, ItemCarritoCard, ResumenCarritoHeader } from '@/components/carrito';
+import { showConfirm } from '@/hooks/useConfirm';
 import { ItemCarrito, ItemCarritoInput } from '@/services/carritoService';
 import { useCarritoStore } from '@/store/carritoStore';
 import { borderRadius } from '@/theme/borderRadius';
@@ -59,6 +59,7 @@ export function CarritoScreen() {
   const {
     items,
     resumen,
+    error,
     isLoading,
     isGenerando,
     cargarCarrito,
@@ -69,19 +70,50 @@ export function CarritoScreen() {
     recuperarItem,
     modificarCantidad,
     añadirYAceptarItemManual,
+    eliminarItemsRechazados,
   } = useCarritoStore();
 
   const [tab, setTab] = useState<TabId>('recomendaciones');
   const [modalManual, setModalManual] = useState(false);
   const [añadiendoManual, setAñadiendoManual] = useState(false);
 
+  // Se espera a que termine la animación de entrada antes de pedir el carrito: así la
+  // navegación no se congela mientras el hilo JS está ocupado con la petición y el render.
+  // Si el dashboard ya dejó datos en el store, la pantalla se pinta al instante y esto
+  // solo refresca en segundo plano.
+  const [preparando, setPreparando] = useState(true);
   useEffect(() => {
-    cargarCarrito();
+    let cancelado = false;
+    // Un respiro corto para que pinte la transición de entrada y el spinner, y en cuanto
+    // termina (con o sin datos) se quita el estado "preparando" — nunca se queda colgado.
+    const t = setTimeout(async () => {
+      try {
+        await cargarCarrito();
+      } finally {
+        if (!cancelado) setPreparando(false);
+      }
+    }, 120);
+    return () => {
+      cancelado = true;
+      clearTimeout(t);
+    };
   }, []);
 
   const handleGenerarLista = useCallback(() => {
     router.push('/carrito/generar-lista');
   }, [router]);
+
+  const handleEliminarRechazados = useCallback(() => {
+    showConfirm(
+      'Eliminar rechazados',
+      'Se borrarán de forma permanente todos los productos rechazados. Esta acción no se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: () => eliminarItemsRechazados() },
+      ],
+      { icon: 'trash-outline' }
+    );
+  }, [eliminarItemsRechazados]);
 
   // dismissTo cierra de golpe cualquier pantalla apilada del flujo del carrito
   // (evita tener que pulsar "atrás" más de una vez para volver al Dashboard).
@@ -109,8 +141,39 @@ export function CarritoScreen() {
   const rechazados = items.filter((i) => i.estado === 'rechazado');
   const dataTab = tab === 'aceptados' ? aceptados : rechazados;
 
-  if (isLoading && items.length === 0) {
-    return <LoadingScreen />;
+  // Lista aplanada (cabecera de prioridad + items) para que la FlatList virtualice de verdad:
+  // antes se montaban todas las tarjetas de golpe dentro de un .map y eso congelaba ~1s al
+  // entrar con muchas recomendaciones.
+  type FilaReco = { tipo: 'header'; key: string; label: string } | { tipo: 'item'; key: string; item: ItemCarrito };
+  const filasRecomendaciones = useMemo<FilaReco[]>(() => {
+    const filas: FilaReco[] = [];
+    for (const grupo of PRIORIDADES) {
+      const delGrupo = pendientes.filter((i) => i.prioridad === grupo.key);
+      if (delGrupo.length === 0) continue;
+      filas.push({ tipo: 'header', key: `h-${grupo.key}`, label: grupo.label });
+      for (const item of delGrupo) filas.push({ tipo: 'item', key: item.id, item });
+    }
+    return filas;
+  }, [pendientes]);
+
+  // Mientras se prepara el carrito (sin datos aún) se muestra un indicador claro con el
+  // botón de volver disponible, en vez de una pantalla congelada sin feedback.
+  if (preparando && items.length === 0 && resumen === null && error === null) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <View style={styles.header}>
+          <Pressable onPress={goBack} hitSlop={8} style={styles.iconBtn}>
+            <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+          </Pressable>
+          <Text style={styles.titulo}>Carrito inteligente</Text>
+          <View style={styles.headerActions} />
+        </View>
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.emptySubtitulo}>Preparando tu carrito…</Text>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -118,22 +181,32 @@ export function CarritoScreen() {
       <LoadingOverlay visible={isLoading && items.length > 0} />
 
       <View style={styles.header}>
-        <Pressable onPress={goBack} hitSlop={8} style={styles.backBtn}>
+        <Pressable onPress={goBack} hitSlop={8} style={styles.iconBtn}>
           <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </Pressable>
         <Text style={styles.titulo}>Carrito inteligente</Text>
-        <Pressable
-          onPress={generarCarrito}
-          disabled={isGenerando}
-          hitSlop={8}
-          style={styles.backBtn}
-        >
-          {isGenerando ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            <Ionicons name="refresh" size={22} color={colors.primary} />
-          )}
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            onPress={() => setModalManual(true)}
+            hitSlop={8}
+            style={styles.iconBtn}
+            testID="btn-añadir-manual"
+          >
+            <Ionicons name="add-circle-outline" size={24} color={colors.primary} />
+          </Pressable>
+          <Pressable
+            onPress={generarCarrito}
+            disabled={isGenerando}
+            hitSlop={8}
+            style={styles.iconBtn}
+          >
+            {isGenerando ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Ionicons name="refresh" size={22} color={colors.primary} />
+            )}
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.resumenWrapper}>
@@ -154,31 +227,28 @@ export function CarritoScreen() {
 
       {tab === 'recomendaciones' ? (
         <FlatList
-          data={PRIORIDADES}
-          keyExtractor={(p) => p.key}
+          data={filasRecomendaciones}
+          keyExtractor={(f) => f.key}
           contentContainerStyle={styles.lista}
+          initialNumToRender={6}
+          windowSize={7}
+          removeClippedSubviews
           refreshControl={
             <RefreshControl refreshing={isGenerando} onRefresh={generarCarrito} tintColor={colors.primary} />
           }
-          renderItem={({ item: grupo }) => {
-            const itemsGrupo = pendientes.filter((i) => i.prioridad === grupo.key);
-            if (itemsGrupo.length === 0) return null;
-            return (
-              <View style={styles.grupo}>
-                <Text style={styles.grupoTitulo}>{grupo.label}</Text>
-                {itemsGrupo.map((item) => (
-                  <ItemCarritoCard
-                    key={item.id}
-                    item={item}
-                    onAceptar={() => aceptarItem(item.id)}
-                    onRechazar={() => rechazarItem(item.id)}
-                    onNoVolver={() => marcarNoVolver(item.id)}
-                    onModificarCantidad={(cantidad, unidad) => modificarCantidad(item.id, cantidad, unidad)}
-                  />
-                ))}
-              </View>
-            );
-          }}
+          renderItem={({ item: fila }) =>
+            fila.tipo === 'header' ? (
+              <Text style={styles.grupoTitulo}>{fila.label}</Text>
+            ) : (
+              <ItemCarritoCard
+                item={fila.item}
+                onAceptar={() => aceptarItem(fila.item.id)}
+                onRechazar={() => rechazarItem(fila.item.id)}
+                onNoVolver={() => marcarNoVolver(fila.item.id)}
+                onModificarCantidad={(cantidad, unidad) => modificarCantidad(fila.item.id, cantidad, unidad)}
+              />
+            )
+          }
           ListEmptyComponent={<EmptyTab tab="recomendaciones" />}
         />
       ) : (
@@ -186,6 +256,9 @@ export function CarritoScreen() {
           data={dataTab}
           keyExtractor={(i) => i.id}
           contentContainerStyle={styles.lista}
+          initialNumToRender={6}
+          windowSize={7}
+          removeClippedSubviews
           refreshControl={
             <RefreshControl refreshing={isLoading} onRefresh={cargarCarrito} tintColor={colors.primary} />
           }
@@ -200,19 +273,28 @@ export function CarritoScreen() {
         />
       )}
 
-      <Pressable style={styles.fab} onPress={() => setModalManual(true)}>
-        <Ionicons name="add" size={28} color={colors.white} />
-      </Pressable>
-
       <View style={styles.footer}>
-        <Pressable
-          style={[styles.btnFooterLista, aceptados.length === 0 && styles.btnDisabled]}
-          onPress={handleGenerarLista}
-          disabled={aceptados.length === 0}
-        >
-          <Ionicons name="list-outline" size={18} color={colors.white} />
-          <Text style={styles.btnFooterListaText}>Generar lista de compra</Text>
-        </Pressable>
+        {tab === 'rechazados' && rechazados.length > 0 ? (
+          <Pressable
+            style={styles.btnFooterEliminar}
+            onPress={handleEliminarRechazados}
+            testID="btn-eliminar-rechazados"
+          >
+            <Ionicons name="trash-outline" size={18} color={colors.error} />
+            <Text style={styles.btnFooterEliminarText}>
+              Eliminar rechazados ({rechazados.length})
+            </Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            style={[styles.btnFooterLista, aceptados.length === 0 && styles.btnDisabled]}
+            onPress={handleGenerarLista}
+            disabled={aceptados.length === 0}
+          >
+            <Ionicons name="list-outline" size={18} color={colors.white} />
+            <Text style={styles.btnFooterListaText}>Generar lista de compra</Text>
+          </Pressable>
+        )}
       </View>
 
       <Modal
@@ -259,8 +341,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     backgroundColor: colors.white,
   },
-  backBtn: { width: 24 },
-  titulo: { ...typography.heading2, color: colors.text.primary, flex: 1, textAlign: 'center' },
+  iconBtn: { minWidth: 28, alignItems: 'center', justifyContent: 'center' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  titulo: { ...typography.heading2, color: colors.text.primary, flex: 1, marginLeft: spacing.sm },
   resumenWrapper: {
     padding: spacing.md,
     paddingBottom: spacing.sm,
@@ -290,10 +373,10 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   lista: { paddingHorizontal: spacing.md, paddingBottom: spacing.xxxl, flexGrow: 1 },
-  grupo: { marginBottom: spacing.md },
   grupoTitulo: {
     ...typography.label,
     color: colors.text.secondary,
+    marginTop: spacing.md,
     marginBottom: spacing.sm,
   },
   centered: {
@@ -325,24 +408,23 @@ const styles = StyleSheet.create({
     ...typography.button,
     color: colors.white,
   },
-  btnDisabled: {
-    opacity: 0.4,
-  },
-  fab: {
-    position: 'absolute',
-    right: spacing.lg,
-    bottom: 116,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
+  btnFooterEliminar: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
+    gap: spacing.sm,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.error,
+    borderRadius: borderRadius.xl,
+    paddingVertical: spacing.md,
+  },
+  btnFooterEliminarText: {
+    ...typography.button,
+    color: colors.error,
+  },
+  btnDisabled: {
+    opacity: 0.4,
   },
   modalContainer: {
     flex: 1,

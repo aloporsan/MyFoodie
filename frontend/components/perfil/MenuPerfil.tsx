@@ -129,6 +129,11 @@ export function MenuPerfil() {
       onPress: () => router.push('/perfil/estadisticas'),
     },
     {
+      icono: 'help-circle-outline',
+      label: 'Cómo funciona MyFoodie',
+      onPress: () => router.push('/perfil/ayuda'),
+    },
+    {
       icono: 'log-out-outline',
       label: 'Cerrar sesión',
       onPress: handleCerrarSesion,

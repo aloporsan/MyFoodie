@@ -68,7 +68,8 @@ export type MotivoEliminacion =
   | 'usado_en_receta'
   | 'donado'
   | 'perdido'
-  | 'otro';
+  | 'otro'
+  | 'error_tipografia';
 
 export interface MovimientoProducto {
   id: string;
@@ -111,6 +112,13 @@ export const despensaService = {
   ): Promise<void> => {
     const body = motivo ? { motivo, motivoDetalle } : undefined;
     await apiClient.delete(`/despensa/productos/${id}`, { data: body });
+  },
+
+  vaciarDespensa: async (): Promise<number> => {
+    const { data } = await apiClient.delete<{ productosEliminados: number }>(
+      '/despensa/productos/vaciar'
+    );
+    return data.productosEliminados;
   },
 
   obtenerHistorial: async (id: string): Promise<MovimientoProducto[]> => {

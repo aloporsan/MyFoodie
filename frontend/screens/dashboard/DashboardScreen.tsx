@@ -16,7 +16,6 @@ import {
   DashboardEmptyState,
   EstadisticasCard,
   ListaEnCursoCard,
-  RecetasRecomendadasCard,
   ResumenDespensaCard,
 } from '@/components/dashboard';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
@@ -33,7 +32,6 @@ export function DashboardScreen() {
   const {
     resumen,
     estadisticas,
-    recetasRecomendadas,
     isLoading,
     error,
     cargarDashboard,
@@ -95,7 +93,6 @@ export function DashboardScreen() {
           )}
           {resumen && <ResumenDespensaCard resumen={resumen} />}
           <CarritoResumenCard resumen={carritoResumen} onPress={() => router.push('/carrito')} />
-          {recetasRecomendadas && <RecetasRecomendadasCard />}
           {estadisticas && <EstadisticasCard estadisticas={estadisticas} />}
         </ScrollView>
       )}

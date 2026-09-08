@@ -210,4 +210,42 @@ class UnidadNormalizadorServiceTest {
     void convertirCantidad_unidad_no_convertible_devuelve_empty() {
         assertThat(service.convertirCantidad(3, "unidad", "kg")).isEmpty();
     }
+
+    // -------------------------------------------------------------------------
+    // familia / cantidadComparable (C7 — comparar unidades por familia)
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("familia clasifica peso, volumen, conteo y desconocida")
+    void familia_clasifica_unidades() {
+        assertThat(service.familia("kg")).isEqualTo(UnidadNormalizadorService.FamiliaUnidad.PESO);
+        assertThat(service.familia("gr")).isEqualTo(UnidadNormalizadorService.FamiliaUnidad.PESO);
+        assertThat(service.familia("ML")).isEqualTo(UnidadNormalizadorService.FamiliaUnidad.VOLUMEN);
+        assertThat(service.familia("dientes")).isEqualTo(UnidadNormalizadorService.FamiliaUnidad.CONTEO);
+        assertThat(service.familia("")).isEqualTo(UnidadNormalizadorService.FamiliaUnidad.CONTEO);
+        assertThat(service.familia(null)).isEqualTo(UnidadNormalizadorService.FamiliaUnidad.CONTEO);
+        assertThat(service.familia("chorro")).isEqualTo(UnidadNormalizadorService.FamiliaUnidad.DESCONOCIDA);
+    }
+
+    @Test
+    @DisplayName("cantidadComparable convierte el valor dentro de la familia de peso")
+    void cantidadComparable_convierte_peso() {
+        assertThat(service.cantidadComparable(1, "kg", "g")).contains(1000.0);
+        assertThat(service.cantidadComparable(500, "g", "kg")).contains(0.5);
+    }
+
+    @Test
+    @DisplayName("cantidadComparable en la familia de conteo compara los números tal cual")
+    void cantidadComparable_conteo_sin_conversion() {
+        // 1 unidad de ajo cuenta como 1 frente a un ingrediente medido en dientes.
+        assertThat(service.cantidadComparable(1, "unidad", "dientes")).contains(1.0);
+        assertThat(service.cantidadComparable(2, "rebanadas", "unidades")).contains(2.0);
+    }
+
+    @Test
+    @DisplayName("cantidadComparable devuelve empty entre familias distintas")
+    void cantidadComparable_familias_distintas_empty() {
+        assertThat(service.cantidadComparable(200, "g", "unidad")).isEmpty();
+        assertThat(service.cantidadComparable(1, "l", "diente")).isEmpty();
+    }
 }

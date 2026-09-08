@@ -29,6 +29,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -83,12 +85,24 @@ public class PerfilService {
         Preferencias pref = preferenciasRepository.findByUsuarioId(usuarioId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Preferencias no encontradas"));
 
-        if (dto.tipoDieta() != null) pref.setTipoDieta(dto.tipoDieta());
-        if (dto.alergias() != null) pref.setAlergenos(dto.alergias());
-        if (dto.ingredientesNoDeseados() != null) pref.setIngredientesNoDeseados(dto.ingredientesNoDeseados());
-        if (dto.nivelDificultad() != null) pref.setNivelDificultad(dto.nivelDificultad());
-        if (dto.tiempoCoccionMax() != null) pref.setTiempoCoccionMax(dto.tiempoCoccionMax());
+        // La pantalla de preferencias es un formulario completo: siempre manda todos los
+        // campos, así que este PUT reemplaza el bloque entero. Un valor nulo/"Ninguna"
+        // significa "sin restricción" y debe poder limpiar lo que hubiera antes (si solo
+        // asignáramos cuando != null, el usuario nunca podría quitar una alergia o dieta).
+        String tipoDieta = normalizarTipoDieta(dto.tipoDieta());
+        pref.setTipoDieta(tipoDieta);
+        pref.setAlergenos(dto.alergias() != null ? dto.alergias() : new java.util.ArrayList<>());
+        pref.setIngredientesNoDeseados(dto.ingredientesNoDeseados());
+        pref.setNivelDificultad("Cualquiera".equalsIgnoreCase(dto.nivelDificultad()) ? null : dto.nivelDificultad());
+        pref.setTiempoCoccionMax(dto.tiempoCoccionMax());
         if (dto.stockMinimoGlobal() != null) pref.setStockMinimoGlobal(dto.stockMinimoGlobal());
+
+        // Mantiene sincronizados los flags booleanos que usan otros flujos (onboarding, feed)
+        // con la dieta elegida por texto.
+        String dietaNorm = tipoDieta == null ? "" : tipoDieta.trim().toLowerCase(java.util.Locale.ROOT);
+        pref.setVegetariano(dietaNorm.startsWith("vegetarian") || dietaNorm.startsWith("vegan"));
+        pref.setVegano(dietaNorm.startsWith("vegan"));
+        pref.setSinGluten(dietaNorm.contains("sin gluten"));
 
         return toPreferenciasDTO(preferenciasRepository.save(pref));
     }
@@ -176,6 +190,7 @@ public class PerfilService {
                 totalRecetasGuardadas,
                 aprovechamientoDespensa,
                 usuario.getFechaRegistro(),
+                calcularDiasEnMyFoodie(usuario.getFechaRegistro()),
                 motivos
         );
     }
@@ -209,25 +224,37 @@ public class PerfilService {
         usuarioRepository.save(usuario);
     }
 
+    // Días transcurridos desde el registro. Se calcula en el servidor (y no en el cliente a
+    // partir de fechaRegistro) para que el dato sea fiable aunque la pantalla aún no tenga
+    // cargado el perfil completo.
+    private int calcularDiasEnMyFoodie(LocalDateTime fechaRegistro) {
+        if (fechaRegistro == null) {
+            return 0;
+        }
+        long dias = ChronoUnit.DAYS.between(fechaRegistro.toLocalDate(), LocalDate.now());
+        return (int) Math.max(0, dias);
+    }
+
     private EstadisticasPerfilDTO.MotivosEliminacion calcularMotivosEliminacion(String usuarioId, Despensa despensa) {
         if (despensa == null) {
-            return new EstadisticasPerfilDTO.MotivosEliminacion(0, 0, 0, 0, 0, 0);
+            return new EstadisticasPerfilDTO.MotivosEliminacion(0, 0, 0, 0, 0, 0, 0);
         }
         var eliminados = movimientoRepository.findByDespensaIdAndTipo(despensa.getId(), "eliminado");
-        int consumido = 0, caducado = 0, usado_en_receta = 0, donado = 0, perdido = 0, otro = 0;
+        int consumido = 0, caducado = 0, usado_en_receta = 0, donado = 0, perdido = 0, otro = 0, errorTipografia = 0;
         for (var m : eliminados) {
             if (m.getMotivo() == null) continue;
             switch (m.getMotivo()) {
-                case "consumido"      -> consumido++;
-                case "caducado"       -> caducado++;
-                case "usado_en_receta"-> usado_en_receta++;
-                case "donado"         -> donado++;
-                case "perdido"        -> perdido++;
-                case "otro"           -> otro++;
+                case "consumido"        -> consumido++;
+                case "caducado"         -> caducado++;
+                case "usado_en_receta"  -> usado_en_receta++;
+                case "donado"           -> donado++;
+                case "perdido"          -> perdido++;
+                case "otro"             -> otro++;
+                case "error_tipografia" -> errorTipografia++;
             }
         }
         return new EstadisticasPerfilDTO.MotivosEliminacion(
-                consumido, caducado, usado_en_receta, donado, perdido, otro);
+                consumido, caducado, usado_en_receta, donado, perdido, otro, errorTipografia);
     }
 
     private PerfilResponseDTO toPerfilResponse(Usuario usuario) {
@@ -240,6 +267,14 @@ public class PerfilService {
                 usuario.getBiografia(),
                 usuario.getFechaRegistro()
         );
+    }
+
+    // "Ninguna" (o vacío) desde la UI = sin dieta concreta -> se guarda como null.
+    private String normalizarTipoDieta(String tipoDieta) {
+        if (tipoDieta == null || tipoDieta.isBlank() || "Ninguna".equalsIgnoreCase(tipoDieta.trim())) {
+            return null;
+        }
+        return tipoDieta.trim();
     }
 
     private PreferenciasUpdateDTO toPreferenciasDTO(Preferencias pref) {

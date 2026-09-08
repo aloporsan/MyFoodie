@@ -52,6 +52,7 @@ public class DespensaService {
     private final CarritoInteligenteService carritoInteligenteService;
     private final UnidadNormalizadorService unidadNormalizadorService;
     private final NotificacionService notificacionService;
+    private final MatchingService matchingService;
 
     // -------------------------------------------------------------------------
     // CRUD básico
@@ -61,8 +62,12 @@ public class DespensaService {
         Despensa despensa = getDespensaDeUsuario(usuarioId);
         int globalUmbral = obtenerGlobalUmbral(usuarioId);
 
-        List<Producto> similares = productoRepository
-                .findByDespensaIdAndNombreContainingIgnoreCase(despensa.getId(), dto.nombre().trim());
+        // Aviso de posible duplicado: mismo motor de matching (Jaro-Winkler + sinónimos) y mismo
+        // umbral que la pantalla de duplicados de la despensa, en vez de una comparación por
+        // substring que no detecta "Leche" vs "Leche entera" ni erratas.
+        List<Producto> similares = productoRepository.findByDespensaId(despensa.getId()).stream()
+                .filter(p -> matchingService.esPosibleDuplicado(dto.nombre().trim(), p.getNombre()))
+                .toList();
 
         UnidadConvertidaDTO normalizado = unidadNormalizadorService.normalizarUnidades(dto.cantidad(), dto.unidad());
 
@@ -80,7 +85,22 @@ public class DespensaService {
                 .stockMinimo(dto.stockMinimo())
                 .build();
 
+        producto.setTieneLotes(true);
         Producto saved = productoRepository.save(producto);
+
+        // La gestión por lotes es obligatoria: todo producto nace con su primer lote, así el
+        // total del producto es siempre la suma de sus lotes y no hay un camino "sin lotes".
+        loteProductoRepository.save(LoteProducto.builder()
+                .productoId(saved.getId())
+                .despensaId(despensa.getId())
+                .usuarioId(usuarioId)
+                .cantidad((float) saved.getCantidad())
+                .unidad(saved.getUnidad())
+                .fechaCaducidad(saved.getFechaCaducidad())
+                .fechaCompra(saved.getFechaCompra() != null ? saved.getFechaCompra() : LocalDate.now())
+                .origen("manual")
+                .build());
+
         actualizarDespensa(despensa);
         registrarMovimiento(saved, usuarioId, "añadido", "Producto añadido a la despensa",
                 null, saved.getCantidad(), null, null);
@@ -122,10 +142,14 @@ public class DespensaService {
         Producto p = getProductoDeUsuario(despensa.getId(), productoId);
 
         p.setNombre(dto.nombre());
-        p.setCantidad(dto.cantidad());
+        // En un producto por lotes la cantidad y la caducidad son derivadas (suma de lotes /
+        // lote más próximo): se gestionan desde la sección de lotes, no desde este formulario.
+        if (!Boolean.TRUE.equals(p.getTieneLotes())) {
+            p.setCantidad(dto.cantidad());
+            p.setFechaCaducidad(dto.fechaCaducidad());
+        }
         p.setUnidad(dto.unidad());
         p.setCategoria(dto.categoria());
-        p.setFechaCaducidad(dto.fechaCaducidad());
         p.setFechaCompra(dto.fechaCompra());
         p.setMarca(dto.marca());
         p.setNotas(dto.notas());
@@ -152,6 +176,29 @@ public class DespensaService {
         carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
     }
 
+    // Borrado masivo de toda la despensa. Deja rastro en el historial (un movimiento
+    // "eliminado" por producto con motivo "vaciado_despensa", que no cuenta como
+    // desperdicio en las estadísticas) y limpia los lotes asociados de una vez.
+    public int vaciarDespensa(String usuarioId) {
+        Despensa despensa = getDespensaDeUsuario(usuarioId);
+        List<Producto> productos = productoRepository.findByDespensaId(despensa.getId());
+        if (productos.isEmpty()) {
+            return 0;
+        }
+
+        for (Producto p : productos) {
+            registrarMovimiento(p, usuarioId, "eliminado", "Despensa vaciada por completo",
+                    p.getCantidad(), null, "vaciado_despensa", null);
+        }
+
+        loteProductoRepository.deleteByDespensaId(despensa.getId());
+        productoRepository.deleteAll(productos);
+        actualizarDespensa(despensa);
+        carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
+
+        return productos.size();
+    }
+
     public ProductoResponseDTO actualizarCantidad(String usuarioId, String productoId,
                                                    ProductoUpdateCantidadDTO dto) {
         return actualizarCantidad(usuarioId, productoId, dto, true);
@@ -172,6 +219,43 @@ public class DespensaService {
             }
             Producto actualizado = getProductoDeUsuario(despensa.getId(), productoId);
             return toDTO(actualizado, null, resolverUmbral(actualizado, globalUmbral), consumos);
+        }
+
+        // Sumar en un producto por lotes tiene que ir a un lote concreto, si no el total del
+        // producto se desincroniza de la suma de sus lotes. Se añade al lote que caduca más
+        // tarde (el menos urgente); si no hubiera ninguno, se crea uno nuevo.
+        if (Boolean.TRUE.equals(p.getTieneLotes()) && dto.delta() > 0) {
+            double antes = p.getCantidad();
+            List<LoteProducto> lotes = loteProductoRepository.findByProductoIdOrderByFechaCaducidadAsc(productoId);
+            float deltaFloat = dto.delta().floatValue();
+            if (lotes.isEmpty()) {
+                loteProductoRepository.save(LoteProducto.builder()
+                        .productoId(productoId)
+                        .despensaId(despensa.getId())
+                        .usuarioId(usuarioId)
+                        .cantidad(deltaFloat)
+                        .unidad(p.getUnidad())
+                        .fechaCompra(LocalDate.now())
+                        .origen("manual")
+                        .build());
+            } else {
+                LoteProducto destino = lotes.get(lotes.size() - 1);
+                Float cantidadDestino = destino.getCantidad();
+                destino.setCantidad((cantidadDestino != null ? cantidadDestino : 0f) + deltaFloat);
+                destino.setUpdatedAt(LocalDateTime.now());
+                loteProductoRepository.save(destino);
+            }
+            recalcularAgregadoDesdeLotes(p);
+            Producto guardado = productoRepository.save(p);
+            actualizarDespensa(despensa);
+            String desc = dto.descripcion() != null ? dto.descripcion() : "Cantidad actualizada";
+            registrarMovimiento(guardado, usuarioId, "cantidad_actualizada", desc,
+                    antes, guardado.getCantidad(), dto.motivo(), dto.motivoDetalle());
+            if (actualizarCarrito) {
+                carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
+                notificacionService.generarNotificacionesCaducidad(usuarioId);
+            }
+            return toDTO(guardado, null, resolverUmbral(guardado, globalUmbral));
         }
 
         double cantidadAnterior = p.getCantidad();
@@ -404,7 +488,8 @@ public class DespensaService {
         float totalDisponible = lotes.stream().map(LoteProducto::getCantidad).filter(Objects::nonNull)
                 .reduce(0f, Float::sum);
         if (cantidadAConsumir > totalDisponible) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "La cantidad no puede ser negativa");
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "No puedes consumir más de lo que hay repartido en los lotes");
         }
 
         List<ConsumoLoteDTO> consumos = new ArrayList<>();
@@ -413,7 +498,8 @@ public class DespensaService {
             if (restante <= 0) {
                 break;
             }
-            float disponibleLote = lote.getCantidad() != null ? lote.getCantidad() : 0f;
+            Float cantidadLote = lote.getCantidad();
+            float disponibleLote = cantidadLote != null ? cantidadLote : 0f;
             if (disponibleLote <= 0) {
                 continue;
             }
@@ -531,7 +617,8 @@ public class DespensaService {
     }
 
     private String calcularEstadoLote(LoteProducto lote, Integer dias) {
-        float cantidad = lote.getCantidad() != null ? lote.getCantidad() : 0f;
+        Float cantidadLote = lote.getCantidad();
+        float cantidad = cantidadLote != null ? cantidadLote : 0f;
         if (cantidad <= 0) {
             return "sin_stock";
         }
@@ -626,7 +713,8 @@ public class DespensaService {
     }
 
     private int resolverUmbral(Producto p, int globalUmbral) {
-        return p.getStockMinimo() != null ? p.getStockMinimo() : globalUmbral;
+        Integer stockMinimo = p.getStockMinimo();
+        return stockMinimo != null ? stockMinimo : globalUmbral;
     }
 
     private void registrarMovimiento(Producto p, String usuarioId, String tipo, String descripcion,

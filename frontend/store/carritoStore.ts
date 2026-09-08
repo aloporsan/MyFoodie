@@ -41,6 +41,7 @@ interface CarritoActions {
   añadirItemManual: (datos: ItemCarritoInput) => Promise<void>;
   añadirYAceptarItemManual: (datos: ItemCarritoInput) => Promise<void>;
   eliminarItem: (id: string) => Promise<void>;
+  eliminarItemsRechazados: () => Promise<void>;
   generarListaCompra: (nombre?: string) => Promise<ListaCompra>;
   cargarListas: () => Promise<void>;
   cargarLista: (id: string) => Promise<void>;
@@ -132,9 +133,14 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
     );
     set({ error: null, items: itemsOptimistas, resumen: calcularResumen(itemsOptimistas) });
 
+    // Solo interesa reconciliar si el servidor devolvió algo distinto del estado optimista:
+    // así se evita un segundo re-render de toda la lista medio segundo después (se nota como
+    // un tirón en móviles con poca RAM).
     carritoService.aceptarItem(id)
       .then((actualizado) => {
         set((s) => {
+          const actual = s.items.find((i) => i.id === id);
+          if (actual && actual.estado === actualizado.estado) return s;
           const items = s.items.map((i) => (i.id === id ? actualizado : i));
           return { items, resumen: calcularResumen(items) };
         });
@@ -159,6 +165,8 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
     carritoService.rechazarItem(id)
       .then((actualizado) => {
         set((s) => {
+          const actual = s.items.find((i) => i.id === id);
+          if (actual && actual.estado === actualizado.estado) return s;
           const items = s.items.map((i) => (i.id === id ? actualizado : i));
           return { items, resumen: calcularResumen(items) };
         });
@@ -276,6 +284,19 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
       });
     } catch (e) {
       set({ error: handleApiError(e) });
+      throw e;
+    }
+  },
+
+  eliminarItemsRechazados: async () => {
+    const snapshotItems = get().items;
+    // Actualización optimista: quita los rechazados de la lista al instante.
+    const itemsOptimistas = snapshotItems.filter((i) => i.estado !== 'rechazado');
+    set({ error: null, items: itemsOptimistas, resumen: calcularResumen(itemsOptimistas) });
+    try {
+      await carritoService.eliminarItemsRechazados();
+    } catch (e) {
+      set({ error: handleApiError(e), items: snapshotItems, resumen: calcularResumen(snapshotItems) });
       throw e;
     }
   },

@@ -2,7 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { authService } from '@/services/authService';
-import { setTokenGetter } from '@/services/apiClient';
+import { setTokenGetter, setUnauthorizedHandler } from '@/services/apiClient';
+import { useToastStore } from '@/hooks/useToast';
 import { handleApiError } from '@/utils/errorHandler';
 
 // El tour de bienvenida (5 pantallas) se muestra una sola vez por dispositivo.
@@ -128,3 +129,13 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 );
 
 setTokenGetter(() => useAuthStore.getState().token);
+
+// Si el backend rechaza una petición autenticada por token caducado/inválido,
+// se cierra la sesión: el guard de navegación (app/_layout) redirige al login
+// automáticamente y se avisa al usuario con un toast.
+setUnauthorizedHandler(() => {
+  const { isAuthenticated, logout } = useAuthStore.getState();
+  if (!isAuthenticated) return;
+  void logout();
+  useToastStore.getState().show('warning', 'Tu sesión ha expirado. Vuelve a iniciar sesión.');
+});

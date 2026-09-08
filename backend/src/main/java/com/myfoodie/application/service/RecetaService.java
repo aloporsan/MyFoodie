@@ -31,7 +31,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -65,6 +64,7 @@ public class RecetaService {
         if (dto.titulo() == null || dto.titulo().isBlank())
             throw new ApiException(HttpStatus.BAD_REQUEST, "El título es obligatorio");
 
+        Integer numPersonas = dto.numPersonas();
         Receta receta = Receta.builder()
                 .autorId(usuarioId)
                 .titulo(dto.titulo())
@@ -74,7 +74,7 @@ public class RecetaService {
                 .categoria(dto.categoria())
                 .etiquetas(dto.etiquetas() != null ? dto.etiquetas() : new ArrayList<>())
                 .imagenUrl(dto.imagenUrl())
-                .numPersonas(dto.numPersonas() != null ? dto.numPersonas() : 2)
+                .numPersonas(numPersonas != null ? numPersonas : 2)
                 .estado("borrador")
                 .visibilidad(dto.visibilidad() != null ? dto.visibilidad() : VisibilidadReceta.PUBLICA)
                 .build();
@@ -132,7 +132,8 @@ public class RecetaService {
         receta.setCategoria(dto.categoria());
         receta.setEtiquetas(dto.etiquetas() != null ? dto.etiquetas() : new ArrayList<>());
         receta.setImagenUrl(dto.imagenUrl());
-        receta.setNumPersonas(dto.numPersonas() != null ? dto.numPersonas() : 2);
+        Integer numPersonas = dto.numPersonas();
+        receta.setNumPersonas(numPersonas != null ? numPersonas : 2);
         if (dto.visibilidad() != null) {
             receta.setVisibilidad(dto.visibilidad());
         }
@@ -404,8 +405,14 @@ public class RecetaService {
         Producto producto = match.producto();
         boolean enDespensa = producto != null;
 
-        boolean comparable = enDespensa && unidadesCompatibles(normalizado.unidadConvertida(), producto.getUnidad());
-        double disponible = comparable ? producto.getCantidad() : 0;
+        // Disponibilidad comparada por familia de unidad (peso/volumen se convierten, conteo se
+        // compara tal cual); empty si las unidades no son comparables (p. ej. "g" contra "unidad").
+        Optional<Double> disponibleComparable = producto != null
+                ? unidadNormalizadorService.cantidadComparable(
+                        producto.getCantidad(), producto.getUnidad(), normalizado.unidadConvertida())
+                : Optional.empty();
+        boolean comparable = disponibleComparable.isPresent();
+        double disponible = disponibleComparable.orElse(0d);
         boolean suficiente = comparable && disponible >= cantidadCalculada;
         boolean noComparable = enDespensa && !comparable;
 
@@ -414,10 +421,6 @@ public class RecetaService {
                 enDespensa, disponible, suficiente, noComparable, match.tipoMatch(),
                 producto != null ? producto.getId() : null,
                 producto != null ? producto.getNombre() : null);
-    }
-
-    private boolean unidadesCompatibles(String unidadIngrediente, String unidadProducto) {
-        return normalizar(unidadIngrediente).equals(normalizar(unidadProducto));
     }
 
     private ProductoMatchResult buscarProductoCoincidente(List<Producto> productos, String nombreIngrediente) {
@@ -435,10 +438,6 @@ public class RecetaService {
     }
 
     private record ProductoMatchResult(Producto producto, TipoMatch tipoMatch) {}
-
-    private String normalizar(String texto) {
-        return texto == null ? "" : texto.trim().toLowerCase(Locale.ROOT);
-    }
 
     // -------------------------------------------------------------------------
     // Etiquetas e imagen
@@ -488,6 +487,8 @@ public class RecetaService {
             errores.add("La dificultad es obligatoria");
         if (receta.getCategoria() == null || receta.getCategoria().isBlank())
             errores.add("La categoría es obligatoria");
+        if (receta.getImagenUrl() == null || receta.getImagenUrl().isBlank())
+            errores.add("La receta debe tener al menos una foto");
         if (ingredienteRepository.findByRecetaId(recetaId).isEmpty())
             errores.add("La receta debe tener al menos un ingrediente");
         if (pasoRepository.findByRecetaIdOrderByOrdenAsc(recetaId).isEmpty())

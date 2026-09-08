@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
@@ -54,6 +54,17 @@ export function FeedScreen() {
     cargarFeed();
     cargarPerfilGustos();
   }, []);
+
+  // Si algo invalidó el pool de recetas (p. ej. cambiaste las preferencias alimentarias),
+  // el feed se recarga desde cero al volver a esta pantalla.
+  useFocusEffect(
+    useCallback(() => {
+      if (useFeedStore.getState().feedObsoleto) {
+        cargarFeed(useFeedStore.getState().fuente);
+        cargarPerfilGustos();
+      }
+    }, [cargarFeed, cargarPerfilGustos]),
+  );
 
   useEffect(() => {
     if (error) {

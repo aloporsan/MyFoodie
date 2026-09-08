@@ -28,6 +28,11 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<!--
+			Default vacío para que el @{argLine} de surefire resuelva siempre.
+			jacoco:prepare-agent (perfil "coverage") lo sobrescribe en tiempo de ejecución.
+		-->
+		<argLine></argLine>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -187,11 +192,58 @@
 						"Could not self-attach to current VM" en entornos donde el proceso no
 						tiene permiso para auto-adjuntarse (y el propio JDK lo está deprecando).
 						Cargándolo como javaagent real desde el arranque evita el auto-adjunto.
+
+						@{argLine} inyecta el agente de jacoco cuando el perfil "coverage" está
+						activo; sin él resuelve a vacío (ver la propiedad argLine del perfil).
 					-->
-					<argLine>-javaagent:${org.mockito:mockito-core:jar} -XX:+EnableDynamicAgentLoading</argLine>
+					<argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar} -XX:+EnableDynamicAgentLoading</argLine>
 				</configuration>
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<!--
+			Perfil de cobertura. NO se activa por defecto: en máquinas con poca RAM el agente
+			extra de jacoco provoca compilaciones parciales (faltan clases $Builder de Lombok).
+			Lo activa el CI, que tiene memoria de sobra:  mvn test -Pcoverage
+		-->
+		<profile>
+			<id>coverage</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.jacoco</groupId>
+						<artifactId>jacoco-maven-plugin</artifactId>
+						<version>0.8.13</version>
+						<executions>
+							<execution>
+								<id>jacoco-prepare-agent</id>
+								<goals>
+									<goal>prepare-agent</goal>
+								</goals>
+							</execution>
+							<execution>
+								<id>jacoco-report</id>
+								<phase>test</phase>
+								<goals>
+									<goal>report</goal>
+								</goals>
+							</execution>
+						</executions>
+						<configuration>
+							<excludes>
+								<!-- DTOs, modelos de dominio y datos semilla no tienen lógica testeable -->
+								<exclude>com/myfoodie/application/dto/**</exclude>
+								<exclude>com/myfoodie/domain/model/**</exclude>
+								<exclude>com/myfoodie/infrastructure/seed/**</exclude>
+								<exclude>com/myfoodie/MyfoodieApplication.class</exclude>
+							</excludes>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 
 </project>

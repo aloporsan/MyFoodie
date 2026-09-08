@@ -22,7 +22,6 @@ import java.util.Map;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -319,7 +318,9 @@ class CompartirControllerIntegrationTest {
                 "descripcion", "Descripción de prueba",
                 "tiempoEstimado", 10,
                 "dificultad", "facil",
-                "categoria", "entrante"
+                "categoria", "entrante",
+                // B5: la foto es obligatoria para publicar
+                "imagenUrl", "https://example.com/receta.jpg"
         ));
     }
 }

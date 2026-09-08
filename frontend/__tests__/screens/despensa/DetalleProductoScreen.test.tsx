@@ -35,12 +35,12 @@ const mockBack = jest.fn();
 const mockActualizarCantidad = jest.fn();
 const mockEliminarProducto = jest.fn();
 const mockCargarHistorial = jest.fn();
-const mockCargarLotes = jest.fn();
-const mockActivarLotes = jest.fn();
-const mockAñadirLote = jest.fn();
-const mockEditarLote = jest.fn();
-const mockEliminarLote = jest.fn();
-const mockCompactarLotes = jest.fn();
+const mockCargarLotes = jest.fn().mockResolvedValue(undefined);
+const mockActivarLotes = jest.fn().mockResolvedValue(undefined);
+const mockAñadirLote = jest.fn().mockResolvedValue(undefined);
+const mockEditarLote = jest.fn().mockResolvedValue(undefined);
+const mockEliminarLote = jest.fn().mockResolvedValue(undefined);
+const mockCompactarLotes = jest.fn().mockResolvedValue(undefined);
 
 const mockProducto = {
   id: 'prod-1',
@@ -96,11 +96,21 @@ const storeBase = {
   compactarLotes: mockCompactarLotes,
 };
 
+// El hook useControlCantidadProducto lee el store con selectores; el mock debe aplicarlos.
+let storeState: typeof storeBase;
+const setStore = (overrides: Record<string, unknown> = {}) => {
+  storeState = { ...storeBase, ...overrides } as typeof storeBase;
+};
+
 beforeEach(() => {
   jest.clearAllMocks();
+  setStore();
   (useRouter as jest.Mock).mockReturnValue({ push: mockPush, back: mockBack });
   (useLocalSearchParams as jest.Mock).mockReturnValue({ id: 'prod-1' });
-  (useDespensaStore as unknown as jest.Mock).mockReturnValue(storeBase);
+  (useDespensaStore as unknown as jest.Mock).mockImplementation((selector?: (s: typeof storeBase) => unknown) =>
+    typeof selector === 'function' ? selector(storeState) : storeState,
+  );
+  (useDespensaStore as unknown as { getState: () => typeof storeBase }).getState = () => storeState;
   mockActualizarCantidad.mockResolvedValue({ ...mockProducto, consumosFifo: null });
   useConfirmStore.setState({
     visible: false, title: '', message: undefined, icon: undefined, variant: 'default', buttons: [],
@@ -128,8 +138,7 @@ it('renderiza_el_historial_con_delta_chip_negativo', () => {
 });
 
 it('renderiza_delta_chip_positivo_cuando_la_cantidad_aumenta', () => {
-  (useDespensaStore as unknown as jest.Mock).mockReturnValue({
-    ...storeBase,
+  setStore({
     historialProducto: [
       { ...mockHistorial[0], cantidadAnterior: 1, cantidadNueva: 4 },
     ],
@@ -139,10 +148,7 @@ it('renderiza_delta_chip_positivo_cuando_la_cantidad_aumenta', () => {
 });
 
 it('no_renderiza_seccion_historial_si_esta_vacio', () => {
-  (useDespensaStore as unknown as jest.Mock).mockReturnValue({
-    ...storeBase,
-    historialProducto: [],
-  });
+  setStore({ historialProducto: [] });
   const { queryByText } = render(<DetalleProductoScreen />);
   expect(queryByText('Historial')).toBeNull();
 });
@@ -155,19 +161,18 @@ it('abre_CantidadMotivoSheet_en_modo_restar_al_pulsar_menos', () => {
   expect(getByText('¿Cuánto has usado?')).toBeTruthy();
 });
 
-it('abre_CantidadMotivoSheet_en_modo_sumar_al_pulsar_mas', () => {
-  const { getByText, UNSAFE_getAllByType } = render(<DetalleProductoScreen />);
+it('pulsar_mas_abre_el_selector_de_lote', () => {
+  // Al sumar siempre se elige/crea un lote; ya no hay un sheet de cantidad directo.
+  const { getByText, queryByText, UNSAFE_getAllByType } = render(<DetalleProductoScreen />);
   const iconos = UNSAFE_getAllByType('Ionicons' as any);
   const btnMas = iconos.find((i: any) => i.props.name === 'add');
   fireEvent.press(btnMas!.parent as any);
-  expect(getByText('¿Cuánto añades?')).toBeTruthy();
+  expect(getByText('¿A qué lote añades stock?')).toBeTruthy();
+  expect(queryByText('¿Cuánto añades?')).toBeNull();
 });
 
 it('boton_menos_deshabilitado_cuando_cantidad_es_cero', () => {
-  (useDespensaStore as unknown as jest.Mock).mockReturnValue({
-    ...storeBase,
-    productos: [{ ...mockProducto, cantidad: 0 }],
-  });
+  setStore({ productos: [{ ...mockProducto, cantidad: 0 }] });
   const { queryByText, UNSAFE_getAllByType } = render(<DetalleProductoScreen />);
   const iconos = UNSAFE_getAllByType('Ionicons' as any);
   const btnMenos = iconos.find((i: any) => i.props.name === 'remove');
@@ -175,15 +180,13 @@ it('boton_menos_deshabilitado_cuando_cantidad_es_cero', () => {
   expect(queryByText('¿Cuánto has usado?')).toBeNull();
 });
 
-it('confirmar_sheet_en_modo_sumar_llama_actualizarCantidad_con_delta_positivo', async () => {
+it('elegir_lote_nuevo_desde_el_selector_abre_el_formulario_de_nueva_compra_sin_lotes', () => {
   const { getByText, UNSAFE_getAllByType } = render(<DetalleProductoScreen />);
   const iconos = UNSAFE_getAllByType('Ionicons' as any);
   const btnMas = iconos.find((i: any) => i.props.name === 'add');
   fireEvent.press(btnMas!.parent as any);
-  fireEvent.press(getByText('Añadir'));
-  await waitFor(() => {
-    expect(mockActualizarCantidad).toHaveBeenCalledWith('prod-1', 1, undefined, undefined);
-  });
+  fireEvent.press(getByText('Añadir a un lote nuevo'));
+  expect(getByText('Nueva compra')).toBeTruthy();
 });
 
 it('abre_modal_de_motivo_al_pulsar_eliminar_producto', () => {
@@ -231,20 +234,15 @@ it('llama_cargarLotes_al_ganar_foco', () => {
   expect(mockCargarLotes).toHaveBeenCalledWith('prod-1');
 });
 
-it('boton_gestionar_por_lotes_activa_lotes_y_revela_la_seccion', async () => {
-  mockActivarLotes.mockResolvedValue(undefined);
+it('la_seccion_de_lotes_esta_siempre_visible', () => {
+  // La gestión por lotes dejó de ser opcional: no hay botón "Gestionar por lotes".
   const { getByText, queryByText } = render(<DetalleProductoScreen />);
-
-  expect(queryByText('Lotes')).toBeNull();
-  fireEvent.press(getByText('Gestionar por lotes'));
-
-  await waitFor(() => expect(mockActivarLotes).toHaveBeenCalledWith('prod-1'));
-  await waitFor(() => expect(getByText('Lotes')).toBeTruthy());
+  expect(getByText('Lotes')).toBeTruthy();
+  expect(queryByText('Gestionar por lotes')).toBeNull();
 });
 
 it('no_muestra_boton_gestionar_por_lotes_si_el_producto_ya_tiene_lotes', () => {
-  (useDespensaStore as unknown as jest.Mock).mockReturnValue({
-    ...storeBase,
+  setStore({
     productos: [{ ...mockProducto, tieneLotes: true }],
     lotesProductoActual: [mockLote()],
   });
@@ -254,8 +252,7 @@ it('no_muestra_boton_gestionar_por_lotes_si_el_producto_ya_tiene_lotes', () => {
 });
 
 it('boton_compactar_lotes_no_aparece_con_un_unico_lote', () => {
-  (useDespensaStore as unknown as jest.Mock).mockReturnValue({
-    ...storeBase,
+  setStore({
     productos: [{ ...mockProducto, tieneLotes: true }],
     lotesProductoActual: [mockLote()],
   });
@@ -265,8 +262,7 @@ it('boton_compactar_lotes_no_aparece_con_un_unico_lote', () => {
 
 it('boton_compactar_lotes_pregunta_criterio_y_llama_compactarLotes_con_la_eleccion', async () => {
   mockCompactarLotes.mockResolvedValue(undefined);
-  (useDespensaStore as unknown as jest.Mock).mockReturnValue({
-    ...storeBase,
+  setStore({
     productos: [{ ...mockProducto, tieneLotes: true }],
     lotesProductoActual: [mockLote(), mockLote({ id: 'lote-2', fechaCaducidad: '2026-03-01' })],
   });
@@ -283,8 +279,7 @@ it('boton_compactar_lotes_pregunta_criterio_y_llama_compactarLotes_con_la_elecci
 });
 
 it('pulsar_mas_en_producto_con_lotes_abre_el_selector_de_lote_en_vez_del_sheet_de_cantidad', () => {
-  (useDespensaStore as unknown as jest.Mock).mockReturnValue({
-    ...storeBase,
+  setStore({
     productos: [{ ...mockProducto, tieneLotes: true }],
     lotesProductoActual: [mockLote()],
   });
@@ -301,8 +296,7 @@ it('pulsar_mas_en_producto_con_lotes_abre_el_selector_de_lote_en_vez_del_sheet_d
 
 it('elegir_un_lote_del_selector_abre_el_sheet_de_cantidad_y_al_confirmar_edita_ese_lote', async () => {
   const lote = mockLote({ cantidad: 2, unidad: 'litros' });
-  (useDespensaStore as unknown as jest.Mock).mockReturnValue({
-    ...storeBase,
+  setStore({
     productos: [{ ...mockProducto, tieneLotes: true }],
     lotesProductoActual: [lote],
   });
@@ -335,8 +329,7 @@ it('elegir_un_lote_del_selector_abre_el_sheet_de_cantidad_y_al_confirmar_edita_e
 });
 
 it('elegir_lote_nuevo_desde_el_selector_abre_el_formulario_de_nueva_compra', () => {
-  (useDespensaStore as unknown as jest.Mock).mockReturnValue({
-    ...storeBase,
+  setStore({
     productos: [{ ...mockProducto, tieneLotes: true }],
     lotesProductoActual: [mockLote()],
   });
@@ -351,19 +344,21 @@ it('elegir_lote_nuevo_desde_el_selector_abre_el_formulario_de_nueva_compra', () 
   expect(getByText('Nueva compra')).toBeTruthy();
 });
 
-it('avisoRestar_indica_el_lote_que_se_consumira_antes_de_restar', () => {
-  (useDespensaStore as unknown as jest.Mock).mockReturnValue({
-    ...storeBase,
+it('avisoRestar_indica_el_lote_que_se_consumira_antes_de_restar', async () => {
+  setStore({
     productos: [{ ...mockProducto, tieneLotes: true }],
     lotesProductoActual: [mockLote({ cantidad: 2, unidad: 'litros', fechaCaducidad: '2026-02-01' })],
   });
-  const { getByText, UNSAFE_getAllByType } = render(<DetalleProductoScreen />);
+  const { findByText, UNSAFE_getAllByType } = render(<DetalleProductoScreen />);
 
   const iconos = UNSAFE_getAllByType('Ionicons' as any);
   const btnMenos = iconos.find((i: any) => i.props.name === 'remove');
   fireEvent.press(btnMenos!.parent as any);
 
-  expect(getByText(/Se descontará primero del lote que caduca el 01\/02\/2026 \(2 litros\)\./)).toBeTruthy();
+  // El aviso se rellena tras resolver cargarLotes().
+  expect(
+    await findByText(/Se descontará primero del lote que caduca el 01\/02\/2026 \(2 litros\)\./),
+  ).toBeTruthy();
 });
 
 it('confirmar_resta_con_consumosFifo_muestra_el_resumen_de_lotes_consumidos', async () => {

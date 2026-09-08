@@ -8,12 +8,14 @@ import com.myfoodie.domain.model.Preferencias;
 import com.myfoodie.domain.model.Receta;
 import org.springframework.stereotype.Service;
 
+import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -123,9 +125,15 @@ public class RecomendacionService {
 
         List<RecetaPuntuadaDTO> puntuados = candidatos.stream()
                 .map(c -> {
-                    double puntuacion = modoFallback
+                    double base = modoFallback
                             ? puntuarRecetaFallback(c.receta(), c.contexto(), preferencias)
                             : puntuarReceta(c.receta(), usuarioId, perfilGustos, seguidosIds, c.contexto(), pocasRecetas);
+                    // La dieta/preferencias y los gustos culinarios (aprendidos o del onboarding)
+                    // empujan el orden en los dos modos: en fallback también, porque ahí el
+                    // perfil de gustos aún no tiene peso propio dentro de la puntuación base.
+                    double puntuacion = base
+                            * factorPreferencias(c.receta(), preferencias)
+                            * (modoFallback ? factorGustosSuave(c.receta(), perfilGustos) : 1.0);
                     String motivo = determinarMotivo(c.receta(), seguidosIds, c.contexto(), perfilGustos);
                     return new RecetaPuntuadaDTO(c.receta(), puntuacion, motivo, modoFallback);
                 })
@@ -206,14 +214,76 @@ public class RecomendacionService {
         return Math.max(0, 100 - puntuacionCategoria * 15.0);
     }
 
+    // Empujón suave por preferencias explícitas del perfil. La dieta/alérgenos que SÍ tienen
+    // etiqueta equivalente ya se aplican como filtro duro en FeedService; aquí se prioriza
+    // además la dieta declarada (incluidas las que no filtran, como Keto) cuando la receta
+    // la lleva como etiqueta, más el tiempo y la dificultad habituales.
+    private double factorPreferencias(Receta receta, Preferencias preferencias) {
+        if (preferencias == null) {
+            return 1.0;
+        }
+        double factor = 1.0;
+        if (dietaCoincideConEtiquetas(preferencias.getTipoDieta(), receta.getEtiquetas())) {
+            factor *= 1.20;
+        }
+        if (preferencias.getTiempoCoccionMax() != null && receta.getTiempoEstimado() > 0
+                && receta.getTiempoEstimado() <= preferencias.getTiempoCoccionMax()) {
+            factor *= 1.10;
+        }
+        if (preferencias.getNivelDificultad() != null && receta.getDificultad() != null
+                && preferencias.getNivelDificultad().equalsIgnoreCase(receta.getDificultad())) {
+            factor *= 1.10;
+        }
+        return factor;
+    }
+
+    // En modo fallback (pocas interacciones) la puntuación base apenas usa el perfil de
+    // gustos, así que se aplica aquí: recetas de una categoría/etiqueta que el usuario ya
+    // marcó como favorita (onboarding) o que ha aprendido el sistema suben en el orden.
+    private double factorGustosSuave(Receta receta, PerfilGustos perfilGustos) {
+        if (perfilGustos == null) {
+            return 1.0;
+        }
+        double factor = 1.0;
+        Map<String, Integer> categorias = perfilGustos.getCategoriasPreferidas();
+        if (categorias != null && receta.getCategoria() != null
+                && categorias.getOrDefault(receta.getCategoria(), 0) > 0) {
+            factor *= 1.15;
+        }
+        Map<String, Integer> etiquetas = perfilGustos.getEtiquetasPreferidas();
+        if (etiquetas != null && receta.getEtiquetas() != null
+                && receta.getEtiquetas().stream().anyMatch(e -> etiquetas.getOrDefault(e, 0) > 0)) {
+            factor *= 1.10;
+        }
+        return factor;
+    }
+
+    // "Vegetariana" ~ etiqueta "vegetariano", "Mediterránea" ~ "mediterráneo", "Keto" ~ "keto".
+    // Se compara sin acentos y quitando la vocal final de género; "vegetariana" acepta "vegano".
+    private boolean dietaCoincideConEtiquetas(String tipoDieta, List<String> etiquetas) {
+        if (tipoDieta == null || tipoDieta.isBlank() || etiquetas == null) {
+            return false;
+        }
+        String dieta = stem(tipoDieta);
+        return etiquetas.stream()
+                .filter(Objects::nonNull)
+                .map(RecomendacionService::stem)
+                .anyMatch(e -> e.equals(dieta) || (dieta.equals("vegetarian") && e.equals("vegan")));
+    }
+
+    private static String stem(String valor) {
+        String n = Normalizer.normalize(valor.trim().toLowerCase(Locale.ROOT), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        return (n.endsWith("a") || n.endsWith("o")) ? n.substring(0, n.length() - 1) : n;
+    }
+
     private double calcularAfinidadPreferenciasOnboarding(Receta receta, Preferencias preferencias) {
         if (preferencias == null) {
             return 0;
         }
 
         double puntos = 0;
-        if (preferencias.getTipoDieta() != null && receta.getEtiquetas() != null
-                && receta.getEtiquetas().stream().anyMatch(e -> e.equalsIgnoreCase(preferencias.getTipoDieta()))) {
+        if (dietaCoincideConEtiquetas(preferencias.getTipoDieta(), receta.getEtiquetas())) {
             puntos += 60;
         }
 

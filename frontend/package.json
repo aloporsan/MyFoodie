@@ -23,6 +23,30 @@
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/$1"
     },
+    "collectCoverageFrom": [
+      "components/**/*.{ts,tsx}",
+      "services/**/*.{ts,tsx}",
+      "store/**/*.{ts,tsx}",
+      "hooks/**/*.{ts,tsx}",
+      "utils/**/*.{ts,tsx}",
+      "app/**/*.{ts,tsx}",
+      "!**/*.d.ts",
+      "!**/index.{ts,tsx}",
+      "!app/**/_layout.tsx",
+      "!components/themed-*.tsx",
+      "!components/hello-wave.tsx",
+      "!components/external-link.tsx",
+      "!components/parallax-scroll-view.tsx",
+      "!components/haptic-tab.tsx",
+      "!components/ui/collapsible.tsx",
+      "!components/ui/icon-symbol*.tsx",
+      "!hooks/use-color-scheme*.ts",
+      "!hooks/use-theme-color.ts"
+    ],
+    "coverageReporters": [
+      "text-summary",
+      "lcov"
+    ],
     "transformIgnorePatterns": [
       "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg)"
     ]

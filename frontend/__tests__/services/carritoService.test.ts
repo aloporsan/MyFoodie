@@ -130,6 +130,12 @@ it('eliminarItem_resuelve_sin_error', async () => {
   expect(mockDelete).toHaveBeenCalledWith('/carrito/items/item-1');
 });
 
+it('eliminarItemsRechazados_llama_al_endpoint_de_borrado_en_bloque', async () => {
+  mockDelete.mockResolvedValue({});
+  await expect(carritoService.eliminarItemsRechazados()).resolves.not.toThrow();
+  expect(mockDelete).toHaveBeenCalledWith('/carrito/items/rechazados');
+});
+
 // -------------------------------------------------------------------------
 // generarListaCompra / obtenerListas / obtenerLista / obtenerListaActiva
 // -------------------------------------------------------------------------

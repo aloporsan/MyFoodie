@@ -12,6 +12,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button, Input } from '@/components/ui';
 import { useAuthStore } from '@/store/authStore';
 import { colors } from '@/theme/colors';
@@ -24,6 +25,7 @@ export function LoginScreen() {
   const router = useRouter();
   const { login, isLoading, error, clearError } = useAuthStore();
   const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -56,33 +58,37 @@ export function LoginScreen() {
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      {/* Cabecera verde con logo */}
-      <View style={[styles.header, { height: height * 0.38 }]}>
-        <View style={styles.logoWrapper}>
-          <Image
-            source={require('@/assets/images/logo-myfoodie.png')}
-            style={styles.logoIcon}
-            resizeMode="contain"
-          />
-          <Image
-            source={require('@/assets/images/logo-texto.png')}
-            style={styles.logoText}
-            resizeMode="contain"
-          />
-        </View>
-        <Text style={styles.tagline}>Tu despensa inteligente</Text>
-      </View>
-
-      {/* Formulario scrollable */}
       <ScrollView
-        style={styles.formScroll}
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.card}>
-          <Text style={styles.welcomeTitle}>¡Bienvenido a MyFoodie!</Text>
-          <Text style={styles.welcomeSubtitle}>Accede a tu cuenta para continuar</Text>
+        {/* Cabecera verde con logo */}
+        <View
+          style={[
+            styles.header,
+            { minHeight: height * 0.3, paddingTop: insets.top + spacing.xxxl },
+          ]}
+        >
+          <View style={styles.logoWrapper}>
+            <Image
+              source={require('@/assets/images/logo-myfoodie.png')}
+              style={styles.logoIcon}
+              resizeMode="contain"
+            />
+            <Image
+              source={require('@/assets/images/logo-texto.png')}
+              style={styles.logoText}
+              resizeMode="contain"
+            />
+          </View>
+          <Text style={styles.tagline}>Tu despensa inteligente</Text>
+        </View>
+
+        {/* Formulario */}
+        <View style={[styles.card, { paddingBottom: insets.bottom + spacing.xxxl }]}>
+          <Text style={styles.title}>¡Bienvenido a MyFoodie!</Text>
+          <Text style={styles.subtitle}>Accede a tu cuenta para continuar</Text>
 
           {error ? (
             <View style={styles.errorBanner}>
@@ -159,13 +165,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.primary,
   },
-  formScroll: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
   scroll: {
     flexGrow: 1,
-    paddingBottom: spacing.xxxl,
   },
 
   // Cabecera verde
@@ -183,7 +184,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     alignItems: 'center',
-    gap: 1,
+    gap: 2,
   },
   logoIcon: {
     width: 80,
@@ -199,7 +200,7 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
 
-  // Tarjeta blanca
+  // Tarjeta blanca redondeada sobre el verde
   card: {
     backgroundColor: colors.white,
     borderTopLeftRadius: 32,
@@ -209,12 +210,12 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xxl,
     paddingBottom: spacing.xxxl,
   },
-  welcomeTitle: {
+  title: {
     ...typography.heading1,
     color: colors.text.primary,
     marginBottom: spacing.xs,
   },
-  welcomeSubtitle: {
+  subtitle: {
     ...typography.body,
     color: colors.text.secondary,
     marginBottom: spacing.xl,

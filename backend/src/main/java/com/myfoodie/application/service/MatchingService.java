@@ -211,6 +211,15 @@ public class MatchingService {
                 .collect(Collectors.toSet());
     }
 
+    /**
+     * Dos nombres se consideran "posible duplicado" a partir de {@code UMBRAL_DUPLICADO} (0,75):
+     * el mismo criterio que usa {@link #buscarDuplicadosEnDespensa} para la pantalla de duplicados.
+     * Se expone aparte para que el aviso al crear un producto comparta ese umbral.
+     */
+    public boolean esPosibleDuplicado(String nombreA, String nombreB) {
+        return calcularSimilitud(nombreA, nombreB).puntuacion() >= UMBRAL_DUPLICADO;
+    }
+
     public TipoMatch clasificarMatch(double puntuacion) {
         if (puntuacion >= UMBRAL_AUTOMATICO) {
             return TipoMatch.AUTOMATICO;

@@ -40,6 +40,7 @@ export interface MotivosEliminacion {
   donado: number;
   perdido: number;
   otro: number;
+  errorTipografia: number;
 }
 
 export interface EstadisticasPerfil {
@@ -50,6 +51,7 @@ export interface EstadisticasPerfil {
   totalRecetasGuardadas: number;
   aprovechamientoDespensa: number;
   fechaRegistro: string;
+  diasEnMyFoodie: number;
   motivosEliminacion: MotivosEliminacion;
 }
 

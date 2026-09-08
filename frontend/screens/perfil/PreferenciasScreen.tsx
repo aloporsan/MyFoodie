@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { PreferenciaChip } from '@/components/perfil/PreferenciaChip';
 import { useDespensaStore } from '@/store/despensaStore';
+import { useFeedStore } from '@/store/feedStore';
 import { usePerfilStore } from '@/store/perfilStore';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
 
@@ -93,10 +94,12 @@ export function PreferenciasScreen() {
 
   const handleGuardar = async () => {
     try {
+      // Se mandan siempre los valores actuales (listas vacías incluidas) para que el
+      // backend pueda limpiar una preferencia que se acaba de quitar.
       await actualizarPreferencias({
         tipoDieta: tipoDieta === 'Ninguna' ? null : tipoDieta,
-        alergias: alergias.length > 0 ? alergias : null,
-        ingredientesNoDeseados: ingredientesNoDeseados.length > 0 ? ingredientesNoDeseados : null,
+        alergias,
+        ingredientesNoDeseados,
         nivelDificultad: nivelDificultad === 'Cualquiera' ? null : nivelDificultad,
         tiempoCoccionMax: tiempoCoccionMax === TIEMPO_MAX ? null : tiempoCoccionMax,
         stockMinimoGlobal,
@@ -104,6 +107,8 @@ export function PreferenciasScreen() {
       setGuardado(true);
       mostrarToast();
       cargarProductos();
+      // El feed filtra su pool por estas preferencias: que se recargue al volver a él.
+      useFeedStore.getState().marcarFeedObsoleto();
     } catch {
       // error queda en el store
     }

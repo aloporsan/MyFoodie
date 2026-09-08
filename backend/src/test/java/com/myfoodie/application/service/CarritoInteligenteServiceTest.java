@@ -38,7 +38,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -83,6 +82,12 @@ class CarritoInteligenteServiceTest {
                 .thenAnswer(inv -> new UnidadConvertidaDTO(inv.getArgument(0), inv.getArgument(1), false));
         lenient().when(unidadNormalizadorService.convertirAUnidadDeCompra(anyDouble(), anyString()))
                 .thenAnswer(inv -> new UnidadConvertidaDTO(inv.getArgument(0), inv.getArgument(1), false));
+        // cantidadComparable: comportamiento real (compara por familia de unidad), suficiente para
+        // estos tests, que usan unidades objetivas iguales.
+        UnidadNormalizadorService unidadesReal = new UnidadNormalizadorService();
+        lenient().when(unidadNormalizadorService.cantidadComparable(anyDouble(), any(), any()))
+                .thenAnswer(inv -> unidadesReal.cantidadComparable(
+                        inv.getArgument(0), inv.getArgument(1), inv.getArgument(2)));
         lenient().when(matchingService.calcularSimilitud(anyString(), anyString())).thenAnswer(inv -> {
             String a = inv.getArgument(0);
             String b = inv.getArgument(1);
@@ -489,8 +494,8 @@ class CarritoInteligenteServiceTest {
         when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
         when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of());
         when(recetaGuardadaRepository.findByUsuarioId("user-1")).thenReturn(List.of(guardada));
-        when(recetaRepository.findById("receta-1")).thenReturn(Optional.of(receta));
-        when(ingredienteRecetaRepository.findByRecetaId("receta-1")).thenReturn(List.of(ingrediente));
+        when(recetaRepository.findAllById(any())).thenReturn(List.of(receta));
+        when(ingredienteRecetaRepository.findByRecetaIdIn(any())).thenReturn(List.of(ingrediente));
         guardarItemsComoLlegan();
 
         List<ItemCarrito> resultado = carritoInteligenteService.generarRecomendaciones("user-1");
@@ -514,8 +519,8 @@ class CarritoInteligenteServiceTest {
         when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
         when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of());
         when(recetaGuardadaRepository.findByUsuarioId("user-1")).thenReturn(List.of(guardada));
-        when(recetaRepository.findById("receta-1")).thenReturn(Optional.of(receta));
-        when(ingredienteRecetaRepository.findByRecetaId("receta-1")).thenReturn(List.of(ingrediente));
+        when(recetaRepository.findAllById(any())).thenReturn(List.of(receta));
+        when(ingredienteRecetaRepository.findByRecetaIdIn(any())).thenReturn(List.of(ingrediente));
         guardarItemsComoLlegan();
 
         List<ItemCarrito> resultado = carritoInteligenteService.generarRecomendaciones("user-1");
@@ -534,6 +539,20 @@ class CarritoInteligenteServiceTest {
         carritoInteligenteService.eliminarItem("user-1", "i-1");
 
         verify(itemCarritoRepository).delete(i);
+    }
+
+    @Test
+    @DisplayName("eliminarItemsRechazados borra en bloque solo los items rechazados y devuelve cuántos")
+    void eliminarItemsRechazados_borraEnBloque() {
+        List<ItemCarrito> rechazados = List.of(
+                item("i-1", "user-1", "Leche", "alta", "rechazado"),
+                item("i-2", "user-1", "Pan", "media", "rechazado"));
+        when(itemCarritoRepository.findByUsuarioIdAndEstado("user-1", "rechazado")).thenReturn(rechazados);
+
+        int borrados = carritoInteligenteService.eliminarItemsRechazados("user-1");
+
+        assertThat(borrados).isEqualTo(2);
+        verify(itemCarritoRepository).deleteAll(rechazados);
     }
 
     // -------------------------------------------------------------------------

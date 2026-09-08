@@ -12,10 +12,10 @@ import com.myfoodie.domain.model.PerfilGustos;
 import com.myfoodie.domain.model.Receta;
 import com.myfoodie.domain.model.RecetaDescartada;
 import com.myfoodie.domain.model.TipoMatch;
-import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.IngredienteRecetaRepository;
 import com.myfoodie.domain.repository.LikeRepository;
 import com.myfoodie.domain.repository.PerfilGustosRepository;
+import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.RecetaCompartidaRepository;
 import com.myfoodie.domain.repository.RecetaDescartadaRepository;
 import com.myfoodie.domain.repository.RecetaGuardadaRepository;
@@ -30,7 +30,6 @@ import org.mockito.Mock;
 import org.mockito.InjectMocks;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
@@ -63,6 +62,7 @@ class FeedServiceTest {
     @Mock private IngredienteRecetaRepository ingredienteRepository;
     @Mock private UsuarioRepository usuarioRepository;
     @Mock private PerfilGustosRepository perfilGustosRepository;
+    @Mock private PreferenciasRepository preferenciasRepository;
     @Mock private DespensaService despensaService;
     @Mock private SocialService socialService;
     @Mock private MatchingService matchingService;
@@ -75,6 +75,7 @@ class FeedServiceTest {
     // comportamiento que tenía este servicio antes de introducir MatchingService).
     @BeforeEach
     void configurarMatchingPorDefecto() {
+        lenient().when(preferenciasRepository.findByUsuarioId(anyString())).thenReturn(Optional.empty());
         lenient().when(matchingService.calcularSimilitud(anyString(), anyString())).thenAnswer(inv -> {
             String a = inv.getArgument(0);
             String b = inv.getArgument(1);
@@ -122,7 +123,7 @@ class FeedServiceTest {
     /** Stubs mínimos para que el pipeline del feed no lance NPE en un test de filtrado. */
     private void stubsFeedBasicos() {
         lenient().when(recetaDescartadaRepository.findByUsuarioId(anyString())).thenReturn(List.of());
-        lenient().when(ingredienteRepository.findByRecetaId(anyString())).thenReturn(List.of());
+        lenient().when(ingredienteRepository.findByRecetaIdIn(anyCollection())).thenReturn(List.of());
         lenient().when(despensaService.listarProductos(anyString())).thenReturn(List.of());
         lenient().when(usuarioRepository.findById(anyString())).thenReturn(Optional.empty());
     }
@@ -144,12 +145,13 @@ class FeedServiceTest {
         when(recetaRepository.findByEstadoAndAutorIdNotAndIdNotIn(
                 eq("publicada"), eq("user-1"), anyList(), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(r)));
-        when(ingredienteRepository.findByRecetaId("receta-1")).thenReturn(List.of());
+        when(ingredienteRepository.findByRecetaIdIn(anyCollection())).thenReturn(List.of());
         when(despensaService.listarProductos("user-1")).thenReturn(List.of());
         when(usuarioRepository.findById("otro-usuario")).thenReturn(Optional.empty());
 
         feedService.obtenerFeed("user-1", 0, 10);
 
+        @SuppressWarnings("unchecked")
         ArgumentCaptor<List<String>> idsCaptor = ArgumentCaptor.forClass(List.class);
         verify(recetaRepository).findByEstadoAndAutorIdNotAndIdNotIn(
                 eq("publicada"), eq("user-1"), idsCaptor.capture(), any(PageRequest.class));
@@ -170,7 +172,7 @@ class FeedServiceTest {
                 .recetaId("receta-1").nombre("Tomate").cantidad(2).unidad("unidades").build();
         IngredienteReceta pasta = IngredienteReceta.builder()
                 .recetaId("receta-1").nombre("Pasta").cantidad(1).unidad("kg").build();
-        when(ingredienteRepository.findByRecetaId("receta-1")).thenReturn(List.of(tomate, pasta));
+        when(ingredienteRepository.findByRecetaIdIn(anyCollection())).thenReturn(List.of(tomate, pasta));
 
         // El usuario tiene "TOMATE" (mayúsculas) en su despensa: debe coincidir con "Tomate"
         when(despensaService.listarProductos("user-1")).thenReturn(List.of(productoDespensa("TOMATE")));
@@ -200,7 +202,7 @@ class FeedServiceTest {
         when(recetaRepository.findByEstadoAndAutorIdNotAndIdNotIn(
                 anyString(), anyString(), anyList(), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(r)));
-        when(ingredienteRepository.findByRecetaId("receta-1")).thenReturn(List.of());
+        when(ingredienteRepository.findByRecetaIdIn(anyCollection())).thenReturn(List.of());
         when(despensaService.listarProductos("user-1")).thenReturn(List.of());
         when(usuarioRepository.findById("otro-usuario")).thenReturn(Optional.empty());
 
@@ -220,7 +222,7 @@ class FeedServiceTest {
         when(recetaRepository.findByEstadoAndAutorIdNotAndIdNotIn(
                 anyString(), anyString(), anyList(), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(r)));
-        when(ingredienteRepository.findByRecetaId("receta-1")).thenReturn(List.of());
+        when(ingredienteRepository.findByRecetaIdIn(anyCollection())).thenReturn(List.of());
         when(despensaService.listarProductos("user-1")).thenReturn(List.of());
         when(usuarioRepository.findById("otro-usuario")).thenReturn(Optional.empty());
 
@@ -240,7 +242,7 @@ class FeedServiceTest {
         when(recetaRepository.findByEstadoAndAutorIdNotAndIdNotIn(
                 anyString(), anyString(), anyList(), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(bloqueada, visible)));
-        when(ingredienteRepository.findByRecetaId(anyString())).thenReturn(List.of());
+        when(ingredienteRepository.findByRecetaIdIn(anyCollection())).thenReturn(List.of());
         when(despensaService.listarProductos("user-1")).thenReturn(List.of());
         when(usuarioRepository.findById(anyString())).thenReturn(Optional.empty());
 
@@ -347,7 +349,7 @@ class FeedServiceTest {
                 new FiltrosFeedDTO(null, List.of("Media"), null, null, null));
 
         ArgumentCaptor<PerfilGustos> captor = ArgumentCaptor.forClass(PerfilGustos.class);
-        verify(recomendacionService).ordenarFeed(anyList(), eq("user-1"), any(), captor.capture());
+        verify(recomendacionService).ordenarFeed(anyList(), eq("user-1"), any(), captor.capture(), any());
         assertThat(captor.getValue().getDificultadesPreferidas()).isEmpty();
         assertThat(captor.getValue().getCategoriasPreferidas()).containsEntry("Almuerzo", 5);
     }
@@ -417,7 +419,7 @@ class FeedServiceTest {
         lenient().when(usuarioRepository.findById(anyString())).thenReturn(Optional.empty());
         Receta r = recetaConTitulo("r1", "Tomate frito");
         when(recetaRepository.findByEstado("publicada")).thenReturn(List.of(r));
-        when(ingredienteRepository.findByRecetaId("r1")).thenReturn(List.of(
+        when(ingredienteRepository.findByRecetaIdIn(anyCollection())).thenReturn(List.of(
                 IngredienteReceta.builder().recetaId("r1").nombre("Tomate").cantidad(2).unidad("unidades").build()));
         when(despensaService.listarProductos("user-1")).thenReturn(List.of(productoDespensa("Tomate")));
 

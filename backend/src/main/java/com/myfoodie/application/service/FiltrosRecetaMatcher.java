@@ -30,7 +30,8 @@ final class FiltrosRecetaMatcher {
         if (!filtros.tiempos().isEmpty() && !enAlgunBucket(filtros.tiempos(), receta.getTiempoEstimado())) {
             return false;
         }
-        int personas = receta.getNumPersonas() == null ? 0 : receta.getNumPersonas();
+        Integer numPersonas = receta.getNumPersonas();
+        int personas = numPersonas == null ? 0 : numPersonas;
         if (!filtros.personas().isEmpty() && !enAlgunBucket(filtros.personas(), personas)) {
             return false;
         }

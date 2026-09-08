@@ -68,6 +68,12 @@ class RecetaServiceTest {
     void configurarNormalizadorPorDefecto() {
         lenient().when(unidadNormalizadorService.normalizarUnidades(anyDouble(), anyString()))
                 .thenAnswer(inv -> new UnidadConvertidaDTO(inv.getArgument(0), inv.getArgument(1), false));
+        // cantidadComparable: comportamiento real (compara por familia de unidad), suficiente para
+        // estos tests, que usan unidades objetivas iguales ("g").
+        UnidadNormalizadorService unidadesReal = new UnidadNormalizadorService();
+        lenient().when(unidadNormalizadorService.cantidadComparable(anyDouble(), any(), any()))
+                .thenAnswer(inv -> unidadesReal.cantidadComparable(
+                        inv.getArgument(0), inv.getArgument(1), inv.getArgument(2)));
         lenient().when(matchingService.calcularSimilitud(anyString(), anyString())).thenAnswer(inv -> {
             String a = inv.getArgument(0);
             String b = inv.getArgument(1);
@@ -91,7 +97,7 @@ class RecetaServiceTest {
                 .id(id).autorId(autorId)
                 .titulo("Paella valenciana").descripcion("Receta tradicional")
                 .tiempoEstimado(60).dificultad("Difícil").categoria("Arroces")
-                .etiquetas(new ArrayList<>()).estado("borrador")
+                .etiquetas(new ArrayList<>()).imagenUrl("/recetas/paella.jpg").estado("borrador")
                 .build();
     }
 
@@ -624,6 +630,78 @@ class RecetaServiceTest {
 
         assertThat(resultado.get(0).cantidadCalculada()).isEqualTo(400.0);
         assertThat(resultado.get(0).productoEnDespensa()).isFalse();
+    }
+
+    // -------------------------------------------------------------------------
+    // C7 — disponibilidad comparando unidades por familia
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("marcarRecetaComoRealizada compara conteo tal cual: 2 dientes de ajo contra 1 unidad")
+    void marcarRecetaComoRealizada_conteo_diente_contra_unidad() {
+        Receta receta = receta("r1", "user-1"); // numPersonas = 2
+        Despensa despensa = despensa("desp-1", "user-1");
+        Producto ajo = Producto.builder().id("prod-1").despensaId("desp-1").nombre("Ajo")
+                .cantidad(1).unidad("unidad").build();
+
+        when(recetaRepository.findById("r1")).thenReturn(Optional.of(receta));
+        when(recetaGuardadaRepository.existsByUsuarioIdAndRecetaId("user-1", "r1")).thenReturn(true);
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(despensa));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(ajo));
+        when(ingredienteRepository.findByRecetaId("r1"))
+                .thenReturn(List.of(ingrediente("ing-1", "r1", "Ajo", 2, "dientes")));
+
+        IngredienteConsumoDTO consumo = recetaService.marcarRecetaComoRealizada("user-1", "r1", 2).get(0);
+
+        assertThat(consumo.productoEnDespensa()).isTrue();
+        assertThat(consumo.noComparable()).isFalse();
+        assertThat(consumo.cantidadDisponible()).isEqualTo(1.0);
+        assertThat(consumo.suficiente()).isFalse(); // 1 < 2
+    }
+
+    @Test
+    @DisplayName("marcarRecetaComoRealizada convierte el valor dentro de la familia de peso (500 g vs 1 kg)")
+    void marcarRecetaComoRealizada_peso_convierte_valor() {
+        Receta receta = receta("r1", "user-1");
+        Despensa despensa = despensa("desp-1", "user-1");
+        Producto harina = Producto.builder().id("prod-1").despensaId("desp-1").nombre("Harina")
+                .cantidad(1).unidad("kg").build();
+
+        when(recetaRepository.findById("r1")).thenReturn(Optional.of(receta));
+        when(recetaGuardadaRepository.existsByUsuarioIdAndRecetaId("user-1", "r1")).thenReturn(true);
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(despensa));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(harina));
+        when(ingredienteRepository.findByRecetaId("r1"))
+                .thenReturn(List.of(ingrediente("ing-1", "r1", "Harina", 500, "g")));
+
+        IngredienteConsumoDTO consumo = recetaService.marcarRecetaComoRealizada("user-1", "r1", 2).get(0);
+
+        assertThat(consumo.noComparable()).isFalse();
+        assertThat(consumo.cantidadDisponible()).isEqualTo(1000.0); // 1 kg -> 1000 g
+        assertThat(consumo.suficiente()).isTrue();
+    }
+
+    @Test
+    @DisplayName("marcarRecetaComoRealizada marca noComparable cuando las familias de unidad no encajan")
+    void marcarRecetaComoRealizada_familias_incompatibles_noComparable() {
+        Receta receta = receta("r1", "user-1");
+        Despensa despensa = despensa("desp-1", "user-1");
+        Producto sal = Producto.builder().id("prod-1").despensaId("desp-1").nombre("Sal")
+                .cantidad(3).unidad("unidades").build();
+
+        when(recetaRepository.findById("r1")).thenReturn(Optional.of(receta));
+        when(recetaGuardadaRepository.existsByUsuarioIdAndRecetaId("user-1", "r1")).thenReturn(true);
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(despensa));
+        when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of(sal));
+        when(ingredienteRepository.findByRecetaId("r1"))
+                .thenReturn(List.of(ingrediente("ing-1", "r1", "Sal", 200, "g")));
+
+        IngredienteConsumoDTO consumo = recetaService.marcarRecetaComoRealizada("user-1", "r1", 2).get(0);
+
+        assertThat(consumo.productoEnDespensa()).isTrue();
+        assertThat(consumo.noComparable()).isTrue();
+        assertThat(consumo.cantidadDisponible()).isEqualTo(0.0);
+        assertThat(consumo.suficiente()).isFalse();
     }
 
     @Test

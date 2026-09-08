@@ -13,7 +13,6 @@ import com.myfoodie.application.dto.ocr.ResultadoOCRDTO;
 import com.myfoodie.exception.ApiException;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.model.TipoMatch;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -28,10 +27,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
-@RequiredArgsConstructor
 public class OCRService {
 
     private final MatchingService matchingService;
+
+    public OCRService(MatchingService matchingService) {
+        this.matchingService = matchingService;
+    }
 
     private static final Set<String> PALABRAS_CLAVE_TICKET = Set.of(
             "TOTAL", "IVA", "TICKET", "FECHA", "CAJERO", "GRACIAS", "IMPORTE", "BOLSA");
@@ -149,7 +151,7 @@ public class OCRService {
     }
 
     private Float parseFloat(String valor) {
-        return Float.parseFloat(valor.replace(",", "."));
+        return Float.valueOf(valor.replace(",", "."));
     }
 
     // Un mismo producto puede pasar dos veces por caja (p. ej. se coge una segunda unidad
@@ -165,8 +167,10 @@ public class OCRService {
                 fusionados.put(clave, producto);
                 continue;
             }
-            float cantidadExistente = existente.cantidadDetectada() != null ? existente.cantidadDetectada() : 1f;
-            float cantidadNueva = producto.cantidadDetectada() != null ? producto.cantidadDetectada() : 1f;
+            Float cantidadExistenteRaw = existente.cantidadDetectada();
+            Float cantidadNuevaRaw = producto.cantidadDetectada();
+            float cantidadExistente = cantidadExistenteRaw != null ? cantidadExistenteRaw : 1f;
+            float cantidadNueva = cantidadNuevaRaw != null ? cantidadNuevaRaw : 1f;
             fusionados.put(clave, new ProductoTicketDTO(
                     existente.nombreDetectado(),
                     cantidadExistente + cantidadNueva,
@@ -176,6 +180,12 @@ public class OCRService {
         return new ArrayList<>(fusionados.values());
     }
 
+    // Decisión de diseño: el matching de líneas de ticket contra la despensa es mayoritariamente
+    // manual a propósito. El OCR de un ticket introduce mucho ruido (abreviaturas, cortes, códigos)
+    // y confundir dos productos distintos al actualizar stock es peor que pedir una confirmación de
+    // más. Por eso el umbral AUTOMATICO de MatchingService está en 0,99: solo se actualiza sin
+    // preguntar cuando el nombre es casi idéntico; el resto cae en "sugerencia" y decide el usuario.
+    // Es un sesgo conservador buscado, no una limitación del algoritmo.
     public List<ResultadoOCRDTO> procesarProductosTicket(String usuarioId, List<ProductoTicketDTO> productosDetectados) {
         List<ProductoTicketDTO> productos = fusionarLineasDuplicadas(productosDetectados);
         List<ResultadoOCRDTO> resultados = new ArrayList<>();

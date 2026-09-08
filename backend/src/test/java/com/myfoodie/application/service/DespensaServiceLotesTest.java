@@ -20,7 +20,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -223,17 +222,25 @@ class DespensaServiceLotesTest {
     }
 
     @Test
-    @DisplayName("sumar cantidad en un producto con lotes NO pasa por el descuento por caducidad")
+    @DisplayName("sumar cantidad en un producto con lotes va a un lote existente, no al descuento FIFO")
     void actualizarCantidad_conDeltaPositivo_noUsaFIFO() {
         Producto p = producto("prod-1", 2, LocalDate.now().plusDays(3), true);
         stubProducto(p);
+        LoteProducto loteExistente = lote("lote-1", 2f, LocalDate.now().plusDays(3));
+        when(loteProductoRepository.findByProductoIdOrderByFechaCaducidadAsc("prod-1"))
+                .thenReturn(List.of(loteExistente));
+        when(loteProductoRepository.findByProductoIdAndCantidadGreaterThan("prod-1", 0f))
+                .thenReturn(List.of(loteExistente));
+        when(loteProductoRepository.sumCantidadByProductoId("prod-1")).thenReturn(3f);
 
         ProductoResponseDTO resultado = despensaService.actualizarCantidad("user-1", "prod-1",
                 new ProductoUpdateCantidadDTO(1.0, null, null, null));
 
         assertThat(resultado.cantidad()).isEqualTo(3);
         assertThat(resultado.consumosFifo()).isNull();
-        verify(loteProductoRepository, never()).findByProductoIdOrderByFechaCaducidadAsc(any());
+        // El +1 se suma al lote menos urgente; nunca dispara consumo/borrado FIFO.
+        assertThat(loteExistente.getCantidad()).isEqualTo(3f);
+        verify(loteProductoRepository, never()).delete(any());
     }
 
     // -------------------------------------------------------------------------
