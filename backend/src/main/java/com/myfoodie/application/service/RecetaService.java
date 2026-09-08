@@ -64,6 +64,7 @@ public class RecetaService {
         if (dto.titulo() == null || dto.titulo().isBlank())
             throw new ApiException(HttpStatus.BAD_REQUEST, "El título es obligatorio");
 
+        Integer numPersonas = dto.numPersonas();
         Receta receta = Receta.builder()
                 .autorId(usuarioId)
                 .titulo(dto.titulo())
@@ -73,7 +74,7 @@ public class RecetaService {
                 .categoria(dto.categoria())
                 .etiquetas(dto.etiquetas() != null ? dto.etiquetas() : new ArrayList<>())
                 .imagenUrl(dto.imagenUrl())
-                .numPersonas(dto.numPersonas() != null ? dto.numPersonas() : 2)
+                .numPersonas(numPersonas != null ? numPersonas : 2)
                 .estado("borrador")
                 .visibilidad(dto.visibilidad() != null ? dto.visibilidad() : VisibilidadReceta.PUBLICA)
                 .build();
@@ -131,7 +132,8 @@ public class RecetaService {
         receta.setCategoria(dto.categoria());
         receta.setEtiquetas(dto.etiquetas() != null ? dto.etiquetas() : new ArrayList<>());
         receta.setImagenUrl(dto.imagenUrl());
-        receta.setNumPersonas(dto.numPersonas() != null ? dto.numPersonas() : 2);
+        Integer numPersonas = dto.numPersonas();
+        receta.setNumPersonas(numPersonas != null ? numPersonas : 2);
         if (dto.visibilidad() != null) {
             receta.setVisibilidad(dto.visibilidad());
         }
@@ -405,7 +407,7 @@ public class RecetaService {
 
         // Disponibilidad comparada por familia de unidad (peso/volumen se convierten, conteo se
         // compara tal cual); empty si las unidades no son comparables (p. ej. "g" contra "unidad").
-        Optional<Double> disponibleComparable = enDespensa
+        Optional<Double> disponibleComparable = producto != null
                 ? unidadNormalizadorService.cantidadComparable(
                         producto.getCantidad(), producto.getUnidad(), normalizado.unidadConvertida())
                 : Optional.empty();

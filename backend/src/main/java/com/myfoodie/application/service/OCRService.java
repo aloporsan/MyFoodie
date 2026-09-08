@@ -13,7 +13,6 @@ import com.myfoodie.application.dto.ocr.ResultadoOCRDTO;
 import com.myfoodie.exception.ApiException;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.model.TipoMatch;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -28,10 +27,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
-@RequiredArgsConstructor
 public class OCRService {
 
     private final MatchingService matchingService;
+
+    public OCRService(MatchingService matchingService) {
+        this.matchingService = matchingService;
+    }
 
     private static final Set<String> PALABRAS_CLAVE_TICKET = Set.of(
             "TOTAL", "IVA", "TICKET", "FECHA", "CAJERO", "GRACIAS", "IMPORTE", "BOLSA");
@@ -149,7 +151,7 @@ public class OCRService {
     }
 
     private Float parseFloat(String valor) {
-        return Float.parseFloat(valor.replace(",", "."));
+        return Float.valueOf(valor.replace(",", "."));
     }
 
     // Un mismo producto puede pasar dos veces por caja (p. ej. se coge una segunda unidad
@@ -165,8 +167,10 @@ public class OCRService {
                 fusionados.put(clave, producto);
                 continue;
             }
-            float cantidadExistente = existente.cantidadDetectada() != null ? existente.cantidadDetectada() : 1f;
-            float cantidadNueva = producto.cantidadDetectada() != null ? producto.cantidadDetectada() : 1f;
+            Float cantidadExistenteRaw = existente.cantidadDetectada();
+            Float cantidadNuevaRaw = producto.cantidadDetectada();
+            float cantidadExistente = cantidadExistenteRaw != null ? cantidadExistenteRaw : 1f;
+            float cantidadNueva = cantidadNuevaRaw != null ? cantidadNuevaRaw : 1f;
             fusionados.put(clave, new ProductoTicketDTO(
                     existente.nombreDetectado(),
                     cantidadExistente + cantidadNueva,

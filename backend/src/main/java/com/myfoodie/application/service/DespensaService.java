@@ -240,7 +240,8 @@ public class DespensaService {
                         .build());
             } else {
                 LoteProducto destino = lotes.get(lotes.size() - 1);
-                destino.setCantidad((destino.getCantidad() != null ? destino.getCantidad() : 0f) + deltaFloat);
+                Float cantidadDestino = destino.getCantidad();
+                destino.setCantidad((cantidadDestino != null ? cantidadDestino : 0f) + deltaFloat);
                 destino.setUpdatedAt(LocalDateTime.now());
                 loteProductoRepository.save(destino);
             }
@@ -497,7 +498,8 @@ public class DespensaService {
             if (restante <= 0) {
                 break;
             }
-            float disponibleLote = lote.getCantidad() != null ? lote.getCantidad() : 0f;
+            Float cantidadLote = lote.getCantidad();
+            float disponibleLote = cantidadLote != null ? cantidadLote : 0f;
             if (disponibleLote <= 0) {
                 continue;
             }
@@ -615,7 +617,8 @@ public class DespensaService {
     }
 
     private String calcularEstadoLote(LoteProducto lote, Integer dias) {
-        float cantidad = lote.getCantidad() != null ? lote.getCantidad() : 0f;
+        Float cantidadLote = lote.getCantidad();
+        float cantidad = cantidadLote != null ? cantidadLote : 0f;
         if (cantidad <= 0) {
             return "sin_stock";
         }
@@ -710,7 +713,8 @@ public class DespensaService {
     }
 
     private int resolverUmbral(Producto p, int globalUmbral) {
-        return p.getStockMinimo() != null ? p.getStockMinimo() : globalUmbral;
+        Integer stockMinimo = p.getStockMinimo();
+        return stockMinimo != null ? stockMinimo : globalUmbral;
     }
 
     private void registrarMovimiento(Producto p, String usuarioId, String tipo, String descripcion,

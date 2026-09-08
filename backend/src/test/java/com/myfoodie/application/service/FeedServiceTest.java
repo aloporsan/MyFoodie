@@ -12,7 +12,6 @@ import com.myfoodie.domain.model.PerfilGustos;
 import com.myfoodie.domain.model.Receta;
 import com.myfoodie.domain.model.RecetaDescartada;
 import com.myfoodie.domain.model.TipoMatch;
-import com.myfoodie.domain.model.Usuario;
 import com.myfoodie.domain.repository.IngredienteRecetaRepository;
 import com.myfoodie.domain.repository.LikeRepository;
 import com.myfoodie.domain.repository.PerfilGustosRepository;
@@ -31,7 +30,6 @@ import org.mockito.Mock;
 import org.mockito.InjectMocks;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
@@ -153,6 +151,7 @@ class FeedServiceTest {
 
         feedService.obtenerFeed("user-1", 0, 10);
 
+        @SuppressWarnings("unchecked")
         ArgumentCaptor<List<String>> idsCaptor = ArgumentCaptor.forClass(List.class);
         verify(recetaRepository).findByEstadoAndAutorIdNotAndIdNotIn(
                 eq("publicada"), eq("user-1"), idsCaptor.capture(), any(PageRequest.class));

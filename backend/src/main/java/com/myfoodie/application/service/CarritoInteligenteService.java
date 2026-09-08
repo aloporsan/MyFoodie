@@ -65,7 +65,7 @@ public class CarritoInteligenteService {
     private static final double RATIO_INSUFICIENTE = 0.5;
     private static final double COMPLETITUD_RECETA_CASI_LISTA = 0.7;
     private static final DateTimeFormatter FORMATO_FECHA_LISTA =
-            DateTimeFormatter.ofPattern("d 'de' MMMM", new Locale("es", "ES"));
+            DateTimeFormatter.ofPattern("d 'de' MMMM", Locale.of("es", "ES"));
 
     private static final Map<String, String> CATEGORIAS_INGREDIENTES = Map.ofEntries(
             // Lácteos
