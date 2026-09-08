@@ -1,2 +1,4 @@
 /mvnw text eol=lf
 *.cmd text eol=crlf
+/entrypoint.sh text eol=lf
+/Dockerfile text eol=lf

@@ -18,11 +18,15 @@ WORKDIR /app
 
 # Usuario sin privilegios para no correr como root dentro del contenedor.
 RUN addgroup -S spring && adduser -S spring -G spring
-USER spring:spring
 
 COPY --from=build /build/target/*.jar app.jar
+COPY entrypoint.sh entrypoint.sh
+RUN chmod 0755 entrypoint.sh
+
+USER spring:spring
 
 # Railway inyecta PORT en tiempo de ejecución; el app.properties lo lee como ${PORT:8080}.
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# entrypoint.sh materializa GOOGLE_CREDENTIALS_JSON a fichero (OCR) y arranca el jar.
+ENTRYPOINT ["./entrypoint.sh"]
