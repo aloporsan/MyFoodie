@@ -603,7 +603,9 @@ class RecetaControllerIntegrationTest {
                 "descripcion", descripcion,
                 "tiempoEstimado", tiempo,
                 "dificultad", dificultad,
-                "categoria", categoria
+                "categoria", categoria,
+                // B5: la foto es obligatoria para publicar
+                "imagenUrl", "https://example.com/receta.jpg"
         ));
     }
 

@@ -319,7 +319,9 @@ class CompartirControllerIntegrationTest {
                 "descripcion", "Descripción de prueba",
                 "tiempoEstimado", 10,
                 "dificultad", "facil",
-                "categoria", "entrante"
+                "categoria", "entrante",
+                // B5: la foto es obligatoria para publicar
+                "imagenUrl", "https://example.com/receta.jpg"
         ));
     }
 }

@@ -106,7 +106,9 @@ class ComentarioControllerIntegrationTest {
                                 "descripcion", "Descripción",
                                 "tiempoEstimado", 20,
                                 "dificultad", "fácil",
-                                "categoria", "principal"))))
+                                "categoria", "principal",
+                                // B5: la foto es obligatoria para publicar
+                                "imagenUrl", "https://example.com/receta.jpg"))))
                 .andReturn();
         String id = objectMapper.readTree(recetaResult.getResponse().getContentAsString()).get("id").asText();
 

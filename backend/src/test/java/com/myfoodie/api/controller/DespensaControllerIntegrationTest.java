@@ -230,7 +230,9 @@ class DespensaControllerIntegrationTest {
                         .content(productoJson("Leche Desnatada", 3, "litros")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nombre").value("Leche Desnatada"))
-                .andExpect(jsonPath("$.cantidad").value(3));
+                // La cantidad es derivada de los lotes (todo producto nace con lotes): este
+                // formulario no la toca, se gestiona desde la sección de lotes.
+                .andExpect(jsonPath("$.cantidad").value(2));
     }
 
     @Test
