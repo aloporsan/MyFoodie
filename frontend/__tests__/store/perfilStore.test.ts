@@ -46,6 +46,7 @@ const mockEstadisticas = {
     donado: 1,
     perdido: 0,
     otro: 0,
+    errorTipografia: 0,
   },
 };
 

@@ -49,6 +49,7 @@ export interface Dashboard {
   prioritarios: ProductoPrioritario[];
   estadisticas: Estadisticas;
   carrito: CarritoResumen;
+  recetas: { disponible: boolean };
 }
 
 export const dashboardService = {

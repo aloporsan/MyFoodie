@@ -11,19 +11,19 @@ it('renderiza_titulo_carrito_inteligente', () => {
 
 it('muestra_mensaje_generico_sin_items_de_prioridad_alta', () => {
   const { getByText } = render(<CarritoResumenCard resumen={null} onPress={jest.fn()} />);
-  expect(getByText('Sugerencias de compra basadas en tu despensa')).toBeTruthy();
+  expect(getByText('Sugerencias de compra según tu despensa')).toBeTruthy();
 });
 
 it('muestra_numero_de_items_de_prioridad_alta', () => {
   const resumen = { totalItems: 3, itemsAlta: 2, itemsMedia: 1, itemsBaja: 0, itemsAceptados: 0 };
   const { getByText } = render(<CarritoResumenCard resumen={resumen} onPress={jest.fn()} />);
-  expect(getByText('2 productos de prioridad alta')).toBeTruthy();
+  expect(getByText('2 de prioridad alta te esperan')).toBeTruthy();
 });
 
 it('muestra_numero_de_items_aceptados', () => {
   const resumen = { totalItems: 3, itemsAlta: 0, itemsMedia: 1, itemsBaja: 0, itemsAceptados: 4 };
   const { getByText } = render(<CarritoResumenCard resumen={resumen} onPress={jest.fn()} />);
-  expect(getByText('4 productos aceptados')).toBeTruthy();
+  expect(getByText('4 en tu lista')).toBeTruthy();
 });
 
 it('llama_onPress_al_pulsar_la_card', () => {

@@ -132,7 +132,8 @@ it('calcula_la_eficiencia_a_partir_de_los_motivos_reales', async () => {
   usePerfilStore.mockReturnValue(makeStore({ estadisticas: mockEstadisticasConMotivos }));
   const { getByText } = render(<EstadisticasScreen />);
   await act(async () => {});
-  expect(getByText('85%')).toBeTruthy();
+  // El número y el signo "%" van en <Text> separados en el hero.
+  expect(getByText('85')).toBeTruthy();
   expect(getByText('28 bien usados · 5 desperdiciados')).toBeTruthy();
 });
 
