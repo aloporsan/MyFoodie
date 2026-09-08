@@ -1,6 +1,16 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
 
+/**
+ * Resuelve el host del backend en este orden:
+ * 1. `EXPO_PUBLIC_API_BASE_URL` si está definida (build de producción vía eas.json,
+ *    o `.env` en local). Se espera CON el sufijo `/api`
+ *    (p. ej. `https://myfoodie.up.railway.app/api`); aquí se recorta para quedarnos
+ *    solo con el host.
+ * 2. Sin esa variable, la IP de la máquina que corre Metro (para probar desde un
+ *    móvil físico en la misma Wi-Fi).
+ * 3. Último recurso: `localhost` (emulador / web).
+ */
 const getServerHost = (): string => {
   const env = process.env.EXPO_PUBLIC_API_BASE_URL;
   if (env) return env.replace(/\/api\/?$/, '');
