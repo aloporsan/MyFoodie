@@ -1,0 +1,24 @@
+# Artefactos de build
+target/
+
+# Control de versiones y metadatos
+.git/
+.gitignore
+.gitattributes
+
+# IDE / editores
+.idea/
+.vscode/
+*.iml
+
+# Credenciales y variables de entorno: se inyectan en runtime, nunca en la imagen
+.env
+.env.*
+credentials/
+
+# Documentación y grafos de conocimiento
+HELP.md
+graphify-out/
+
+# Tests (se ejecutan en CI, no se necesitan para construir la imagen de runtime)
+src/test/
