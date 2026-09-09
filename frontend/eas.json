@@ -14,7 +14,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://REEMPLAZAR-con-la-url-de-railway.up.railway.app/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://myfoodie-production.up.railway.app/api"
       }
     },
     "production": {
@@ -23,7 +23,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://REEMPLAZAR-con-la-url-de-railway.up.railway.app/api"
+        "EXPO_PUBLIC_API_BASE_URL": "https://myfoodie-production.up.railway.app/api"
       }
     }
   },
