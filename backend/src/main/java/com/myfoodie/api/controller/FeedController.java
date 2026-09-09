@@ -1,19 +1,24 @@
 package com.myfoodie.api.controller;
 
 import com.myfoodie.application.dto.feed.FeedResponseDTO;
+import com.myfoodie.application.dto.feed.FiltrosFeedDTO;
+import com.myfoodie.application.dto.feed.InicializarPerfilRequestDTO;
 import com.myfoodie.application.dto.feed.PerfilGustosResponseDTO;
+import com.myfoodie.application.dto.feed.RecetaFeedDTO;
 import com.myfoodie.application.dto.receta.RecetaResponseDTO;
 import com.myfoodie.application.service.FeedAccionService;
 import com.myfoodie.application.service.FeedService;
 import com.myfoodie.application.service.RecetaService;
 import com.myfoodie.domain.repository.UsuarioRepository;
 import com.myfoodie.exception.ApiException;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/feed")
@@ -29,15 +34,34 @@ public class FeedController {
     public ResponseEntity<FeedResponseDTO> obtenerFeed(
             @RequestParam(defaultValue = "0") int pagina,
             @RequestParam(name = "tamaño", defaultValue = "10") int tamaño,
+            @RequestParam(required = false) List<String> categoria,
+            @RequestParam(required = false) List<String> dificultad,
+            @RequestParam(required = false) List<String> etiqueta,
+            @RequestParam(required = false) List<String> tiempo,
+            @RequestParam(required = false) List<String> personas,
             Principal principal) {
-        return ResponseEntity.ok(feedService.obtenerFeed(getUsuarioId(principal), pagina, tamaño));
+        FiltrosFeedDTO filtros = new FiltrosFeedDTO(categoria, dificultad, etiqueta, tiempo, personas);
+        return ResponseEntity.ok(feedService.obtenerFeed(getUsuarioId(principal), pagina, tamaño, filtros));
+    }
+
+    @GetMapping("/buscar")
+    public ResponseEntity<List<RecetaFeedDTO>> buscar(
+            @RequestParam("q") String q,
+            @RequestParam(required = false) List<String> categoria,
+            @RequestParam(required = false) List<String> dificultad,
+            @RequestParam(required = false) List<String> etiqueta,
+            @RequestParam(required = false) List<String> tiempo,
+            @RequestParam(required = false) List<String> personas,
+            Principal principal) {
+        FiltrosFeedDTO filtros = new FiltrosFeedDTO(categoria, dificultad, etiqueta, tiempo, personas);
+        return ResponseEntity.ok(feedService.buscarRecetas(getUsuarioId(principal), q, filtros));
     }
 
     @GetMapping("/recetas/{id}")
     public ResponseEntity<RecetaResponseDTO> obtenerDetalle(
             @PathVariable String id,
             Principal principal) {
-        return ResponseEntity.ok(recetaService.obtenerReceta(id, getUsuarioId(principal)));
+        return ResponseEntity.ok(recetaService.obtenerRecetaDetalle(id, getUsuarioId(principal)));
     }
 
     @PostMapping("/recetas/{id}/guardar")
@@ -84,6 +108,14 @@ public class FeedController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/inicializar-perfil")
+    public ResponseEntity<Void> inicializarPerfil(
+            @Valid @RequestBody InicializarPerfilRequestDTO dto,
+            Principal principal) {
+        feedService.inicializarPerfilDesdeOnboarding(getUsuarioId(principal), dto);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/perfil-gustos")
     public ResponseEntity<PerfilGustosResponseDTO> obtenerPerfilGustos(Principal principal) {
         return ResponseEntity.ok(feedService.obtenerPerfilGustos(getUsuarioId(principal)));
@@ -99,8 +131,15 @@ public class FeedController {
     public ResponseEntity<FeedResponseDTO> obtenerRecetasSeguidos(
             @RequestParam(defaultValue = "0") int pagina,
             @RequestParam(name = "tamaño", defaultValue = "10") int tamaño,
+            @RequestParam(required = false) List<String> categoria,
+            @RequestParam(required = false) List<String> dificultad,
+            @RequestParam(required = false) List<String> etiqueta,
+            @RequestParam(required = false) List<String> tiempo,
+            @RequestParam(required = false) List<String> personas,
             Principal principal) {
-        return ResponseEntity.ok(feedService.obtenerRecetasSeguidos(getUsuarioId(principal), pagina, tamaño));
+        FiltrosFeedDTO filtros = new FiltrosFeedDTO(categoria, dificultad, etiqueta, tiempo, personas);
+        return ResponseEntity.ok(
+                feedService.obtenerRecetasSeguidos(getUsuarioId(principal), pagina, tamaño, filtros));
     }
 
     private String getUsuarioId(Principal principal) {

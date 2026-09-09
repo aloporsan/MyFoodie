@@ -32,11 +32,17 @@ const mockEstadisticas = {
   totalProductosCaducados: 5,
   totalRecetasPublicadas: 8,
   totalRecetasGuardadas: 15,
+  aprovechamientoDespensa: 88,
   fechaRegistro: '2024-01-15T00:00:00.000Z',
 };
 
 jest.mock('@/store/perfilStore', () => ({
   usePerfilStore: jest.fn(),
+}));
+
+const mockVaciarDespensa = jest.fn();
+jest.mock('@/store/despensaStore', () => ({
+  useDespensaStore: jest.fn(() => ({ vaciarDespensa: mockVaciarDespensa })),
 }));
 
 const { usePerfilStore } = require('@/store/perfilStore');
@@ -71,6 +77,13 @@ it('renderiza_contadores_correctamente', async () => {
   expect(getByText('30')).toBeTruthy();
   expect(getByText('8')).toBeTruthy();
   expect(getByText('15')).toBeTruthy();
+});
+
+it('muestra_tarjeta_aprovechamiento_de_despensa', async () => {
+  const { getByText } = render(<EstadisticasScreen />);
+  await act(async () => {});
+  expect(getByText('Aprovechamiento de despensa')).toBeTruthy();
+  expect(getByText('88%')).toBeTruthy();
 });
 
 it('muestra_indicador_carga_mientras_carga', () => {
@@ -119,7 +132,8 @@ it('calcula_la_eficiencia_a_partir_de_los_motivos_reales', async () => {
   usePerfilStore.mockReturnValue(makeStore({ estadisticas: mockEstadisticasConMotivos }));
   const { getByText } = render(<EstadisticasScreen />);
   await act(async () => {});
-  expect(getByText('85%')).toBeTruthy();
+  // El número y el signo "%" van en <Text> separados en el hero.
+  expect(getByText('85')).toBeTruthy();
   expect(getByText('28 bien usados · 5 desperdiciados')).toBeTruthy();
 });
 

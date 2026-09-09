@@ -24,6 +24,9 @@ const mockSetFiltros       = jest.fn();
 const mockLimpiarFiltros   = jest.fn();
 const mockSetOrden         = jest.fn();
 const mockInicializarOrden = jest.fn().mockResolvedValue(undefined);
+const mockCargarLotes      = jest.fn().mockResolvedValue(undefined);
+const mockAñadirLote       = jest.fn().mockResolvedValue(undefined);
+const mockEditarLote       = jest.fn().mockResolvedValue(undefined);
 
 const mockProducto = {
   id: 'prod-1',
@@ -41,6 +44,7 @@ const storeBase = {
   isLoading: false,
   busquedaActiva: '',
   ordenActivo: 'reciente_primero',
+  lotesProductoActual: [],
   cargarProductos: mockCargarProductos,
   actualizarCantidad: mockActualizarCantidad,
   eliminarProducto: mockEliminarProducto,
@@ -49,12 +53,25 @@ const storeBase = {
   limpiarFiltros: mockLimpiarFiltros,
   setOrden: mockSetOrden,
   inicializarOrden: mockInicializarOrden,
+  cargarLotes: mockCargarLotes,
+  añadirLote: mockAñadirLote,
+  editarLote: mockEditarLote,
+};
+
+// El hook useControlCantidadProducto lee el store con selectores; el mock debe aplicarlos.
+let storeState: typeof storeBase;
+const setStore = (overrides: Record<string, unknown> = {}) => {
+  storeState = { ...storeBase, ...overrides } as typeof storeBase;
 };
 
 beforeEach(() => {
   jest.clearAllMocks();
+  setStore();
   (useRouter as jest.Mock).mockReturnValue({ push: mockPush, back: jest.fn() });
-  (useDespensaStore as unknown as jest.Mock).mockReturnValue(storeBase);
+  (useDespensaStore as unknown as jest.Mock).mockImplementation((selector?: (s: typeof storeBase) => unknown) =>
+    typeof selector === 'function' ? selector(storeState) : storeState,
+  );
+  (useDespensaStore as unknown as { getState: () => typeof storeBase }).getState = () => storeState;
 });
 
 // -------------------------------------------------------------------------
@@ -72,10 +89,7 @@ it('muestra_estado_vacio_si_no_hay_productos', () => {
 });
 
 it('renderiza_lista_de_productos_cuando_hay_productos', () => {
-  (useDespensaStore as unknown as jest.Mock).mockReturnValue({
-    ...storeBase,
-    productos: [mockProducto],
-  });
+  setStore({ productos: [mockProducto] });
   const { getByText } = render(<DespensaScreen />);
   expect(getByText('Leche Entera')).toBeTruthy();
 });
@@ -101,10 +115,7 @@ it('inicializa_orden_al_montar_la_pantalla', async () => {
 });
 
 it('orden_recuperado_se_refleja_en_filtrosbar', () => {
-  (useDespensaStore as unknown as jest.Mock).mockReturnValue({
-    ...storeBase,
-    ordenActivo: 'nombre_asc',
-  });
+  setStore({ ordenActivo: 'nombre_asc' });
   const { getByText } = render(<DespensaScreen />);
   const texto = getByText('Nombre A-Z');
   const estilo = Object.assign({}, ...[texto.props.style].flat());
@@ -116,11 +127,7 @@ it('orden_recuperado_se_refleja_en_filtrosbar', () => {
 // -------------------------------------------------------------------------
 
 it('muestra_estado_vacio_de_busqueda_si_hay_busqueda_activa_sin_resultados', () => {
-  (useDespensaStore as unknown as jest.Mock).mockReturnValue({
-    ...storeBase,
-    productos: [],
-    busquedaActiva: 'pepino',
-  });
+  setStore({ productos: [], busquedaActiva: 'pepino' });
   const { getByText } = render(<DespensaScreen />);
   expect(getByText('Sin resultados')).toBeTruthy();
 });

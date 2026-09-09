@@ -15,14 +15,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import {
+  AlertaDuplicados,
   BuscadorDespensa,
-  CantidadMotivoSheet,
   FiltrosBar,
+  ModalesControlCantidad,
   ProductoCard,
+  useControlCantidadProducto,
 } from '@/components/despensa';
-import { useToast } from '@/hooks/useToast';
 import { EstadoProducto, MotivoEliminacion } from '@/services/despensaService';
 import { useDespensaStore } from '@/store/despensaStore';
+import { useFusionStore } from '@/store/fusionStore';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
@@ -41,14 +43,12 @@ const MOTIVOS_ELIMINAR: { key: MotivoEliminacion; label: string; icono: string }
 
 export function DespensaScreen() {
   const router = useRouter();
-  const { showError } = useToast();
   const {
     productos,
     isLoading,
     busquedaActiva,
     ordenActivo,
     cargarProductos,
-    actualizarCantidad,
     eliminarProducto,
     setBusqueda,
     setFiltros,
@@ -56,6 +56,11 @@ export function DespensaScreen() {
     setOrden,
     inicializarOrden,
   } = useDespensaStore();
+  const { duplicados, cargarDuplicados } = useFusionStore();
+
+  // Mismo flujo de "+ / -" que el detalle del producto: elegir lote al sumar, aviso + resumen
+  // FIFO al restar (ver useControlCantidadProducto).
+  const control = useControlCantidadProducto();
 
   const [filtroActivo, setFiltroActivo] = useState<FiltroId>('todos');
   const [categoriaActiva, setCategoriaActiva] = useState('');
@@ -66,12 +71,6 @@ export function DespensaScreen() {
   const [pendingDeleteNombre, setPendingDeleteNombre] = useState('');
   const [motivoEliminar, setMotivoEliminar] = useState<MotivoEliminacion | null>(null);
   const [motivoDetalleEliminar, setMotivoDetalleEliminar] = useState('');
-
-  // Estado para el sheet de cantidad
-  const [pendingCantidadId, setPendingCantidadId] = useState<string | null>(null);
-  const [pendingCantidadUnidad, setPendingCantidadUnidad] = useState('');
-  const [pendingCantidadModo, setPendingCantidadModo] = useState<'sumar' | 'restar'>('restar');
-  const [pendingCantidadDisponible, setPendingCantidadDisponible] = useState(0);
 
   const [estadosPresentesBase, setEstadosPresentesBase] = useState<EstadoProducto[]>([]);
   const [categoriasBase, setCategoriasBase] = useState<string[]>([]);
@@ -87,6 +86,7 @@ export function DespensaScreen() {
       cargarProductos();
     };
     iniciar();
+    cargarDuplicados();
   }, []);
 
   useEffect(() => {
@@ -97,10 +97,10 @@ export function DespensaScreen() {
   }, [productos, busquedaActiva]);
 
   const handleSearch = useCallback((texto: string) => {
-    setBusqueda(texto);
+    limpiarFiltros();
     setFiltroActivo('todos');
     setCategoriaActiva('');
-    limpiarFiltros();
+    setBusqueda(texto);
     setTimeout(() => cargarProductos(), 0);
   }, []);
 
@@ -147,35 +147,6 @@ export function DespensaScreen() {
     setPendingDeleteId(null);
   };
 
-  // Cantidad con motivo
-  const handleDecrementar = useCallback((id: string, unidad: string, cantidadDisponible: number) => {
-    setPendingCantidadId(id);
-    setPendingCantidadUnidad(unidad);
-    setPendingCantidadModo('restar');
-    setPendingCantidadDisponible(cantidadDisponible);
-  }, []);
-
-  const handleIncrementar = useCallback((id: string, unidad: string) => {
-    setPendingCantidadId(id);
-    setPendingCantidadUnidad(unidad);
-    setPendingCantidadModo('sumar');
-  }, []);
-
-  const confirmarCantidad = async (
-    cantidad: number,
-    motivo?: MotivoEliminacion,
-    motivoDetalle?: string
-  ) => {
-    if (!pendingCantidadId) return;
-    const delta = pendingCantidadModo === 'sumar' ? cantidad : -cantidad;
-    try {
-      await actualizarCantidad(pendingCantidadId, delta, motivo, motivoDetalle);
-      setPendingCantidadId(null);
-    } catch {
-      showError('No puedes quitar más cantidad de la que tienes disponible');
-    }
-  };
-
   const estaFiltrandoOBuscando = busquedaActiva.trim() || filtroActivo !== 'todos' || categoriaActiva;
 
   if (isLoading && productos.length === 0) {
@@ -188,7 +159,15 @@ export function DespensaScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerSide} />
+        <View style={[styles.headerSide, styles.headerSideLeft]}>
+          <Pressable
+            style={styles.escanearBtn}
+            onPress={() => router.push('/despensa/ocr')}
+            testID="btn-escanear-ticket"
+          >
+            <Ionicons name="camera-outline" size={22} color={colors.text.primary} />
+          </Pressable>
+        </View>
         <Text style={styles.titulo}>Mi despensa</Text>
         <View style={styles.headerSide}>
           <Pressable style={styles.addBtn} onPress={() => router.push('/despensa/form')}>
@@ -234,9 +213,17 @@ export function DespensaScreen() {
         refreshControl={
           <RefreshControl
             refreshing={isLoading}
-            onRefresh={cargarProductos}
+            onRefresh={() => { cargarProductos(); cargarDuplicados(); }}
             tintColor={colors.primary}
           />
+        }
+        ListHeaderComponent={
+          duplicados.length > 0 ? (
+            <AlertaDuplicados
+              cantidad={duplicados.length}
+              onRevisar={() => router.push('/despensa/duplicados')}
+            />
+          ) : null
         }
         renderItem={({ item }) => (
           <ProductoCard
@@ -244,8 +231,8 @@ export function DespensaScreen() {
             onPress={() => router.push(`/despensa/${item.id}`)}
             onEditar={() => router.push({ pathname: '/despensa/form', params: { id: item.id } })}
             onEliminar={() => handleEliminar(item.id, item.nombre)}
-            onIncrementar={() => handleIncrementar(item.id, item.unidad)}
-            onDecrementar={() => handleDecrementar(item.id, item.unidad, item.cantidad)}
+            onIncrementar={() => control.abrirSumar(item)}
+            onDecrementar={() => control.abrirRestar(item)}
           />
         )}
         ListEmptyComponent={
@@ -321,7 +308,7 @@ export function DespensaScreen() {
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setPendingDeleteId(null)} />
           <View style={styles.motivoSheet}>
             <Text style={styles.motivoTitulo}>
-              ¿Por qué eliminas "{pendingDeleteNombre}"?
+              ¿Por qué eliminas «{pendingDeleteNombre}»?
             </Text>
             {MOTIVOS_ELIMINAR.map((m) => (
               <Pressable
@@ -365,15 +352,8 @@ export function DespensaScreen() {
         </View>
       </Modal>
 
-      {/* Sheet cantidad con motivo */}
-      <CantidadMotivoSheet
-        visible={pendingCantidadId !== null}
-        unidad={pendingCantidadUnidad}
-        modo={pendingCantidadModo}
-        maxCantidad={pendingCantidadModo === 'restar' ? pendingCantidadDisponible : undefined}
-        onConfirm={confirmarCantidad}
-        onCancelar={() => setPendingCantidadId(null)}
-      />
+      {/* Flujo de cantidad (+ / -) compartido con el detalle del producto */}
+      <ModalesControlCantidad control={control} />
     </SafeAreaView>
   );
 }
@@ -389,9 +369,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   headerSide: { flex: 1, alignItems: 'flex-end' },
+  headerSideLeft: { alignItems: 'flex-start' },
   titulo: { ...typography.heading1, color: colors.text.primary, textAlign: 'center', flex: 2 },
   addBtn: {
     backgroundColor: colors.primary,
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  escanearBtn: {
+    backgroundColor: colors.grayLight,
     borderRadius: 20,
     width: 40,
     height: 40,

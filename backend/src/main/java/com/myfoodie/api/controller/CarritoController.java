@@ -1,5 +1,7 @@
 package com.myfoodie.api.controller;
 
+import com.myfoodie.application.dto.carrito.AñadirCompradosResponseDTO;
+import com.myfoodie.application.dto.carrito.AñadirItemCarritoResponseDTO;
 import com.myfoodie.application.dto.carrito.CarritoDTO;
 import com.myfoodie.application.dto.carrito.ItemCarritoCantidadDTO;
 import com.myfoodie.application.dto.carrito.ItemCarritoRequestDTO;
@@ -7,7 +9,10 @@ import com.myfoodie.application.dto.carrito.ItemCarritoResponseDTO;
 import com.myfoodie.application.dto.carrito.ItemCompradoAjusteDTO;
 import com.myfoodie.application.dto.carrito.ListaCompraRequestDTO;
 import com.myfoodie.application.dto.carrito.ListaCompraResponseDTO;
+import com.myfoodie.application.dto.matching.MatchItemCarritoDTO;
+import com.myfoodie.application.dto.matching.ResultadoAñadirDespensaDTO;
 import com.myfoodie.application.service.CarritoInteligenteService;
+import com.myfoodie.application.service.MatchingService;
 import com.myfoodie.domain.repository.UsuarioRepository;
 import com.myfoodie.exception.ApiException;
 import jakarta.validation.Valid;
@@ -25,6 +30,7 @@ import java.util.List;
 public class CarritoController {
 
     private final CarritoInteligenteService carritoInteligenteService;
+    private final MatchingService matchingService;
     private final UsuarioRepository usuarioRepository;
 
     @GetMapping
@@ -69,11 +75,24 @@ public class CarritoController {
     }
 
     @PostMapping("/items")
-    public ResponseEntity<ItemCarritoResponseDTO> añadirItemManual(
+    public ResponseEntity<AñadirItemCarritoResponseDTO> añadirItemManual(
             @Valid @RequestBody ItemCarritoRequestDTO dto,
             Principal principal) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(carritoInteligenteService.añadirItemManual(getUsuarioId(principal), dto));
+    }
+
+    @GetMapping("/items/similares")
+    public ResponseEntity<List<MatchItemCarritoDTO>> similares(
+            @RequestParam String nombre,
+            Principal principal) {
+        return ResponseEntity.ok(matchingService.buscarItemSimilarEnCarrito(getUsuarioId(principal), nombre));
+    }
+
+    @DeleteMapping("/items/rechazados")
+    public ResponseEntity<Void> eliminarItemsRechazados(Principal principal) {
+        carritoInteligenteService.eliminarItemsRechazados(getUsuarioId(principal));
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/items/{id}")
@@ -122,13 +141,15 @@ public class CarritoController {
     }
 
     @PostMapping("/listas/{id}/añadir-despensa")
-    public ResponseEntity<ListaCompraResponseDTO> añadirCompradosADespensa(
+    public ResponseEntity<AñadirCompradosResponseDTO> añadirCompradosADespensa(
             @PathVariable String id,
             @RequestBody(required = false) List<ItemCompradoAjusteDTO> ajustes,
             Principal principal) {
         String usuarioId = getUsuarioId(principal);
-        carritoInteligenteService.añadirProductosCompradosADespensa(usuarioId, id, ajustes);
-        return ResponseEntity.ok(carritoInteligenteService.obtenerListaCompra(usuarioId, id));
+        List<ResultadoAñadirDespensaDTO> resultados =
+                carritoInteligenteService.añadirProductosCompradosADespensa(usuarioId, id, ajustes);
+        ListaCompraResponseDTO lista = carritoInteligenteService.obtenerListaCompra(usuarioId, id);
+        return ResponseEntity.ok(new AñadirCompradosResponseDTO(resultados, lista));
     }
 
     private String getUsuarioId(Principal principal) {

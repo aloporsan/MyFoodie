@@ -13,6 +13,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { EstadisticaItem } from '@/components/perfil/EstadisticaItem';
 import { usePerfilStore } from '@/store/perfilStore';
+import { useDespensaStore } from '@/store/despensaStore';
+import { showConfirm } from '@/hooks/useConfirm';
+import { useToast } from '@/hooks/useToast';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
 import type { EstadisticasPerfil, MotivosEliminacion } from '@/services/perfilService';
 
@@ -45,15 +48,55 @@ function calcularEficiencia(stats: EstadisticasPerfil): number | null {
 
 export function EstadisticasScreen() {
   const router = useRouter();
-  const { perfil, estadisticas, isLoading, cargarEstadisticas } = usePerfilStore();
+  const { estadisticas, isLoading, cargarEstadisticas } = usePerfilStore();
+  const { vaciarDespensa } = useDespensaStore();
+  const toast = useToast();
 
   useEffect(() => {
     cargarEstadisticas();
   }, []);
 
-  const diasMiembro = perfil
-    ? Math.floor((Date.now() - new Date(perfil.fechaRegistro).getTime()) / (1000 * 60 * 60 * 24))
-    : 0;
+  const confirmarVaciarDespensa = async () => {
+    try {
+      const eliminados = await vaciarDespensa();
+      await cargarEstadisticas();
+      toast.showSuccess(
+        eliminados > 0
+          ? `Despensa vaciada: ${eliminados} producto${eliminados === 1 ? '' : 's'} eliminado${eliminados === 1 ? '' : 's'}`
+          : 'Tu despensa ya estaba vacía',
+      );
+    } catch {
+      toast.showError('No se pudo vaciar la despensa. Inténtalo de nuevo.');
+    }
+  };
+
+  const handleVaciarDespensa = () => {
+    showConfirm(
+      'Vaciar despensa',
+      'Se eliminarán todos los productos y sus lotes de tu despensa. Esta acción no se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Continuar',
+          style: 'destructive',
+          onPress: () => {
+            showConfirm(
+              '¿Estás completamente seguro?',
+              'Perderás todo el contenido de tu despensa. Tu historial y tus estadísticas se conservan.',
+              [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'Vaciar definitivamente', style: 'destructive', onPress: confirmarVaciarDespensa },
+              ],
+              { icon: 'warning-outline' },
+            );
+          },
+        },
+      ],
+      { icon: 'trash-outline' },
+    );
+  };
+
+  const diasMiembro = estadisticas?.diasEnMyFoodie ?? 0;
 
   const nivel = getNivel(estadisticas?.totalProductosRegistrados ?? 0);
   const eficiencia = estadisticas ? calcularEficiencia(estadisticas) : null;
@@ -93,20 +136,21 @@ export function EstadisticasScreen() {
             style={styles.heroCard}
           >
             <View style={styles.heroTop}>
-              <View>
-                <Text style={styles.heroLabel}>Eficiencia alimentaria</Text>
+              <View style={styles.heroAnillo}>
                 <Text style={styles.heroPorcentaje}>
-                  {eficiencia !== null ? `${eficiencia}%` : '--'}
+                  {eficiencia !== null ? `${eficiencia}` : '--'}
                 </Text>
-                {estadisticas && (
-                  <Text style={styles.heroSub}>
-                    {bienUsados} bien usados · {desperdiciados} desperdiciados
-                  </Text>
-                )}
+                {eficiencia !== null && <Text style={styles.heroPct}>%</Text>}
               </View>
-              <View style={styles.nivelBadge}>
-                <Ionicons name={nivel.icono} size={20} color={colors.white} />
-                <Text style={styles.nivelNombre}>{nivel.nombre}</Text>
+              <View style={styles.heroInfo}>
+                <Text style={styles.heroLabel}>Eficiencia alimentaria</Text>
+                <View style={styles.nivelBadge}>
+                  <Ionicons name={nivel.icono} size={16} color={colors.white} />
+                  <Text style={styles.nivelNombre}>{nivel.nombre}</Text>
+                </View>
+                <Text style={styles.heroSub}>
+                  {bienUsados} bien usados · {desperdiciados} desperdiciados
+                </Text>
               </View>
             </View>
 
@@ -117,13 +161,13 @@ export function EstadisticasScreen() {
                   {bienUsados > 0 && (
                     <View style={[styles.progressSeg, {
                       flex: bienUsados,
-                      backgroundColor: 'rgba(255,255,255,0.85)',
+                      backgroundColor: 'rgba(255,255,255,0.9)',
                     }]} />
                   )}
                   {desperdiciados > 0 && (
                     <View style={[styles.progressSeg, {
                       flex: desperdiciados,
-                      backgroundColor: 'rgba(239,68,68,0.75)',
+                      backgroundColor: 'rgba(239,68,68,0.8)',
                     }]} />
                   )}
                 </>
@@ -132,13 +176,13 @@ export function EstadisticasScreen() {
               )}
             </View>
             <View style={styles.progressLeyenda}>
-              <LeyendaItem color="rgba(255,255,255,0.85)" label="Bien usados" />
+              <LeyendaItem color="rgba(255,255,255,0.9)" label="Bien usados" />
               <LeyendaItem color="rgba(239,68,68,0.9)" label="Desperdiciados" />
             </View>
           </LinearGradient>
 
           {/* Despensa */}
-          <Seccion titulo="Despensa">
+          <Seccion titulo="Despensa" icono="file-tray-stacked-outline">
             <View style={styles.fila}>
               <EstadisticaItem
                 icono="basket-outline"
@@ -167,6 +211,14 @@ export function EstadisticasScreen() {
                 color="#888888"
               />
             </View>
+            <View style={[styles.fila, { marginTop: spacing.md }]}>
+              <EstadisticaItem
+                icono="leaf-outline"
+                valor={`${Math.round(estadisticas?.aprovechamientoDespensa ?? 0)}%`}
+                etiqueta="Aprovechamiento de despensa"
+                color={colors.primary}
+              />
+            </View>
           </Seccion>
 
           {/* Motivos de eliminación */}
@@ -175,7 +227,7 @@ export function EstadisticasScreen() {
           )}
 
           {/* Recetas */}
-          <Seccion titulo="Recetas">
+          <Seccion titulo="Recetas" icono="restaurant-outline">
             <View style={styles.fila}>
               <EstadisticaItem
                 icono="book-outline"
@@ -193,7 +245,7 @@ export function EstadisticasScreen() {
           </Seccion>
 
           {/* Actividad y nivel */}
-          <Seccion titulo="Actividad">
+          <Seccion titulo="Actividad" icono="pulse-outline">
             <View style={[styles.nivelCard, { borderLeftColor: nivel.color }]}>
               <View style={[styles.nivelIcono, { backgroundColor: nivel.color + '20' }]}>
                 <Ionicons name={nivel.icono} size={28} color={nivel.color} />
@@ -225,6 +277,23 @@ export function EstadisticasScreen() {
             </View>
           </Seccion>
 
+          {/* Zona de peligro */}
+          <Seccion titulo="Zona de peligro" icono="warning-outline">
+            <Text style={styles.peligroTexto}>
+              Elimina de golpe todos los productos de tu despensa. Tu historial y tus estadísticas se
+              mantienen.
+            </Text>
+            <Pressable
+              style={styles.peligroBtn}
+              onPress={handleVaciarDespensa}
+              disabled={isLoading}
+              testID="btn-vaciar-despensa"
+            >
+              <Ionicons name="trash-outline" size={18} color={colors.error} />
+              <Text style={styles.peligroBtnTexto}>Vaciar despensa</Text>
+            </Pressable>
+          </Seccion>
+
         </ScrollView>
       ) : null}
     </SafeAreaView>
@@ -242,13 +311,17 @@ const MOTIVOS_CONFIG: {
   { key: 'usado_en_receta', label: 'En receta',       icono: 'restaurant-outline',        color: '#F5A623' },
   { key: 'donado',          label: 'Donado',          icono: 'heart-outline',             color: '#E91E8C' },
   { key: 'perdido',         label: 'Perdido',         icono: 'help-circle-outline',       color: '#888888' },
+  { key: 'errorTipografia', label: 'Añadido por error', icono: 'create-outline',          color: '#5B8DEF' },
   { key: 'otro',            label: 'Otro',            icono: 'ellipsis-horizontal-circle-outline', color: '#7C5CBF' },
 ];
 
 function SeccionMotivos({ motivos }: { motivos: MotivosEliminacion }) {
   return (
     <View style={seccionStyles.wrapper}>
-      <Text style={seccionStyles.titulo}>Motivos de eliminación</Text>
+      <View style={seccionStyles.tituloRow}>
+        <Ionicons name="pie-chart-outline" size={14} color={colors.text.secondary} />
+        <Text style={seccionStyles.titulo}>Motivos de eliminación</Text>
+      </View>
       <View style={[seccionStyles.card, motivosStyles.grid]}>
         {MOTIVOS_CONFIG.map((m) => (
           <View key={m.key} style={motivosStyles.item}>
@@ -264,10 +337,21 @@ function SeccionMotivos({ motivos }: { motivos: MotivosEliminacion }) {
   );
 }
 
-function Seccion({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+function Seccion({
+  titulo,
+  icono,
+  children,
+}: {
+  titulo: string;
+  icono?: React.ComponentProps<typeof Ionicons>['name'];
+  children: React.ReactNode;
+}) {
   return (
     <View style={seccionStyles.wrapper}>
-      <Text style={seccionStyles.titulo}>{titulo}</Text>
+      <View style={seccionStyles.tituloRow}>
+        {icono && <Ionicons name={icono} size={14} color={colors.text.secondary} />}
+        <Text style={seccionStyles.titulo}>{titulo}</Text>
+      </View>
       <View style={seccionStyles.card}>{children}</View>
     </View>
   );
@@ -308,40 +392,61 @@ const styles = StyleSheet.create({
   },
   heroTop: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing.lg,
+  },
+  heroAnillo: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    borderWidth: 6,
+    borderColor: 'rgba(255,255,255,0.35)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  heroInfo: {
+    flex: 1,
+    gap: spacing.xs,
     alignItems: 'flex-start',
   },
   heroLabel: {
     fontSize: 12,
     fontFamily: 'Poppins_500Medium',
-    color: 'rgba(255,255,255,0.8)',
-    marginBottom: spacing.xs,
+    color: 'rgba(255,255,255,0.85)',
   },
   heroPorcentaje: {
-    fontSize: 48,
+    fontSize: 34,
     fontFamily: 'Poppins_700Bold',
     color: colors.white,
-    lineHeight: 52,
+    lineHeight: 38,
+  },
+  heroPct: {
+    fontSize: 15,
+    fontFamily: 'Poppins_600SemiBold',
+    color: 'rgba(255,255,255,0.9)',
+    marginTop: 4,
   },
   heroSub: {
     fontSize: 12,
     fontFamily: 'Poppins_400Regular',
-    color: 'rgba(255,255,255,0.75)',
-    marginTop: spacing.xs,
+    color: 'rgba(255,255,255,0.8)',
   },
   nivelBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
     borderRadius: borderRadius.full,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.5)',
     backgroundColor: 'rgba(255,255,255,0.15)',
   },
   nivelNombre: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: 'Poppins_600SemiBold',
     color: colors.white,
   },
@@ -391,10 +496,35 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontFamily: 'Poppins_700Bold',
   },
+  peligroTexto: {
+    ...typography.caption,
+    color: colors.text.secondary,
+    marginBottom: spacing.md,
+  },
+  peligroBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1.5,
+    borderColor: colors.error,
+    backgroundColor: '#FFEBEE',
+  },
+  peligroBtnTexto: {
+    ...typography.button,
+    color: colors.error,
+  },
 });
 
 const seccionStyles = StyleSheet.create({
   wrapper: { gap: spacing.md },
+  tituloRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
   titulo: {
     fontSize: 12,
     fontFamily: 'Poppins_600SemiBold',

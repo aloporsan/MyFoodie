@@ -56,6 +56,8 @@ public class InteraccionUsuarioService {
             ajustarPuntuacion(perfil.getDificultadesPreferidas(), receta.getDificultad(), delta);
         }
 
+        int totalPrevio = perfil.getTotalInteracciones() != null ? perfil.getTotalInteracciones() : 0;
+        perfil.setTotalInteracciones(totalPrevio + 1);
         perfil.setUpdatedAt(new Date());
         perfilGustosRepository.save(perfil);
     }

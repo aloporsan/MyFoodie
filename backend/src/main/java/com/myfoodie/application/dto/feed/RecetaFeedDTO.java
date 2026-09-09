@@ -12,6 +12,7 @@ public record RecetaFeedDTO(
         String autorFoto,
         int tiempoEstimado,
         String dificultad,
+        String categoria,
         Integer numPersonas,
         List<String> etiquetas,
         String imagenUrl,
@@ -25,5 +26,7 @@ public record RecetaFeedDTO(
         String motivoRecomendacion,
         Boolean publicadaPorSeguido,
         Integer likesDeSeguidosCount,
-        ContextoSocialDTO contextoSocial
+        ContextoSocialDTO contextoSocial,
+        Boolean modoFallback,
+        Boolean coincidenciaParcial
 ) {}

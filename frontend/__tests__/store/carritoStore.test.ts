@@ -202,14 +202,47 @@ it('modificarCantidad_sincroniza_el_item_en_listaActiva_y_listaEnCurso', async (
 // añadirItemManual / eliminarItem
 // -------------------------------------------------------------------------
 
-it('añadirItemManual_agrega_el_item_a_la_lista', async () => {
+it('añadirItemManual_creado_agrega_el_item_a_la_lista_y_no_deja_sugerencia', async () => {
   const nuevo = { ...mockItem, id: 'item-2', nombre: 'Café' };
-  mockService.añadirItemManual.mockResolvedValue(nuevo);
+  mockService.añadirItemManual.mockResolvedValue({ accion: 'creado', item: nuevo, itemExistente: null, similitud: null });
 
   await useCarritoStore.getState().añadirItemManual({ nombre: 'Café', cantidad: 1, unidad: 'paquetes' });
 
   expect(useCarritoStore.getState().items).toHaveLength(1);
   expect(useCarritoStore.getState().items[0].nombre).toBe('Café');
+  expect(useCarritoStore.getState().sugerenciaCarrito).toBeNull();
+});
+
+it('añadirItemManual_actualizado_sustituye_el_item_existente_en_vez_de_duplicarlo', async () => {
+  useCarritoStore.setState({ ...estadoInicial, items: [mockItem] });
+  const actualizado = { ...mockItem, cantidad: 4 };
+  mockService.añadirItemManual.mockResolvedValue({ accion: 'actualizado', item: actualizado, itemExistente: null, similitud: 1 });
+
+  await useCarritoStore.getState().añadirItemManual({ nombre: 'Leche', cantidad: 2, unidad: 'litros' });
+
+  expect(useCarritoStore.getState().items).toHaveLength(1);
+  expect(useCarritoStore.getState().items[0].cantidad).toBe(4);
+});
+
+it('añadirItemManual_sugerencia_inserta_el_item_propuesto_y_ademas_guarda_sugerenciaCarrito', async () => {
+  const propuesto = { ...mockItem, id: 'item-3', nombre: 'Carne' };
+  const existente = { ...mockItem, id: 'item-1', nombre: 'Carne boloñesa' };
+  mockService.añadirItemManual.mockResolvedValue({
+    accion: 'sugerencia',
+    item: propuesto,
+    itemExistente: existente,
+    similitud: 0.75,
+  });
+
+  await useCarritoStore.getState().añadirItemManual({ nombre: 'Carne', cantidad: 1, unidad: 'kg' });
+
+  expect(useCarritoStore.getState().items).toHaveLength(1);
+  expect(useCarritoStore.getState().items[0].nombre).toBe('Carne');
+  expect(useCarritoStore.getState().sugerenciaCarrito).toEqual({
+    item: propuesto,
+    itemExistente: existente,
+    similitud: 0.75,
+  });
 });
 
 it('eliminarItem_quita_el_item_de_items_listas_listaActiva_y_listaEnCurso', async () => {
@@ -228,6 +261,38 @@ it('eliminarItem_quita_el_item_de_items_listas_listaActiva_y_listaEnCurso', asyn
   expect(useCarritoStore.getState().listas[0].items).toHaveLength(0);
   expect(useCarritoStore.getState().listaActiva?.items).toHaveLength(0);
   expect(useCarritoStore.getState().listaEnCurso?.items).toHaveLength(0);
+});
+
+it('eliminarItemsRechazados_quita_solo_los_rechazados_de_items', async () => {
+  useCarritoStore.setState({
+    ...estadoInicial,
+    items: [
+      { ...mockItem, id: 'a', estado: 'pendiente' },
+      { ...mockItem, id: 'b', estado: 'rechazado' },
+      { ...mockItem, id: 'c', estado: 'rechazado' },
+      { ...mockItem, id: 'd', estado: 'aceptado' },
+    ],
+  });
+  mockService.eliminarItemsRechazados.mockResolvedValue(undefined);
+
+  await useCarritoStore.getState().eliminarItemsRechazados();
+
+  expect(mockService.eliminarItemsRechazados).toHaveBeenCalled();
+  expect(useCarritoStore.getState().items.map((i) => i.id)).toEqual(['a', 'd']);
+});
+
+it('eliminarItemsRechazados_revierte_si_falla_la_peticion', async () => {
+  const items = [
+    { ...mockItem, id: 'a', estado: 'pendiente' as const },
+    { ...mockItem, id: 'b', estado: 'rechazado' as const },
+  ];
+  useCarritoStore.setState({ ...estadoInicial, items });
+  mockService.eliminarItemsRechazados.mockRejectedValue(new Error('Error de red'));
+
+  await expect(useCarritoStore.getState().eliminarItemsRechazados()).rejects.toThrow('Error de red');
+
+  expect(useCarritoStore.getState().items).toHaveLength(2);
+  expect(useCarritoStore.getState().error).toBe('Error de red');
 });
 
 // -------------------------------------------------------------------------
@@ -324,7 +389,7 @@ it('añadirCompradosADespensa_actualiza_la_lista_y_limpia_listaEnCurso_si_coinci
     listaActiva: mockLista,
     listaEnCurso: mockLista,
   });
-  mockService.añadirCompradosADespensa.mockResolvedValue(listaCompletada);
+  mockService.añadirCompradosADespensa.mockResolvedValue({ resultados: [], lista: listaCompletada });
 
   await useCarritoStore.getState().añadirCompradosADespensa('lista-1');
 
@@ -336,7 +401,10 @@ it('añadirCompradosADespensa_actualiza_la_lista_y_limpia_listaEnCurso_si_coinci
 it('añadirCompradosADespensa_no_limpia_listaEnCurso_si_pertenece_a_otra_lista', async () => {
   const otraListaEnCurso = { ...mockLista, id: 'lista-2' };
   useCarritoStore.setState({ ...estadoInicial, listaEnCurso: otraListaEnCurso });
-  mockService.añadirCompradosADespensa.mockResolvedValue({ ...mockLista, estado: 'completada' as const });
+  mockService.añadirCompradosADespensa.mockResolvedValue({
+    resultados: [],
+    lista: { ...mockLista, estado: 'completada' as const },
+  });
 
   await useCarritoStore.getState().añadirCompradosADespensa('lista-1');
 

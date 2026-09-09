@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
@@ -54,6 +54,17 @@ export function FeedScreen() {
     cargarFeed();
     cargarPerfilGustos();
   }, []);
+
+  // Si algo invalidó el pool de recetas (p. ej. cambiaste las preferencias alimentarias),
+  // el feed se recarga desde cero al volver a esta pantalla.
+  useFocusEffect(
+    useCallback(() => {
+      if (useFeedStore.getState().feedObsoleto) {
+        cargarFeed(useFeedStore.getState().fuente);
+        cargarPerfilGustos();
+      }
+    }, [cargarFeed, cargarPerfilGustos]),
+  );
 
   useEffect(() => {
     if (error) {
@@ -114,14 +125,24 @@ export function FeedScreen() {
       <View onLayout={(e) => setAlturaCabecera(e.nativeEvent.layout.height)}>
         <View style={styles.header}>
           <Text style={styles.headerTitulo}>Feed</Text>
-          <Pressable
-            style={({ pressed }) => [styles.btnBuscar, pressed && styles.btnBuscarPressed]}
-            onPress={() => router.push('/social/buscar')}
-            hitSlop={8}
-            testID="btn-buscar-usuarios"
-          >
-            <Ionicons name="search" size={20} color={colors.primary} />
-          </Pressable>
+          <View style={styles.headerAcciones}>
+            <Pressable
+              style={({ pressed }) => [styles.btnBuscar, pressed && styles.btnBuscarPressed]}
+              onPress={() => router.push('/feed/buscar')}
+              hitSlop={8}
+              testID="btn-buscar-recetas"
+            >
+              <Ionicons name="search" size={20} color={colors.primary} />
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.btnBuscar, pressed && styles.btnBuscarPressed]}
+              onPress={() => router.push('/social/buscar')}
+              hitSlop={8}
+              testID="btn-buscar-usuarios"
+            >
+              <Ionicons name="people-outline" size={20} color={colors.primary} />
+            </Pressable>
+          </View>
         </View>
 
         <FiltroFeedBar filtroActivo={filtro} onFiltroChange={setFiltro} />
@@ -172,6 +193,10 @@ const styles = StyleSheet.create({
   headerTitulo: {
     ...typography.heading1,
     color: colors.text.primary,
+  },
+  headerAcciones: {
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
   btnBuscar: {
     width: 40,

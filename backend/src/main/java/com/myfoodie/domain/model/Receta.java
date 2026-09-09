@@ -39,6 +39,9 @@ public class Receta {
     private String estado = "borrador";
 
     @Builder.Default
+    private VisibilidadReceta visibilidad = VisibilidadReceta.PUBLICA;
+
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @Builder.Default

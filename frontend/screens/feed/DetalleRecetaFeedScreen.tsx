@@ -1,13 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type React from 'react';
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ModalCompartir } from '@/components/compartir/ModalCompartir';
 import { ErrorScreen } from '@/components/common/ErrorScreen';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
+import { ListaComentarios } from '@/components/receta';
+import { ReporteModal } from '@/components/social';
 import { useToast } from '@/hooks/useToast';
 import { despensaService } from '@/services/despensaService';
 import { feedService } from '@/services/feedService';
@@ -44,6 +56,24 @@ export function DetalleRecetaFeedScreen() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalCompartirVisible, setModalCompartirVisible] = useState(false);
+  const [modalReporteVisible, setModalReporteVisible] = useState(false);
+  const [numComentarios, setNumComentarios] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+  const contenidoY = useRef(0);
+  const comentariosY = useRef(0);
+
+  const enfocarComentarios = () => {
+    // Lleva la sección de comentarios al borde superior para que el campo quede por
+    // encima del teclado. El retardo da tiempo a que el teclado termine de abrirse.
+    setTimeout(
+      () =>
+        scrollRef.current?.scrollTo({
+          y: contenidoY.current + comentariosY.current,
+          animated: true,
+        }),
+      Platform.OS === 'android' ? 350 : 100,
+    );
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -54,6 +84,7 @@ export function DetalleRecetaFeedScreen() {
       .then(([detalle, productos]) => {
         if (cancelado) return;
         setReceta(detalle);
+        setNumComentarios(detalle.numeroComentarios ?? 0);
         setNombresDespensa(new Set(productos.map((p) => p.nombre.trim().toLowerCase())));
         setError(null);
       })
@@ -100,11 +131,12 @@ export function DetalleRecetaFeedScreen() {
 
   const handleGuardar = async () => {
     if (!id || recetaFeed?.yaGuardada) return;
-    try {
-      await guardarReceta(id);
-      showSuccess('Receta guardada');
-    } catch {
-      showError('No se pudo guardar la receta');
+    // Guardado optimista: el store quita la receta del feed al instante y confirma en
+    // segundo plano. Volvemos al feed sin esperar, igual de fluido que descartar.
+    guardarReceta(id);
+    showSuccess('Receta guardada');
+    if (recetaFeed) {
+      router.back();
     }
   };
 
@@ -194,6 +226,9 @@ export function DetalleRecetaFeedScreen() {
               color={recetaFeed?.yaGuardada ? colors.primary : colors.text.primary}
             />
           </Pressable>
+          <Pressable testID="btn-reportar-header" onPress={() => setModalReporteVisible(true)} hitSlop={8}>
+            <Ionicons name="flag-outline" size={22} color={colors.text.primary} />
+          </Pressable>
         </View>
       </View>
 
@@ -203,7 +238,24 @@ export function DetalleRecetaFeedScreen() {
         onClose={() => setModalCompartirVisible(false)}
       />
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ReporteModal
+        visible={modalReporteVisible}
+        tipoContenido="RECETA"
+        contenidoId={receta.id}
+        onClose={() => setModalReporteVisible(false)}
+      />
+
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+      >
         {imagenUrl ? (
           <Image source={{ uri: imagenUrl }} style={styles.heroImagen} resizeMode="cover" />
         ) : (
@@ -212,7 +264,12 @@ export function DetalleRecetaFeedScreen() {
           </View>
         )}
 
-        <View style={styles.content}>
+        <View
+          style={styles.content}
+          onLayout={(e) => {
+            contenidoY.current = e.nativeEvent.layout.y;
+          }}
+        >
           <View style={styles.card}>
             <Text style={styles.titulo}>{receta.titulo}</Text>
             <Text style={styles.descripcion}>{receta.descripcion}</Text>
@@ -318,15 +375,29 @@ export function DetalleRecetaFeedScreen() {
             </View>
           </View>
 
-          <View style={styles.card}>
-            <SectionHeader icon="chatbubble-outline" iconColor={colors.grayDark} titulo="Comentarios" count={0} />
-            <View style={styles.comentariosPlaceholder}>
-              <Ionicons name="chatbubbles-outline" size={32} color={colors.grayMid} />
-              <Text style={styles.vacioText}>Los comentarios estarán disponibles próximamente</Text>
-            </View>
+          <View
+            style={styles.card}
+            onLayout={(e) => {
+              comentariosY.current = e.nativeEvent.layout.y;
+            }}
+          >
+            <SectionHeader
+              icon="chatbubble-outline"
+              iconColor={colors.grayDark}
+              titulo="Comentarios"
+              count={numComentarios}
+            />
+            {id ? (
+              <ListaComentarios
+                recetaId={id}
+                onCountChange={setNumComentarios}
+                onInputFocus={enfocarComentarios}
+              />
+            ) : null}
           </View>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -379,6 +450,7 @@ function SectionHeader({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background.surface },
+  flex: { flex: 1 },
 
   header: {
     flexDirection: 'row',
@@ -461,12 +533,6 @@ const styles = StyleSheet.create({
   carritoBtnTexto: { ...typography.button, color: colors.white },
 
   pasosList: { gap: spacing.md },
-
-  comentariosPlaceholder: {
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-  },
 });
 
 const secStyles = StyleSheet.create({

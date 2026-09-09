@@ -10,6 +10,14 @@ export type EstadoProducto =
   | 'caduca_semana'
   | 'caduca_mes';
 
+export interface ConsumoLote {
+  loteId: string;
+  fechaCaducidad?: string;
+  cantidadConsumida: number;
+  cantidadRestante: number;
+  loteEliminado: boolean;
+}
+
 export interface Producto {
   id: string;
   despensaId: string;
@@ -26,7 +34,12 @@ export interface Producto {
   alertaCompra?: boolean;
   estado: EstadoProducto;
   diasHastaCaducidad?: number | null;
+  mostrarFechaCaducidad?: boolean;
+  tieneLotes?: boolean;
   posiblesDuplicados?: Producto[];
+  // Solo viene informado cuando esta respuesta procede de restar cantidad a un producto con
+  // lotes (consumo FIFO): de qué lote(s) concreto(s) se descontó.
+  consumosFifo?: ConsumoLote[] | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -55,7 +68,8 @@ export type MotivoEliminacion =
   | 'usado_en_receta'
   | 'donado'
   | 'perdido'
-  | 'otro';
+  | 'otro'
+  | 'error_tipografia';
 
 export interface MovimientoProducto {
   id: string;
@@ -100,6 +114,13 @@ export const despensaService = {
     await apiClient.delete(`/despensa/productos/${id}`, { data: body });
   },
 
+  vaciarDespensa: async (): Promise<number> => {
+    const { data } = await apiClient.delete<{ productosEliminados: number }>(
+      '/despensa/productos/vaciar'
+    );
+    return data.productosEliminados;
+  },
+
   obtenerHistorial: async (id: string): Promise<MovimientoProducto[]> => {
     const { data } = await apiClient.get<MovimientoProducto[]>(
       `/despensa/productos/${id}/historial`
@@ -111,12 +132,14 @@ export const despensaService = {
     id: string,
     delta: number,
     motivo?: MotivoEliminacion,
-    motivoDetalle?: string
+    motivoDetalle?: string,
+    descripcion?: string
   ): Promise<Producto> => {
     const { data } = await apiClient.patch<Producto>(`/despensa/productos/${id}/cantidad`, {
       delta,
       motivo,
       motivoDetalle,
+      descripcion,
     });
     return data;
   },

@@ -36,6 +36,9 @@ public class Producto {
     private Integer stockMinimo;
 
     @Builder.Default
+    private Boolean tieneLotes = false;
+
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @Builder.Default

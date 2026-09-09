@@ -8,8 +8,12 @@ jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
 jest.mock('@/services/recetaService', () => ({
   recetaService: { marcarRealizada: jest.fn(), descontarStock: jest.fn() },
 }));
+jest.mock('@/services/despensaService', () => ({
+  despensaService: { actualizarCantidad: jest.fn() },
+}));
 
 const { recetaService } = require('@/services/recetaService');
+const { despensaService } = require('@/services/despensaService');
 
 const mockConsumo = (overrides: Partial<IngredienteConsumo> = {}): IngredienteConsumo => ({
   nombre: 'Arroz',
@@ -18,6 +22,10 @@ const mockConsumo = (overrides: Partial<IngredienteConsumo> = {}): IngredienteCo
   productoEnDespensa: true,
   cantidadDisponible: 500,
   suficiente: true,
+  noComparable: false,
+  tipoMatch: 'AUTOMATICO',
+  productoId: null,
+  productoNombre: null,
   ...overrides,
 });
 
@@ -94,6 +102,7 @@ it('boton_descontar_llama_al_servicio_y_muestra_toast', async () => {
   recetaService.descontarStock.mockResolvedValue({
     descontados: [mockConsumo()],
     noDisponibles: [],
+    coincidenciasParciales: [],
   });
   const onClose = jest.fn();
 
@@ -107,6 +116,82 @@ it('boton_descontar_llama_al_servicio_y_muestra_toast', async () => {
   expect(useToastStore.getState().tipo).toBe('success');
   expect(useToastStore.getState().mensaje).toBe('1 ingrediente descontado de tu despensa');
   expect(onClose).toHaveBeenCalledTimes(1);
+});
+
+it('boton_descontar_con_coincidencias_parciales_no_cierra_y_muestra_las_preguntas_si_no', async () => {
+  recetaService.descontarStock.mockResolvedValue({
+    descontados: [],
+    noDisponibles: [],
+    coincidenciasParciales: [
+      mockConsumo({ nombre: 'Carne', productoId: 'prod-1', productoNombre: 'Carne picada' }),
+    ],
+  });
+  const onClose = jest.fn();
+
+  const { getByText } = render(
+    <ModalRecetaRealizada visible recetaId="receta-42" numPersonas={2} onClose={onClose} />
+  );
+
+  fireEvent.press(getByText('Descontar de despensa'));
+
+  await waitFor(() =>
+    expect(getByText('¿"Carne picada" de tu despensa es lo mismo que "Carne" de la receta?')).toBeTruthy()
+  );
+  expect(onClose).not.toHaveBeenCalled();
+});
+
+it('coincidencia_confirmada_con_si_descuenta_del_producto_candidato_y_cierra_al_no_quedar_mas', async () => {
+  recetaService.descontarStock.mockResolvedValue({
+    descontados: [],
+    noDisponibles: [],
+    coincidenciasParciales: [
+      mockConsumo({
+        nombre: 'Carne', cantidadCalculada: 300, cantidadDisponible: 500,
+        productoId: 'prod-1', productoNombre: 'Carne picada',
+      }),
+    ],
+  });
+  despensaService.actualizarCantidad.mockResolvedValue({});
+  const onClose = jest.fn();
+
+  const { getByText } = render(
+    <ModalRecetaRealizada visible recetaId="receta-42" numPersonas={2} onClose={onClose} />
+  );
+
+  fireEvent.press(getByText('Descontar de despensa'));
+  await waitFor(() => expect(getByText('Sí, descontar')).toBeTruthy());
+
+  fireEvent.press(getByText('Sí, descontar'));
+
+  await waitFor(() =>
+    expect(despensaService.actualizarCantidad).toHaveBeenCalledWith(
+      'prod-1', -300, 'usado_en_receta', undefined, 'Usado en receta (confirmado): Carne picada'
+    )
+  );
+  await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+});
+
+it('coincidencia_rechazada_con_no_no_toca_la_despensa_y_cierra_al_no_quedar_mas', async () => {
+  recetaService.descontarStock.mockResolvedValue({
+    descontados: [],
+    noDisponibles: [],
+    coincidenciasParciales: [
+      mockConsumo({ nombre: 'Carne', productoId: 'prod-1', productoNombre: 'Carne picada' }),
+    ],
+  });
+  const onClose = jest.fn();
+
+  const { getByText } = render(
+    <ModalRecetaRealizada visible recetaId="receta-42" numPersonas={2} onClose={onClose} />
+  );
+
+  fireEvent.press(getByText('Descontar de despensa'));
+  await waitFor(() => expect(getByText('No, es distinto')).toBeTruthy());
+
+  fireEvent.press(getByText('No, es distinto'));
+
+  expect(despensaService.actualizarCantidad).not.toHaveBeenCalled();
+  await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
 });
 
 it('boton_cerrar_cierra_sin_descontar', () => {

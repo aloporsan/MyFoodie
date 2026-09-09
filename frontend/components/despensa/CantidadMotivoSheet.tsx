@@ -15,12 +15,13 @@ import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
 const MOTIVOS: { key: MotivoEliminacion; label: string; icono: string }[] = [
-  { key: 'consumido',       label: 'Consumido',       icono: 'checkmark-circle-outline' },
-  { key: 'caducado',        label: 'Caducado',        icono: 'warning-outline' },
-  { key: 'usado_en_receta', label: 'Usado en receta', icono: 'restaurant-outline' },
-  { key: 'donado',          label: 'Donado',          icono: 'heart-outline' },
-  { key: 'perdido',         label: 'Perdido',         icono: 'help-circle-outline' },
-  { key: 'otro',            label: 'Otro motivo',     icono: 'ellipsis-horizontal-circle-outline' },
+  { key: 'consumido',        label: 'Consumido',          icono: 'checkmark-circle-outline' },
+  { key: 'caducado',         label: 'Caducado',           icono: 'warning-outline' },
+  { key: 'usado_en_receta',  label: 'Usado en receta',    icono: 'restaurant-outline' },
+  { key: 'donado',           label: 'Donado',             icono: 'heart-outline' },
+  { key: 'perdido',          label: 'Perdido',            icono: 'help-circle-outline' },
+  { key: 'error_tipografia', label: 'Lo añadí por error', icono: 'create-outline' },
+  { key: 'otro',             label: 'Otro motivo',        icono: 'ellipsis-horizontal-circle-outline' },
 ];
 
 interface Props {
@@ -30,11 +31,13 @@ interface Props {
   modo: 'sumar' | 'restar';
   /** Cantidad disponible en despensa. Al restar, no se puede pedir más de esto. */
   maxCantidad?: number;
+  /** Aviso informativo opcional (p. ej. qué lote se va a consumir primero). */
+  aviso?: string;
   onConfirm: (cantidad: number, motivo?: MotivoEliminacion, motivoDetalle?: string) => void;
   onCancelar: () => void;
 }
 
-export function CantidadMotivoSheet({ visible, unidad, modo, maxCantidad, onConfirm, onCancelar }: Props) {
+export function CantidadMotivoSheet({ visible, unidad, modo, maxCantidad, aviso, onConfirm, onCancelar }: Props) {
   const [cantidadTexto, setCantidadTexto] = useState('1');
   const [motivoSeleccionado, setMotivoSeleccionado] = useState<MotivoEliminacion | null>(null);
   const [motivoDetalleTexto, setMotivoDetalleTexto] = useState('');
@@ -78,6 +81,13 @@ export function CantidadMotivoSheet({ visible, unidad, modo, maxCantidad, onConf
           <Text style={styles.titulo}>
             {esRestar ? '¿Cuánto has usado?' : '¿Cuánto añades?'}
           </Text>
+
+          {aviso && (
+            <View style={styles.avisoBox}>
+              <Ionicons name="information-circle-outline" size={16} color={colors.text.secondary} />
+              <Text style={styles.avisoText}>{aviso}</Text>
+            </View>
+          )}
 
           {/* Input de cantidad */}
           <View style={styles.cantidadRow}>
@@ -226,6 +236,16 @@ const styles = StyleSheet.create({
     minWidth: 40,
   },
   cantidadBtnDisabled: { backgroundColor: colors.grayLight },
+  avisoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.xs,
+    backgroundColor: colors.background.surface,
+    borderRadius: borderRadius.md,
+    padding: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  avisoText: { ...typography.caption, color: colors.text.secondary, flex: 1 },
   maxHint: {
     ...typography.caption,
     color: colors.text.secondary,

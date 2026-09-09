@@ -9,7 +9,11 @@ import com.myfoodie.domain.model.Paso;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.model.Receta;
 import com.myfoodie.domain.model.RecetaGuardada;
+import com.myfoodie.domain.model.TipoInteraccion;
+import com.myfoodie.domain.model.TipoMatch;
 import com.myfoodie.domain.model.Usuario;
+import com.myfoodie.domain.model.VisibilidadReceta;
+import com.myfoodie.domain.repository.ComentarioRepository;
 import com.myfoodie.domain.repository.DespensaRepository;
 import com.myfoodie.domain.repository.IngredienteRecetaRepository;
 import com.myfoodie.domain.repository.LikeRepository;
@@ -25,9 +29,10 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -40,12 +45,16 @@ public class RecetaService {
     private final PasoRepository pasoRepository;
     private final RecetaGuardadaRepository recetaGuardadaRepository;
     private final LikeRepository likeRepository;
+    private final ComentarioRepository comentarioRepository;
     private final UsuarioRepository usuarioRepository;
     private final DespensaRepository despensaRepository;
     private final ProductoRepository productoRepository;
     private final DespensaService despensaService;
     private final CarritoInteligenteService carritoInteligenteService;
     private final UnidadNormalizadorService unidadNormalizadorService;
+    private final MatchingService matchingService;
+    private final SocialService socialService;
+    private final InteraccionSocialService interaccionSocialService;
 
     // -------------------------------------------------------------------------
     // CRUD básico
@@ -55,6 +64,7 @@ public class RecetaService {
         if (dto.titulo() == null || dto.titulo().isBlank())
             throw new ApiException(HttpStatus.BAD_REQUEST, "El título es obligatorio");
 
+        Integer numPersonas = dto.numPersonas();
         Receta receta = Receta.builder()
                 .autorId(usuarioId)
                 .titulo(dto.titulo())
@@ -64,8 +74,9 @@ public class RecetaService {
                 .categoria(dto.categoria())
                 .etiquetas(dto.etiquetas() != null ? dto.etiquetas() : new ArrayList<>())
                 .imagenUrl(dto.imagenUrl())
-                .numPersonas(dto.numPersonas() != null ? dto.numPersonas() : 2)
+                .numPersonas(numPersonas != null ? numPersonas : 2)
                 .estado("borrador")
+                .visibilidad(dto.visibilidad() != null ? dto.visibilidad() : VisibilidadReceta.PUBLICA)
                 .build();
 
         Receta saved = recetaRepository.save(receta);
@@ -73,7 +84,42 @@ public class RecetaService {
     }
 
     public RecetaResponseDTO obtenerReceta(String recetaId, String usuarioId) {
-        return toDTO(getReceta(recetaId));
+        Receta receta = getReceta(recetaId);
+        verificarAccesoLectura(receta, usuarioId);
+        return toDTO(receta);
+    }
+
+    /**
+     * Igual que {@link #obtenerReceta}, pero registra la visita para el historial "vistas recientemente"
+     * (#79). Se usa solo desde los endpoints de detalle de receta; no se registra la visita del propio autor.
+     */
+    public RecetaResponseDTO obtenerRecetaDetalle(String recetaId, String usuarioId) {
+        Receta receta = getReceta(recetaId);
+        verificarAccesoLectura(receta, usuarioId);
+        if (!receta.getAutorId().equals(usuarioId)) {
+            interaccionSocialService.registrarInteraccion(usuarioId, TipoInteraccion.VER_RECETA, "RECETA", recetaId);
+        }
+        return toDTO(receta);
+    }
+
+    private void verificarAccesoLectura(Receta receta, String usuarioId) {
+        if (receta.getAutorId().equals(usuarioId)) {
+            return;
+        }
+        // 404 en vez de 403 para no revelar la existencia de contenido ajeno no accesible
+        if (socialService.estaBloqueado(receta.getAutorId(), usuarioId)) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "Receta no encontrada");
+        }
+        VisibilidadReceta visibilidad = receta.getVisibilidad() != null
+                ? receta.getVisibilidad() : VisibilidadReceta.PUBLICA;
+        boolean permitido = switch (visibilidad) {
+            case PUBLICA -> true;
+            case SOLO_SEGUIDORES -> socialService.esSeguidorAceptado(usuarioId, receta.getAutorId());
+            case PRIVADA -> false;
+        };
+        if (!permitido) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "Receta no encontrada");
+        }
     }
 
     public RecetaResponseDTO editarReceta(String usuarioId, String recetaId, RecetaRequestDTO dto) {
@@ -86,7 +132,11 @@ public class RecetaService {
         receta.setCategoria(dto.categoria());
         receta.setEtiquetas(dto.etiquetas() != null ? dto.etiquetas() : new ArrayList<>());
         receta.setImagenUrl(dto.imagenUrl());
-        receta.setNumPersonas(dto.numPersonas() != null ? dto.numPersonas() : 2);
+        Integer numPersonas = dto.numPersonas();
+        receta.setNumPersonas(numPersonas != null ? numPersonas : 2);
+        if (dto.visibilidad() != null) {
+            receta.setVisibilidad(dto.visibilidad());
+        }
         receta.setUpdatedAt(LocalDateTime.now());
 
         return toDTO(recetaRepository.save(receta));
@@ -97,6 +147,20 @@ public class RecetaService {
         ingredienteRepository.deleteByRecetaId(recetaId);
         pasoRepository.deleteByRecetaId(recetaId);
         recetaRepository.delete(receta);
+    }
+
+    /**
+     * Elimina una receta y su contenido asociado sin comprobar la autoría (retirada por moderación).
+     * Devuelve el id del autor si la receta existía, para poder notificarle.
+     */
+    public Optional<String> eliminarRecetaPorModeracion(String recetaId) {
+        return recetaRepository.findById(recetaId).map(receta -> {
+            ingredienteRepository.deleteByRecetaId(recetaId);
+            pasoRepository.deleteByRecetaId(recetaId);
+            comentarioRepository.deleteByRecetaId(recetaId);
+            recetaRepository.delete(receta);
+            return receta.getAutorId();
+        });
     }
 
     public RecetaResponseDTO guardarComoBorrador(String usuarioId, String recetaId) {
@@ -118,6 +182,17 @@ public class RecetaService {
         return recetaRepository.findByAutorId(usuarioId)
                 .stream()
                 .map(r -> toFeedDTO(r, usuarioId))
+                .toList();
+    }
+
+    // Recetas publicadas de otro usuario, para su perfil público. Respeta bloqueos y privacidad.
+    public List<RecetaFeedDTO> recetasPublicadasDeUsuario(String autorId, String visitanteId) {
+        socialService.verificarAccesoListado(autorId, visitanteId);
+        return recetaRepository.findByAutorIdAndEstado(autorId, "publicada")
+                .stream()
+                .sorted(Comparator.comparing(Receta::getCreatedAt,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .map(r -> toFeedDTO(r, visitanteId))
                 .toList();
     }
 
@@ -268,10 +343,16 @@ public class RecetaService {
 
         List<IngredienteConsumoDTO> descontados = new ArrayList<>();
         List<IngredienteConsumoDTO> noDisponibles = new ArrayList<>();
+        List<IngredienteConsumoDTO> coincidenciasParciales = new ArrayList<>();
         boolean huboDescuento = false;
 
         for (IngredienteReceta ingrediente : ingredienteRepository.findByRecetaId(recetaId)) {
             IngredienteConsumoDTO consumo = calcularConsumo(ingrediente, factor, productos);
+
+            if (consumo.tipoMatch() == TipoMatch.PROPONER) {
+                coincidenciasParciales.add(consumo);
+                continue;
+            }
             if (!consumo.productoEnDespensa() || consumo.noComparable()) {
                 noDisponibles.add(consumo);
                 continue;
@@ -279,7 +360,7 @@ public class RecetaService {
 
             double aDescontar = Math.min(consumo.cantidadCalculada(), consumo.cantidadDisponible());
             if (aDescontar > 0) {
-                Producto producto = buscarProductoPorNombre(productos, ingrediente.getNombre());
+                Producto producto = buscarProductoCoincidente(productos, ingrediente.getNombre()).producto();
                 despensaService.actualizarCantidad(usuarioId, producto.getId(),
                         new ProductoUpdateCantidadDTO(-aDescontar, "usado_en_receta", null,
                                 "Usado en receta: " + receta.getTitulo()), false);
@@ -292,7 +373,7 @@ public class RecetaService {
             carritoInteligenteService.actualizarCarritoTrasModificacionDespensa(usuarioId);
         }
 
-        return new DescuentoRecetaResponseDTO(descontados, noDisponibles);
+        return new DescuentoRecetaResponseDTO(descontados, noDisponibles, coincidenciasParciales);
     }
 
     private void validarRecetaGuardada(String usuarioId, String recetaId) {
@@ -320,33 +401,43 @@ public class RecetaService {
         UnidadConvertidaDTO normalizado = unidadNormalizadorService
                 .normalizarUnidades(ingrediente.getCantidad(), ingrediente.getUnidad());
         double cantidadCalculada = normalizado.cantidadConvertida() * factor;
-        Producto producto = buscarProductoPorNombre(productos, ingrediente.getNombre());
+        ProductoMatchResult match = buscarProductoCoincidente(productos, ingrediente.getNombre());
+        Producto producto = match.producto();
         boolean enDespensa = producto != null;
 
-        boolean comparable = enDespensa && unidadesCompatibles(normalizado.unidadConvertida(), producto.getUnidad());
-        double disponible = comparable ? producto.getCantidad() : 0;
+        // Disponibilidad comparada por familia de unidad (peso/volumen se convierten, conteo se
+        // compara tal cual); empty si las unidades no son comparables (p. ej. "g" contra "unidad").
+        Optional<Double> disponibleComparable = producto != null
+                ? unidadNormalizadorService.cantidadComparable(
+                        producto.getCantidad(), producto.getUnidad(), normalizado.unidadConvertida())
+                : Optional.empty();
+        boolean comparable = disponibleComparable.isPresent();
+        double disponible = disponibleComparable.orElse(0d);
         boolean suficiente = comparable && disponible >= cantidadCalculada;
         boolean noComparable = enDespensa && !comparable;
 
         return new IngredienteConsumoDTO(
                 ingrediente.getNombre(), cantidadCalculada, normalizado.unidadConvertida(),
-                enDespensa, disponible, suficiente, noComparable);
+                enDespensa, disponible, suficiente, noComparable, match.tipoMatch(),
+                producto != null ? producto.getId() : null,
+                producto != null ? producto.getNombre() : null);
     }
 
-    private boolean unidadesCompatibles(String unidadIngrediente, String unidadProducto) {
-        return normalizar(unidadIngrediente).equals(normalizar(unidadProducto));
+    private ProductoMatchResult buscarProductoCoincidente(List<Producto> productos, String nombreIngrediente) {
+        Producto mejorProducto = null;
+        double mejorPuntuacion = -1;
+        for (Producto p : productos) {
+            double puntuacion = matchingService.calcularSimilitud(nombreIngrediente, p.getNombre()).puntuacion();
+            if (puntuacion > mejorPuntuacion) {
+                mejorPuntuacion = puntuacion;
+                mejorProducto = p;
+            }
+        }
+        TipoMatch tipoMatch = mejorProducto == null ? TipoMatch.NUEVO : matchingService.clasificarMatch(mejorPuntuacion);
+        return new ProductoMatchResult(tipoMatch == TipoMatch.NUEVO ? null : mejorProducto, tipoMatch);
     }
 
-    private Producto buscarProductoPorNombre(List<Producto> productos, String nombre) {
-        return productos.stream()
-                .filter(p -> normalizar(p.getNombre()).equals(normalizar(nombre)))
-                .findFirst()
-                .orElse(null);
-    }
-
-    private String normalizar(String texto) {
-        return texto == null ? "" : texto.trim().toLowerCase(Locale.ROOT);
-    }
+    private record ProductoMatchResult(Producto producto, TipoMatch tipoMatch) {}
 
     // -------------------------------------------------------------------------
     // Etiquetas e imagen
@@ -396,6 +487,8 @@ public class RecetaService {
             errores.add("La dificultad es obligatoria");
         if (receta.getCategoria() == null || receta.getCategoria().isBlank())
             errores.add("La categoría es obligatoria");
+        if (receta.getImagenUrl() == null || receta.getImagenUrl().isBlank())
+            errores.add("La receta debe tener al menos una foto");
         if (ingredienteRepository.findByRecetaId(recetaId).isEmpty())
             errores.add("La receta debe tener al menos un ingrediente");
         if (pasoRepository.findByRecetaIdOrderByOrdenAsc(recetaId).isEmpty())
@@ -443,9 +536,11 @@ public class RecetaService {
                 receta.getEtiquetas(),
                 receta.getImagenUrl(),
                 receta.getEstado(),
+                receta.getVisibilidad() != null ? receta.getVisibilidad() : VisibilidadReceta.PUBLICA,
                 receta.getNumPersonas(),
                 ingredientes,
                 pasos,
+                (int) comentarioRepository.countByRecetaIdAndEliminadoFalse(receta.getId()),
                 receta.getCreatedAt(),
                 receta.getUpdatedAt()
         );

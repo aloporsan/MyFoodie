@@ -157,4 +157,34 @@ class InteraccionUsuarioServiceTest {
                 .containsEntry("vegano", 2)
                 .containsEntry("rápido", 2);
     }
+
+    // ===== totalInteracciones (RF-REC-005, umbral de cold start) =====
+
+    @Test
+    void actualizarPerfilGustos_incrementa_totalInteracciones_desde_cero_en_perfil_nuevo() {
+        when(recetaRepository.findById("receta-1")).thenReturn(Optional.of(receta("Cena", null, null)));
+        when(perfilGustosRepository.findByUsuarioId("usuario-1")).thenReturn(Optional.empty());
+
+        interaccionUsuarioService.actualizarPerfilGustos("usuario-1", "receta-1", "like");
+
+        ArgumentCaptor<PerfilGustos> captor = ArgumentCaptor.forClass(PerfilGustos.class);
+        verify(perfilGustosRepository).save(captor.capture());
+
+        assertThat(captor.getValue().getTotalInteracciones()).isEqualTo(1);
+    }
+
+    @Test
+    void actualizarPerfilGustos_incrementa_totalInteracciones_sobre_un_perfil_existente() {
+        when(recetaRepository.findById("receta-1")).thenReturn(Optional.of(receta("Cena", null, null)));
+        PerfilGustos perfilExistente = perfilConPuntuaciones(Map.of("Cena", 5));
+        perfilExistente.setTotalInteracciones(9);
+        when(perfilGustosRepository.findByUsuarioId("usuario-1")).thenReturn(Optional.of(perfilExistente));
+
+        interaccionUsuarioService.actualizarPerfilGustos("usuario-1", "receta-1", "like");
+
+        ArgumentCaptor<PerfilGustos> captor = ArgumentCaptor.forClass(PerfilGustos.class);
+        verify(perfilGustosRepository).save(captor.capture());
+
+        assertThat(captor.getValue().getTotalInteracciones()).isEqualTo(10);
+    }
 }

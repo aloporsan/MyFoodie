@@ -88,10 +88,15 @@ it('renderiza_ingredientes_faltantes_en_rojo', async () => {
 
 it('boton_añadir_al_carrito_añade_los_ingredientes_faltantes_y_muestra_toast_de_exito', async () => {
   mockCarritoService.añadirItemManual.mockResolvedValue({
-    id: 'item-1', usuarioId: 'user-1', nombre: 'Pasta', cantidad: 200, unidad: 'g',
-    categoria: null, prioridad: 'media', motivo: null, estado: 'pendiente', noVolver: false,
-    recetaId: null, recetaTitulo: null, productoEnDespensa: false,
-    createdAt: '2026-01-15T00:00:00.000Z', updatedAt: '2026-01-15T00:00:00.000Z',
+    accion: 'creado',
+    item: {
+      id: 'item-1', usuarioId: 'user-1', nombre: 'Pasta', cantidad: 200, unidad: 'g',
+      categoria: null, prioridad: 'media', motivo: null, estado: 'pendiente', noVolver: false,
+      recetaId: null, recetaTitulo: null, productoEnDespensa: false,
+      createdAt: '2026-01-15T00:00:00.000Z', updatedAt: '2026-01-15T00:00:00.000Z',
+    },
+    itemExistente: null,
+    similitud: null,
   });
   mockCarritoService.aceptarItem.mockResolvedValue({
     id: 'item-1', usuarioId: 'user-1', nombre: 'Pasta', cantidad: 200, unidad: 'g',

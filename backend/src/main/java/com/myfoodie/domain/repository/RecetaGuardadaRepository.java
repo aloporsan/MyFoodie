@@ -15,4 +15,6 @@ public interface RecetaGuardadaRepository extends MongoRepository<RecetaGuardada
     Optional<RecetaGuardada> findByUsuarioIdAndRecetaId(String usuarioId, String recetaId);
 
     boolean existsByUsuarioIdAndRecetaId(String usuarioId, String recetaId);
+
+    long countByUsuarioId(String usuarioId);
 }

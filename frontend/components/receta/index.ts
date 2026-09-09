@@ -1,4 +1,6 @@
+export { ComentarioCard } from './ComentarioCard';
 export { EtiquetasSelector } from './EtiquetasSelector';
+export { ListaComentarios } from './ListaComentarios';
 export { FormIngrediente } from './FormIngrediente';
 export { FormPaso } from './FormPaso';
 export { FormRecetaBasica } from './FormRecetaBasica';
@@ -6,4 +8,6 @@ export { ImagenReceta } from './ImagenReceta';
 export { ListaIngredientes } from './ListaIngredientes';
 export { ListaPasos } from './ListaPasos';
 export { ModalRecetaRealizada } from './ModalRecetaRealizada';
+export { RecetaCardCompacta, type RecetaCardDatos } from './RecetaCardCompacta';
+export { RecetaCardVertical } from './RecetaCardVertical';
 export { ValidacionReceta } from './ValidacionReceta';

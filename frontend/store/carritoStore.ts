@@ -6,9 +6,16 @@ import {
   ItemCarritoInput,
   ItemCompradoAjuste,
   ListaCompra,
+  ResultadoAñadirDespensa,
   carritoService,
 } from '@/services/carritoService';
 import { handleApiError } from '@/utils/errorHandler';
+
+export interface SugerenciaMatchCarrito {
+  item: ItemCarrito;
+  itemExistente: ItemCarrito;
+  similitud: number | null;
+}
 
 interface CarritoState {
   items: ItemCarrito[];
@@ -16,6 +23,8 @@ interface CarritoState {
   listas: ListaCompra[];
   listaActiva: ListaCompra | null;
   listaEnCurso: ListaCompra | null;
+  resultadosAñadir: ResultadoAñadirDespensa[];
+  sugerenciaCarrito: SugerenciaMatchCarrito | null;
   isLoading: boolean;
   isGenerando: boolean;
   error: string | null;
@@ -32,13 +41,18 @@ interface CarritoActions {
   añadirItemManual: (datos: ItemCarritoInput) => Promise<void>;
   añadirYAceptarItemManual: (datos: ItemCarritoInput) => Promise<void>;
   eliminarItem: (id: string) => Promise<void>;
+  eliminarItemsRechazados: () => Promise<void>;
   generarListaCompra: (nombre?: string) => Promise<ListaCompra>;
   cargarListas: () => Promise<void>;
   cargarLista: (id: string) => Promise<void>;
   cargarListaEnCurso: () => Promise<void>;
   cancelarListaCompra: (id: string) => Promise<void>;
   alternarComprado: (listaId: string, itemId: string) => Promise<void>;
-  añadirCompradosADespensa: (listaId: string, ajustes?: ItemCompradoAjuste[]) => Promise<void>;
+  añadirCompradosADespensa: (
+    listaId: string,
+    ajustes?: ItemCompradoAjuste[]
+  ) => Promise<ResultadoAñadirDespensa[]>;
+  descartarSugerenciaCarrito: () => void;
   clearError: () => void;
   reset: () => void;
 }
@@ -49,6 +63,8 @@ const ESTADO_INICIAL: CarritoState = {
   listas: [],
   listaActiva: null,
   listaEnCurso: null,
+  resultadosAñadir: [],
+  sugerenciaCarrito: null,
   isLoading: false,
   isGenerando: false,
   error: null,
@@ -117,9 +133,14 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
     );
     set({ error: null, items: itemsOptimistas, resumen: calcularResumen(itemsOptimistas) });
 
+    // Solo interesa reconciliar si el servidor devolvió algo distinto del estado optimista:
+    // así se evita un segundo re-render de toda la lista medio segundo después (se nota como
+    // un tirón en móviles con poca RAM).
     carritoService.aceptarItem(id)
       .then((actualizado) => {
         set((s) => {
+          const actual = s.items.find((i) => i.id === id);
+          if (actual && actual.estado === actualizado.estado) return s;
           const items = s.items.map((i) => (i.id === id ? actualizado : i));
           return { items, resumen: calcularResumen(items) };
         });
@@ -144,6 +165,8 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
     carritoService.rechazarItem(id)
       .then((actualizado) => {
         set((s) => {
+          const actual = s.items.find((i) => i.id === id);
+          if (actual && actual.estado === actualizado.estado) return s;
           const items = s.items.map((i) => (i.id === id ? actualizado : i));
           return { items, resumen: calcularResumen(items) };
         });
@@ -201,10 +224,20 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
   añadirItemManual: async (datos) => {
     set({ error: null });
     try {
-      const nuevo = await carritoService.añadirItemManual(datos);
+      const resultado = await carritoService.añadirItemManual(datos);
       set((s) => {
-        const items = [...s.items, nuevo];
-        return { items, resumen: calcularResumen(items) };
+        // "actualizado" (match automático, >=85%) sustituye el item existente al que se le
+        // sumó la cantidad; "creado" y "sugerencia" (match parcial, 60-84%) siempre crean uno nuevo.
+        const items = resultado.accion === 'actualizado'
+          ? s.items.map((i) => (i.id === resultado.item.id ? resultado.item : i))
+          : [...s.items, resultado.item];
+        return {
+          items,
+          resumen: calcularResumen(items),
+          sugerenciaCarrito: resultado.accion === 'sugerencia' && resultado.itemExistente
+            ? { item: resultado.item, itemExistente: resultado.itemExistente, similitud: resultado.similitud }
+            : null,
+        };
       });
     } catch (e) {
       set({ error: handleApiError(e) });
@@ -215,11 +248,19 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
   añadirYAceptarItemManual: async (datos) => {
     set({ error: null });
     try {
-      const creado = await carritoService.añadirItemManual(datos);
-      const aceptado = await carritoService.aceptarItem(creado.id);
+      const resultado = await carritoService.añadirItemManual(datos);
+      const aceptado = await carritoService.aceptarItem(resultado.item.id);
       set((s) => {
-        const items = [...s.items, aceptado];
-        return { items, resumen: calcularResumen(items) };
+        const items = resultado.accion === 'actualizado'
+          ? s.items.map((i) => (i.id === aceptado.id ? aceptado : i))
+          : [...s.items, aceptado];
+        return {
+          items,
+          resumen: calcularResumen(items),
+          sugerenciaCarrito: resultado.accion === 'sugerencia' && resultado.itemExistente
+            ? { item: aceptado, itemExistente: resultado.itemExistente, similitud: resultado.similitud }
+            : null,
+        };
       });
     } catch (e) {
       set({ error: handleApiError(e) });
@@ -243,6 +284,19 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
       });
     } catch (e) {
       set({ error: handleApiError(e) });
+      throw e;
+    }
+  },
+
+  eliminarItemsRechazados: async () => {
+    const snapshotItems = get().items;
+    // Actualización optimista: quita los rechazados de la lista al instante.
+    const itemsOptimistas = snapshotItems.filter((i) => i.estado !== 'rechazado');
+    set({ error: null, items: itemsOptimistas, resumen: calcularResumen(itemsOptimistas) });
+    try {
+      await carritoService.eliminarItemsRechazados();
+    } catch (e) {
+      set({ error: handleApiError(e), items: snapshotItems, resumen: calcularResumen(snapshotItems) });
       throw e;
     }
   },
@@ -362,17 +416,21 @@ export const useCarritoStore = create<CarritoState & CarritoActions>()((set, get
   añadirCompradosADespensa: async (listaId, ajustes) => {
     set({ error: null });
     try {
-      const lista = await carritoService.añadirCompradosADespensa(listaId, ajustes);
+      const { resultados, lista } = await carritoService.añadirCompradosADespensa(listaId, ajustes);
       set((s) => ({
         listas: s.listas.map((l) => (l.id === listaId ? lista : l)),
         listaActiva: s.listaActiva && s.listaActiva.id === listaId ? lista : s.listaActiva,
         listaEnCurso: s.listaEnCurso && s.listaEnCurso.id === listaId ? null : s.listaEnCurso,
+        resultadosAñadir: resultados,
       }));
+      return resultados;
     } catch (e) {
       set({ error: handleApiError(e) });
       throw e;
     }
   },
+
+  descartarSugerenciaCarrito: () => set({ sugerenciaCarrito: null }),
 
   clearError: () => set({ error: null }),
 

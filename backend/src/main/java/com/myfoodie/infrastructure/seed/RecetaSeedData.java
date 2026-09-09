@@ -214,7 +214,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Salmón a la plancha con verduras",
                         "Plato ligero y rápido, rico en proteína.",
-                        25, "Fácil", "Cena", List.of("sin gluten", "saludable", "alto en proteínas"), "/recetas/salmon-a-la-plancha-con-verduras.jpg",
+                        25, "Fácil", "Cena", List.of("sin gluten", "saludable", "proteico"), "/recetas/salmon-a-la-plancha-con-verduras.jpg",
                         List.of(
                                 new Ingrediente("Salmón", 2, "unidades"),
                                 new Ingrediente("Calabacín", 1, "unidad"),
@@ -514,7 +514,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Sushi de salmón y aguacate",
                         "Makis caseros con salmón fresco y aguacate cremoso.",
-                        75, "Difícil", "Cena", List.of("saludable", "internacional", "alto en proteínas"), "/recetas/sushi-de-salmon-y-aguacate.jpg",
+                        75, "Difícil", "Cena", List.of("saludable", "internacional", "proteico"), "/recetas/sushi-de-salmon-y-aguacate.jpg",
                         List.of(
                                 new Ingrediente("Arroz", 300, "g"),
                                 new Ingrediente("Salmón", 200, "g"),
@@ -829,7 +829,7 @@ public final class RecetaSeedData {
                 new Receta(
                         "Bowl de quinoa y verduras",
                         "Bowl completo y equilibrado, ideal para el mediodía.",
-                        25, "Fácil", "Almuerzo", List.of("vegano", "sin gluten", "saludable", "alto en proteínas"), "/recetas/bowl-de-quinoa-y-verduras.jpg",
+                        25, "Fácil", "Almuerzo", List.of("vegano", "sin gluten", "saludable", "proteico"), "/recetas/bowl-de-quinoa-y-verduras.jpg",
                         List.of(
                                 new Ingrediente("Quinoa", 200, "g"),
                                 new Ingrediente("Pimiento", 1, "unidad"),

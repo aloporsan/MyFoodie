@@ -115,10 +115,12 @@ it('modificarCantidad_envia_unidad_undefined_si_no_se_especifica', async () => {
 // añadirItemManual / eliminarItem
 // -------------------------------------------------------------------------
 
-it('añadirItemManual_devuelve_item_creado', async () => {
-  mockPost.mockResolvedValue({ data: mockItem });
+it('añadirItemManual_devuelve_el_resultado_con_accion_e_item_creado', async () => {
+  const resultadoEsperado = { accion: 'creado' as const, item: mockItem, itemExistente: null, similitud: null };
+  mockPost.mockResolvedValue({ data: resultadoEsperado });
   const result = await carritoService.añadirItemManual({ nombre: 'Leche', cantidad: 2, unidad: 'litros' });
-  expect(result.nombre).toBe('Leche');
+  expect(result.accion).toBe('creado');
+  expect(result.item.nombre).toBe('Leche');
   expect(mockPost).toHaveBeenCalledWith('/carrito/items', { nombre: 'Leche', cantidad: 2, unidad: 'litros' });
 });
 
@@ -126,6 +128,12 @@ it('eliminarItem_resuelve_sin_error', async () => {
   mockDelete.mockResolvedValue({});
   await expect(carritoService.eliminarItem('item-1')).resolves.not.toThrow();
   expect(mockDelete).toHaveBeenCalledWith('/carrito/items/item-1');
+});
+
+it('eliminarItemsRechazados_llama_al_endpoint_de_borrado_en_bloque', async () => {
+  mockDelete.mockResolvedValue({});
+  await expect(carritoService.eliminarItemsRechazados()).resolves.not.toThrow();
+  expect(mockDelete).toHaveBeenCalledWith('/carrito/items/rechazados');
 });
 
 // -------------------------------------------------------------------------
@@ -182,14 +190,14 @@ it('marcarComprado_devuelve_item_con_estado_comprado', async () => {
 });
 
 it('añadirCompradosADespensa_sin_ajustes_envia_array_vacio', async () => {
-  mockPost.mockResolvedValue({ data: { ...mockLista, estado: 'completada' } });
+  mockPost.mockResolvedValue({ data: { resultados: [], lista: { ...mockLista, estado: 'completada' } } });
   const result = await carritoService.añadirCompradosADespensa('lista-1');
-  expect(result.estado).toBe('completada');
+  expect(result.lista.estado).toBe('completada');
   expect(mockPost).toHaveBeenCalledWith('/carrito/listas/lista-1/añadir-despensa', []);
 });
 
 it('añadirCompradosADespensa_con_ajustes_los_envia_en_el_body', async () => {
-  mockPost.mockResolvedValue({ data: { ...mockLista, estado: 'completada' } });
+  mockPost.mockResolvedValue({ data: { resultados: [], lista: { ...mockLista, estado: 'completada' } } });
   const ajustes = [{ itemId: 'item-1', cantidad: 500, unidad: 'g' }];
   await carritoService.añadirCompradosADespensa('lista-1', ajustes);
   expect(mockPost).toHaveBeenCalledWith('/carrito/listas/lista-1/añadir-despensa', ajustes);

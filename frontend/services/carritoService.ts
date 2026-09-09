@@ -1,9 +1,10 @@
 import { apiClient } from './apiClient';
+import { Producto } from './despensaService';
 
-export const UNIDADES_CARRITO = [
-  'unidades', 'kg', 'g', 'litros', 'ml', 'packs', 'latas', 'bolsas',
-  'cucharada', 'cucharadita', 'taza',
-];
+// Unidades "de compra": lo que realmente se pide en una tienda. Las subjetivas de receta
+// (cucharada, taza...) no tienen sentido aquí — para eso está la conversión automática
+// a unidad de compra (unidadDeCompra) al generar o marcar como comprado un item.
+export const UNIDADES_CARRITO = ['unidades', 'kg', 'g', 'litros', 'ml', 'packs', 'latas', 'bolsas'];
 
 export type PrioridadCarrito = 'alta' | 'media' | 'baja';
 
@@ -65,6 +66,30 @@ export interface ListaCompra {
   updatedAt: string;
 }
 
+export type AccionAñadirDespensa = 'actualizado' | 'sugerencia' | 'creado';
+
+export interface ResultadoAñadirDespensa {
+  itemNombre: string;
+  accion: AccionAñadirDespensa;
+  productoExistente: Producto | null;
+  producto: Producto | null;
+  similitud: number | null;
+}
+
+export interface AñadirCompradosResultado {
+  resultados: ResultadoAñadirDespensa[];
+  lista: ListaCompra;
+}
+
+export type AccionAñadirItemCarrito = 'creado' | 'actualizado' | 'sugerencia';
+
+export interface AñadirItemCarritoResultado {
+  accion: AccionAñadirItemCarrito;
+  item: ItemCarrito;
+  itemExistente: ItemCarrito | null;
+  similitud: number | null;
+}
+
 export const carritoService = {
   obtenerCarrito: async (): Promise<Carrito> => {
     const { data } = await apiClient.get<Carrito>('/carrito');
@@ -104,13 +129,17 @@ export const carritoService = {
     return data;
   },
 
-  añadirItemManual: async (datos: ItemCarritoInput): Promise<ItemCarrito> => {
-    const { data } = await apiClient.post<ItemCarrito>('/carrito/items', datos);
+  añadirItemManual: async (datos: ItemCarritoInput): Promise<AñadirItemCarritoResultado> => {
+    const { data } = await apiClient.post<AñadirItemCarritoResultado>('/carrito/items', datos);
     return data;
   },
 
   eliminarItem: async (id: string): Promise<void> => {
     await apiClient.delete(`/carrito/items/${id}`);
+  },
+
+  eliminarItemsRechazados: async (): Promise<void> => {
+    await apiClient.delete('/carrito/items/rechazados');
   },
 
   generarListaCompra: async (nombre?: string): Promise<ListaCompra> => {
@@ -149,8 +178,8 @@ export const carritoService = {
   añadirCompradosADespensa: async (
     listaId: string,
     ajustes?: ItemCompradoAjuste[]
-  ): Promise<ListaCompra> => {
-    const { data } = await apiClient.post<ListaCompra>(
+  ): Promise<AñadirCompradosResultado> => {
+    const { data } = await apiClient.post<AñadirCompradosResultado>(
       `/carrito/listas/${listaId}/añadir-despensa`,
       ajustes ?? []
     );

@@ -44,7 +44,7 @@ class DashboardServiceTest {
         return new ProductoResponseDTO(id, "desp-1", "Producto " + id, cantidad, "unidades", null,
                 categoria, fechaCaducidad, null, null, null,
                 null, false,
-                estado, null, null, createdAt, createdAt);
+                estado, null, null, createdAt, createdAt, null, null, null);
     }
 
     // -------------------------------------------------------------------------

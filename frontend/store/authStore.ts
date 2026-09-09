@@ -2,8 +2,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { authService } from '@/services/authService';
-import { setTokenGetter } from '@/services/apiClient';
+import { setTokenGetter, setUnauthorizedHandler } from '@/services/apiClient';
+import { useToastStore } from '@/hooks/useToast';
 import { handleApiError } from '@/utils/errorHandler';
+
+// El tour de bienvenida (5 pantallas) se muestra una sola vez por dispositivo.
+// Persistimos con una clave propia en AsyncStorage, igual que el orden de la
+// despensa (RF-DESP-017), en lugar de meterlo en el estado persistido de auth
+// (que se limpia al cerrar sesión).
+const ONBOARDING_STORAGE_KEY = 'onboardingVisto';
 
 export interface Usuario {
   userId: string;
@@ -25,6 +32,9 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  recienRegistrado: boolean;
+  onboardingVisto: boolean;
+  onboardingHidratado: boolean;
 }
 
 interface AuthActions {
@@ -32,6 +42,9 @@ interface AuthActions {
   register: (datos: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
+  marcarOnboardingVisto: () => void;
+  cargarOnboardingVisto: () => Promise<void>;
+  completarOnboarding: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState & AuthActions>()(
@@ -42,6 +55,9 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       isAuthenticated: false,
       isLoading: false,
       error: null,
+      recienRegistrado: false,
+      onboardingVisto: false,
+      onboardingHidratado: false,
 
       login: async (email, password) => {
         set({ isLoading: true, error: null });
@@ -68,6 +84,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             usuario: { userId: res.userId, email: res.email, nombreUsuario: res.nombreUsuario, nombre: res.nombre },
             isAuthenticated: true,
             isLoading: false,
+            recienRegistrado: true,
           });
         } catch (e: unknown) {
           set({ isLoading: false, error: handleApiError(e) });
@@ -76,10 +93,28 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       },
 
       logout: async () => {
-        set({ token: null, usuario: null, isAuthenticated: false, error: null });
+        set({ token: null, usuario: null, isAuthenticated: false, error: null, recienRegistrado: false });
       },
 
       clearError: () => set({ error: null }),
+
+      marcarOnboardingVisto: () => set({ recienRegistrado: false }),
+
+      cargarOnboardingVisto: async () => {
+        try {
+          const guardado = await AsyncStorage.getItem(ONBOARDING_STORAGE_KEY);
+          set({ onboardingVisto: guardado === 'true' });
+        } finally {
+          // Pase lo que pase, marcamos la hidratación como terminada para no
+          // dejar la navegación bloqueada a la espera de esta lectura.
+          set({ onboardingHidratado: true });
+        }
+      },
+
+      completarOnboarding: async () => {
+        set({ onboardingVisto: true });
+        await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+      },
     }),
     {
       name: 'myfoodie-auth',
@@ -94,3 +129,13 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 );
 
 setTokenGetter(() => useAuthStore.getState().token);
+
+// Si el backend rechaza una petición autenticada por token caducado/inválido,
+// se cierra la sesión: el guard de navegación (app/_layout) redirige al login
+// automáticamente y se avisa al usuario con un toast.
+setUnauthorizedHandler(() => {
+  const { isAuthenticated, logout } = useAuthStore.getState();
+  if (!isAuthenticated) return;
+  void logout();
+  useToastStore.getState().show('warning', 'Tu sesión ha expirado. Vuelve a iniciar sesión.');
+});

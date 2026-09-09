@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -16,6 +17,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LoadingOverlay } from '@/components/common/LoadingOverlay';
+import { RecortadorFoto } from '@/components/perfil/RecortadorFoto';
+import { showConfirm } from '@/hooks/useConfirm';
 import { useToast } from '@/hooks/useToast';
 import { usePerfilStore } from '@/store/perfilStore';
 import { borderRadius, colors, shadows, spacing, typography } from '@/theme';
@@ -45,6 +48,7 @@ export function EditarPerfilScreen() {
   const [nombreUsuario, setNombreUsuario] = useState(perfil?.nombreUsuario ?? '');
   const [biografia, setBiografia] = useState(perfil?.biografia ?? '');
   const [fotoPerfil, setFotoPerfil] = useState(perfil?.fotoPerfil ?? '');
+  const [pendienteRecorte, setPendienteRecorte] = useState<{ uri: string; ancho: number; alto: number } | null>(null);
 
   const errores = validar(nombre, nombreUsuario, biografia);
   const hayErrores = Object.keys(errores).length > 0;
@@ -55,23 +59,48 @@ export function EditarPerfilScreen() {
     biografia !== (perfil?.biografia ?? '') ||
     fotoPerfil !== (perfil?.fotoPerfil ?? '');
 
-  const seleccionarFoto = async () => {
+  const procesarResultado = (result: ImagePicker.ImagePickerResult) => {
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    // Se toma la imagen sin recortar y se pasa por nuestro recortador cuadrado (misma idea
+    // que el escaneo de tickets): así el recorte del avatar es siempre proporcional.
+    setPendienteRecorte({ uri: asset.uri, ancho: asset.width, alto: asset.height });
+  };
+
+  const avisoPermiso = (recurso: string) =>
+    showConfirm(
+      'Permiso necesario',
+      `Necesitamos acceso a tu ${recurso} para cambiar la foto. Actívalo en los ajustes del sistema.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Ir a ajustes', onPress: () => Linking.openSettings() },
+      ],
+      { icon: 'settings-outline', variant: 'warning' }
+    );
+
+  const abrirGaleria = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') return;
+    if (status !== 'granted') return avisoPermiso('galería');
+    procesarResultado(
+      await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'] as ImagePicker.MediaType[],
+        quality: 1,
+      })
+    );
+  };
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'] as ImagePicker.MediaType[],
-      quality: 0.6,
-      base64: true,
-    });
+  const abrirCamara = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') return avisoPermiso('cámara');
+    procesarResultado(await ImagePicker.launchCameraAsync({ quality: 1 }));
+  };
 
-    if (!result.canceled && result.assets[0]) {
-      const asset = result.assets[0];
-      const uri = asset.base64
-        ? `data:image/jpeg;base64,${asset.base64}`
-        : asset.uri;
-      setFotoPerfil(uri);
-    }
+  const seleccionarFoto = () => {
+    showConfirm('Foto de perfil', undefined, [
+      { text: 'Hacer una foto', onPress: abrirCamara },
+      { text: 'Elegir de la galería', onPress: abrirGaleria },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
   };
 
   const handleGuardar = async () => {
@@ -178,6 +207,18 @@ export function EditarPerfilScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
+      {pendienteRecorte && (
+        <RecortadorFoto
+          uri={pendienteRecorte.uri}
+          anchoNatural={pendienteRecorte.ancho}
+          altoNatural={pendienteRecorte.alto}
+          onConfirmar={(dataUri) => {
+            setFotoPerfil(dataUri);
+            setPendienteRecorte(null);
+          }}
+          onCancelar={() => setPendienteRecorte(null)}
+        />
+      )}
     </SafeAreaView>
   );
 }

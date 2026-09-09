@@ -17,11 +17,18 @@ import { ToastMessage } from '@/components/common/ToastMessage';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useToastStore } from '@/hooks/useToast';
+import { useAuthStore } from '@/store/authStore';
 import { configurarListeners, solicitarPermisosYRegistrarToken } from '@/utils/notificacionesConfig';
+import { rutaPostAutenticacion } from '@/utils/rutasAuth';
 
 SplashScreen.preventAutoHideAsync();
 
-function useAuthGuard(isAuthenticated: boolean, ready: boolean) {
+function useAuthGuard(
+  isAuthenticated: boolean,
+  ready: boolean,
+  recienRegistrado: boolean,
+  onboardingVisto: boolean,
+) {
   const segments = useSegments();
   const router = useRouter();
 
@@ -31,14 +38,18 @@ function useAuthGuard(isAuthenticated: boolean, ready: boolean) {
     if (!isAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/login');
     } else if (isAuthenticated && inAuthGroup) {
-      router.replace('/(tabs)');
+      router.replace(rutaPostAutenticacion(onboardingVisto, recienRegistrado));
     }
-  }, [isAuthenticated, segments, ready, router]);
+  }, [isAuthenticated, segments, ready, router, recienRegistrado, onboardingVisto]);
 }
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
   const { isAuthenticated, isReady } = useAuth();
+  const recienRegistrado = useAuthStore((s) => s.recienRegistrado);
+  const onboardingVisto = useAuthStore((s) => s.onboardingVisto);
+  const onboardingHidratado = useAuthStore((s) => s.onboardingHidratado);
+  const cargarOnboardingVisto = useAuthStore((s) => s.cargarOnboardingVisto);
   const { visible, tipo, mensaje, hide } = useToastStore();
 
   const [fontsLoaded] = useFonts({
@@ -47,7 +58,16 @@ function RootLayoutNav() {
     Poppins_600SemiBold,
   });
 
-  useAuthGuard(isAuthenticated, fontsLoaded && isReady);
+  useAuthGuard(
+    isAuthenticated,
+    fontsLoaded && isReady && onboardingHidratado,
+    recienRegistrado,
+    onboardingVisto,
+  );
+
+  useEffect(() => {
+    cargarOnboardingVisto();
+  }, [cargarOnboardingVisto]);
 
   useEffect(() => {
     if (fontsLoaded) SplashScreen.hideAsync();
@@ -69,25 +89,33 @@ function RootLayoutNav() {
       <Stack>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="onboarding"                 options={{ headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen name="onboarding-preferencias"    options={{ headerShown: false, gestureEnabled: false }} />
         <Stack.Screen name="despensa/form"              options={{ headerShown: false }} />
+        <Stack.Screen name="despensa/ocr"               options={{ headerShown: false }} />
         <Stack.Screen name="despensa/[id]"              options={{ headerShown: false }} />
         <Stack.Screen name="despensa/filtrada"          options={{ headerShown: false }} />
+        <Stack.Screen name="despensa/duplicados"        options={{ headerShown: false }} />
         <Stack.Screen name="perfil/editar"              options={{ headerShown: false }} />
         <Stack.Screen name="perfil/estadisticas"        options={{ headerShown: false }} />
+        <Stack.Screen name="perfil/ayuda"               options={{ headerShown: false }} />
         <Stack.Screen name="perfil/preferencias"        options={{ headerShown: false }} />
         <Stack.Screen name="perfil/gustos"              options={{ headerShown: false }} />
         <Stack.Screen name="perfil/privacidad"          options={{ headerShown: false }} />
         <Stack.Screen name="perfil/recetas-guardadas"   options={{ headerShown: false }} />
         <Stack.Screen name="perfil/recetas-publicadas"  options={{ headerShown: false }} />
+        <Stack.Screen name="perfil/historial-recetas"   options={{ headerShown: false }} />
         <Stack.Screen name="receta/[id]"                options={{ headerShown: false }} />
         <Stack.Screen name="receta/editar"              options={{ headerShown: false }} />
         <Stack.Screen name="feed/[id]"                  options={{ headerShown: false }} />
+        <Stack.Screen name="feed/buscar"                options={{ headerShown: false }} />
         <Stack.Screen name="social/buscar"              options={{ headerShown: false }} />
         <Stack.Screen name="social/solicitudes"         options={{ headerShown: false }} />
         <Stack.Screen name="social/seguidores"          options={{ headerShown: false }} />
         <Stack.Screen name="social/seguidos"            options={{ headerShown: false }} />
         <Stack.Screen name="social/bloqueados"          options={{ headerShown: false }} />
         <Stack.Screen name="social/perfil/[id]"         options={{ headerShown: false }} />
+        <Stack.Screen name="social/perfil/[id]/recetas" options={{ headerShown: false }} />
         <Stack.Screen name="social"                     options={{ headerShown: false }} />
         <Stack.Screen name="compartir/recibidas"        options={{ headerShown: false }} />
         <Stack.Screen name="compartir/recibidas/[id]"   options={{ headerShown: false }} />
@@ -96,6 +124,7 @@ function RootLayoutNav() {
         <Stack.Screen name="carrito/index"                     options={{ headerShown: false }} />
         <Stack.Screen name="carrito/generar-lista"             options={{ headerShown: false }} />
         <Stack.Screen name="carrito/listas"                    options={{ headerShown: false }} />
+        <Stack.Screen name="carrito/historial"                 options={{ headerShown: false }} />
         <Stack.Screen name="carrito/lista/[id]"                options={{ headerShown: false }} />
         <Stack.Screen name="carrito/lista/[id]/anadir-despensa" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />

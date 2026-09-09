@@ -93,6 +93,11 @@ export function MenuPerfil() {
       onPress: () => router.push('/perfil/recetas-guardadas'),
     },
     {
+      icono: 'time-outline',
+      label: 'Historial de recetas',
+      onPress: () => router.push('/perfil/historial-recetas'),
+    },
+    {
       icono: 'cart-outline',
       label: 'Mis listas de compra',
       onPress: () => router.push('/carrito/listas'),
@@ -122,6 +127,11 @@ export function MenuPerfil() {
       icono: 'bar-chart-outline',
       label: 'Estadísticas',
       onPress: () => router.push('/perfil/estadisticas'),
+    },
+    {
+      icono: 'help-circle-outline',
+      label: 'Cómo funciona MyFoodie',
+      onPress: () => router.push('/perfil/ayuda'),
     },
     {
       icono: 'log-out-outline',

@@ -23,6 +23,30 @@
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/$1"
     },
+    "collectCoverageFrom": [
+      "components/**/*.{ts,tsx}",
+      "services/**/*.{ts,tsx}",
+      "store/**/*.{ts,tsx}",
+      "hooks/**/*.{ts,tsx}",
+      "utils/**/*.{ts,tsx}",
+      "app/**/*.{ts,tsx}",
+      "!**/*.d.ts",
+      "!**/index.{ts,tsx}",
+      "!app/**/_layout.tsx",
+      "!components/themed-*.tsx",
+      "!components/hello-wave.tsx",
+      "!components/external-link.tsx",
+      "!components/parallax-scroll-view.tsx",
+      "!components/haptic-tab.tsx",
+      "!components/ui/collapsible.tsx",
+      "!components/ui/icon-symbol*.tsx",
+      "!hooks/use-color-scheme*.ts",
+      "!hooks/use-theme-color.ts"
+    ],
+    "coverageReporters": [
+      "text-summary",
+      "lcov"
+    ],
     "transformIgnorePatterns": [
       "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg)"
     ]
@@ -43,6 +67,7 @@
     "expo-font": "~14.0.11",
     "expo-haptics": "~15.0.8",
     "expo-image": "~3.0.11",
+    "expo-image-manipulator": "~14.0.8",
     "expo-image-picker": "~17.0.11",
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.11",

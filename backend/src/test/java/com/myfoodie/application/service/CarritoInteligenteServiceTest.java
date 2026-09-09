@@ -1,10 +1,12 @@
 package com.myfoodie.application.service;
 
+import com.myfoodie.application.dto.carrito.AñadirItemCarritoResponseDTO;
 import com.myfoodie.application.dto.carrito.CarritoDTO;
 import com.myfoodie.application.dto.carrito.ItemCarritoRequestDTO;
 import com.myfoodie.application.dto.carrito.ItemCarritoResponseDTO;
 import com.myfoodie.application.dto.carrito.ItemCompradoAjusteDTO;
 import com.myfoodie.application.dto.carrito.ListaCompraResponseDTO;
+import com.myfoodie.application.dto.matching.SimilitudResultDTO;
 import com.myfoodie.application.dto.unidad.UnidadConvertidaDTO;
 import com.myfoodie.domain.model.Despensa;
 import com.myfoodie.domain.model.IngredienteReceta;
@@ -13,10 +15,12 @@ import com.myfoodie.domain.model.ListaCompra;
 import com.myfoodie.domain.model.Producto;
 import com.myfoodie.domain.model.Receta;
 import com.myfoodie.domain.model.RecetaGuardada;
+import com.myfoodie.domain.model.TipoMatch;
 import com.myfoodie.domain.repository.DespensaRepository;
 import com.myfoodie.domain.repository.IngredienteRecetaRepository;
 import com.myfoodie.domain.repository.ItemCarritoRepository;
 import com.myfoodie.domain.repository.ListaCompraRepository;
+import com.myfoodie.domain.repository.LoteProductoRepository;
 import com.myfoodie.domain.repository.MovimientoProductoRepository;
 import com.myfoodie.domain.repository.PreferenciasRepository;
 import com.myfoodie.domain.repository.ProductoRepository;
@@ -34,7 +38,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -63,17 +66,40 @@ class CarritoInteligenteServiceTest {
     @Mock private IngredienteRecetaRepository ingredienteRecetaRepository;
     @Mock private RecetaRepository recetaRepository;
     @Mock private UnidadNormalizadorService unidadNormalizadorService;
+    @Mock private MatchingService matchingService;
+    @Mock private LoteProductoRepository loteProductoRepository;
 
     @InjectMocks private CarritoInteligenteService carritoInteligenteService;
 
     // Por defecto, unidadNormalizadorService devuelve la cantidad/unidad tal cual (comportamiento
     // real para unidades ya objetivas), tanto para comparar disponibilidad como para el carrito.
+    // matchingService, al ser un mock, no reproduce el algoritmo real: para estos tests basta con
+    // que considere "coincidencia fuerte" cuando los nombres son exactamente iguales (que es el
+    // comportamiento exacto que tenían antes de introducir MatchingService en este servicio).
     @BeforeEach
     void configurarNormalizadorPorDefecto() {
         lenient().when(unidadNormalizadorService.normalizarUnidades(anyDouble(), anyString()))
                 .thenAnswer(inv -> new UnidadConvertidaDTO(inv.getArgument(0), inv.getArgument(1), false));
         lenient().when(unidadNormalizadorService.convertirAUnidadDeCompra(anyDouble(), anyString()))
                 .thenAnswer(inv -> new UnidadConvertidaDTO(inv.getArgument(0), inv.getArgument(1), false));
+        // cantidadComparable: comportamiento real (compara por familia de unidad), suficiente para
+        // estos tests, que usan unidades objetivas iguales.
+        UnidadNormalizadorService unidadesReal = new UnidadNormalizadorService();
+        lenient().when(unidadNormalizadorService.cantidadComparable(anyDouble(), any(), any()))
+                .thenAnswer(inv -> unidadesReal.cantidadComparable(
+                        inv.getArgument(0), inv.getArgument(1), inv.getArgument(2)));
+        lenient().when(matchingService.calcularSimilitud(anyString(), anyString())).thenAnswer(inv -> {
+            String a = inv.getArgument(0);
+            String b = inv.getArgument(1);
+            boolean iguales = a != null && b != null && a.trim().equalsIgnoreCase(b.trim());
+            return new SimilitudResultDTO(iguales ? 1.0 : 0.0, a, b, false);
+        });
+        lenient().when(matchingService.clasificarMatch(anyDouble())).thenAnswer(inv -> {
+            double puntuacion = inv.getArgument(0);
+            if (puntuacion >= 0.99) return TipoMatch.AUTOMATICO;
+            if (puntuacion >= 0.60) return TipoMatch.PROPONER;
+            return TipoMatch.NUEVO;
+        });
     }
 
     // -------------------------------------------------------------------------
@@ -415,11 +441,12 @@ class CarritoInteligenteServiceTest {
         guardarItemsComoLlegan();
         ItemCarritoRequestDTO dto = new ItemCarritoRequestDTO("Café", 1f, "paquetes", "Otros");
 
-        ItemCarritoResponseDTO resultado = carritoInteligenteService.añadirItemManual("user-1", dto);
+        AñadirItemCarritoResponseDTO resultado = carritoInteligenteService.añadirItemManual("user-1", dto);
 
-        assertThat(resultado.estado()).isEqualTo("pendiente");
-        assertThat(resultado.prioridad()).isEqualTo("media");
-        assertThat(resultado.nombre()).isEqualTo("Café");
+        assertThat(resultado.accion()).isEqualTo("creado");
+        assertThat(resultado.item().estado()).isEqualTo("pendiente");
+        assertThat(resultado.item().prioridad()).isEqualTo("media");
+        assertThat(resultado.item().nombre()).isEqualTo("Café");
     }
 
     // -------------------------------------------------------------------------
@@ -450,9 +477,9 @@ class CarritoInteligenteServiceTest {
         guardarItemsComoLlegan();
         ItemCarritoRequestDTO dto = new ItemCarritoRequestDTO("Tomate", 3f, "unidades", null);
 
-        ItemCarritoResponseDTO resultado = carritoInteligenteService.añadirItemManual("user-1", dto);
+        AñadirItemCarritoResponseDTO resultado = carritoInteligenteService.añadirItemManual("user-1", dto);
 
-        assertThat(resultado.categoria()).isEqualTo("verduras");
+        assertThat(resultado.item().categoria()).isEqualTo("verduras");
     }
 
     @Test
@@ -467,8 +494,8 @@ class CarritoInteligenteServiceTest {
         when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
         when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of());
         when(recetaGuardadaRepository.findByUsuarioId("user-1")).thenReturn(List.of(guardada));
-        when(recetaRepository.findById("receta-1")).thenReturn(Optional.of(receta));
-        when(ingredienteRecetaRepository.findByRecetaId("receta-1")).thenReturn(List.of(ingrediente));
+        when(recetaRepository.findAllById(any())).thenReturn(List.of(receta));
+        when(ingredienteRecetaRepository.findByRecetaIdIn(any())).thenReturn(List.of(ingrediente));
         guardarItemsComoLlegan();
 
         List<ItemCarrito> resultado = carritoInteligenteService.generarRecomendaciones("user-1");
@@ -492,8 +519,8 @@ class CarritoInteligenteServiceTest {
         when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.of(d));
         when(productoRepository.findByDespensaId("desp-1")).thenReturn(List.of());
         when(recetaGuardadaRepository.findByUsuarioId("user-1")).thenReturn(List.of(guardada));
-        when(recetaRepository.findById("receta-1")).thenReturn(Optional.of(receta));
-        when(ingredienteRecetaRepository.findByRecetaId("receta-1")).thenReturn(List.of(ingrediente));
+        when(recetaRepository.findAllById(any())).thenReturn(List.of(receta));
+        when(ingredienteRecetaRepository.findByRecetaIdIn(any())).thenReturn(List.of(ingrediente));
         guardarItemsComoLlegan();
 
         List<ItemCarrito> resultado = carritoInteligenteService.generarRecomendaciones("user-1");
@@ -512,6 +539,20 @@ class CarritoInteligenteServiceTest {
         carritoInteligenteService.eliminarItem("user-1", "i-1");
 
         verify(itemCarritoRepository).delete(i);
+    }
+
+    @Test
+    @DisplayName("eliminarItemsRechazados borra en bloque solo los items rechazados y devuelve cuántos")
+    void eliminarItemsRechazados_borraEnBloque() {
+        List<ItemCarrito> rechazados = List.of(
+                item("i-1", "user-1", "Leche", "alta", "rechazado"),
+                item("i-2", "user-1", "Pan", "media", "rechazado"));
+        when(itemCarritoRepository.findByUsuarioIdAndEstado("user-1", "rechazado")).thenReturn(rechazados);
+
+        int borrados = carritoInteligenteService.eliminarItemsRechazados("user-1");
+
+        assertThat(borrados).isEqualTo(2);
+        verify(itemCarritoRepository).deleteAll(rechazados);
     }
 
     // -------------------------------------------------------------------------

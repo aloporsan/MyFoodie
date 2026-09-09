@@ -11,9 +11,17 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CantidadMotivoSheet, ProductoEstadoBadge } from '@/components/despensa';
+import {
+  FormNuevoLote,
+  ListaLotes,
+  ModalesControlCantidad,
+  ProductoEstadoBadge,
+  useControlCantidadProducto,
+} from '@/components/despensa';
+import { showConfirm } from '@/hooks/useConfirm';
 import { useToast } from '@/hooks/useToast';
 import { MotivoEliminacion, MovimientoProducto } from '@/services/despensaService';
+import { CriterioFechaLote, LoteProducto, LoteProductoInput } from '@/services/loteService';
 import { useDespensaStore } from '@/store/despensaStore';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
@@ -42,10 +50,15 @@ export function DetalleProductoScreen() {
   const { showError } = useToast();
   const {
     productos,
-    actualizarCantidad,
     eliminarProducto,
     historialProducto,
     cargarHistorial,
+    lotesProductoActual,
+    cargarLotes,
+    añadirLote,
+    editarLote,
+    eliminarLote,
+    compactarLotes,
   } = useDespensaStore();
 
   // Modal eliminar
@@ -53,16 +66,25 @@ export function DetalleProductoScreen() {
   const [motivoSeleccionado, setMotivoSeleccionado] = useState<MotivoEliminacion | null>(null);
   const [motivoDetalleTexto, setMotivoDetalleTexto] = useState('');
 
-  // Sheet de cantidad
-  const [cantidadSheet, setCantidadSheet] = useState(false);
-  const [cantidadModo, setCantidadModo] = useState<'sumar' | 'restar'>('restar');
+  // La gestión por lotes es obligatoria: todo producto tiene al menos un lote y la sección
+  // está siempre visible. El flujo de "+ / -" (elegir lote al sumar, aviso + resumen FIFO al
+  // restar) es el mismo que en la lista de la despensa — ver useControlCantidadProducto.
+  const control = useControlCantidadProducto({ onCantidadActualizada: () => cargarHistorial(id) });
+
+  // modalLote aquí solo sirve para editar un lote existente desde la lista de lotes.
+  const [modalLote, setModalLote] = useState(false);
+  const [loteEditando, setLoteEditando] = useState<LoteProducto | null>(null);
+  const [guardandoLote, setGuardandoLote] = useState(false);
 
   const producto = productos.find((p) => p.id === id);
 
-  // Recarga historial cada vez que la pantalla gana foco
+  // Recarga historial y lotes cada vez que la pantalla gana foco
   useFocusEffect(
     useCallback(() => {
-      if (id) cargarHistorial(id);
+      if (id) {
+        cargarHistorial(id);
+        cargarLotes(id);
+      }
     }, [id])
   );
 
@@ -79,31 +101,6 @@ export function DetalleProductoScreen() {
     );
   }
 
-  const handleMenos = () => {
-    setCantidadModo('restar');
-    setCantidadSheet(true);
-  };
-
-  const handleMas = () => {
-    setCantidadModo('sumar');
-    setCantidadSheet(true);
-  };
-
-  const confirmarCantidad = async (
-    cantidad: number,
-    motivo?: MotivoEliminacion,
-    motivoDetalle?: string
-  ) => {
-    setCantidadSheet(false);
-    const delta = cantidadModo === 'sumar' ? cantidad : -cantidad;
-    try {
-      await actualizarCantidad(id, delta, motivo, motivoDetalle);
-      cargarHistorial(id);
-    } catch {
-      showError('No puedes quitar más cantidad de la que tienes disponible');
-    }
-  };
-
   const handleEliminar = () => {
     setMotivoSeleccionado(null);
     setMotivoDetalleTexto('');
@@ -119,6 +116,73 @@ export function DetalleProductoScreen() {
         : undefined;
     await eliminarProducto(id, motivoSeleccionado, detalle);
     router.back();
+  };
+
+  const handleNuevoLote = () => {
+    setLoteEditando(null);
+    setModalLote(true);
+  };
+
+  const handleEditarLote = (lote: LoteProducto) => {
+    setLoteEditando(lote);
+    setModalLote(true);
+  };
+
+  const handleGuardarLote = async (datos: LoteProductoInput) => {
+    setGuardandoLote(true);
+    try {
+      if (loteEditando) {
+        await editarLote(id, loteEditando.id, datos);
+      } else {
+        await añadirLote(id, datos);
+      }
+      setModalLote(false);
+    } catch {
+      showError('No se pudo guardar el lote');
+    } finally {
+      setGuardandoLote(false);
+    }
+  };
+
+  const handleCompactarLotes = () => {
+    showConfirm(
+      'Compactar lotes',
+      'Se fusionarán todos los lotes activos en uno solo, sumando sus cantidades. ¿Qué fecha de caducidad quieres conservar?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'La fecha más próxima', onPress: () => ejecutarCompactar('MAS_TEMPRANA') },
+        { text: 'La fecha más lejana', onPress: () => ejecutarCompactar('MAS_TARDIA') },
+      ]
+    );
+  };
+
+  const ejecutarCompactar = async (criterioFecha: CriterioFechaLote) => {
+    try {
+      await compactarLotes(id, criterioFecha);
+    } catch {
+      showError('No se pudieron compactar los lotes');
+    }
+  };
+
+  const handleEliminarLote = (lote: LoteProducto) => {
+    showConfirm(
+      'Eliminar lote',
+      `¿Eliminar este lote de ${lote.cantidad} ${lote.unidad}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await eliminarLote(id, lote.id);
+            } catch {
+              showError('No se pudo eliminar el lote');
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -154,7 +218,7 @@ export function DetalleProductoScreen() {
           <View style={styles.cantidadRow}>
             <Pressable
               style={[styles.cantidadBtn, producto.cantidad === 0 && styles.cantidadBtnDisabled]}
-              onPress={handleMenos}
+              onPress={() => control.abrirRestar(producto)}
               disabled={producto.cantidad === 0}
             >
               <Ionicons
@@ -166,7 +230,7 @@ export function DetalleProductoScreen() {
             <Text style={styles.cantidadValor}>
               {producto.cantidad} <Text style={styles.unidad}>{producto.unidad}</Text>
             </Text>
-            <Pressable style={styles.cantidadBtn} onPress={handleMas}>
+            <Pressable style={styles.cantidadBtn} onPress={() => control.abrirSumar(producto)}>
               <Ionicons name="add" size={24} color={colors.primary} />
             </Pressable>
           </View>
@@ -177,7 +241,7 @@ export function DetalleProductoScreen() {
           {producto.categoria && (
             <FilaDetalle icono="grid-outline" label="Categoría" valor={producto.categoria} />
           )}
-          {producto.estado !== 'sin_stock' && producto.fechaCaducidad && (
+          {!producto.tieneLotes && producto.mostrarFechaCaducidad !== false && producto.fechaCaducidad && (
             <FilaDetalle icono="calendar-outline" label="Caduca" valor={producto.fechaCaducidad} />
           )}
           {producto.estado !== 'sin_stock' && producto.fechaCompra && (
@@ -191,6 +255,28 @@ export function DetalleProductoScreen() {
             label="Actualizado"
             valor={new Date(producto.updatedAt).toLocaleDateString('es-ES')}
           />
+        </View>
+
+        {/* Gestión por lotes (siempre activa) */}
+        <View style={styles.lotesCard}>
+          <View style={styles.lotesHeader}>
+            <Text style={styles.lotesTitulo}>Lotes</Text>
+          </View>
+          <ListaLotes
+            lotes={lotesProductoActual}
+            onEditar={handleEditarLote}
+            onEliminar={handleEliminarLote}
+          />
+          <Pressable style={styles.btnNuevaCompra} onPress={handleNuevoLote}>
+            <Ionicons name="add" size={18} color={colors.primary} />
+            <Text style={styles.btnNuevaCompraText}>Añadir nueva compra</Text>
+          </Pressable>
+          {lotesProductoActual.length > 1 && (
+            <Pressable style={styles.btnCompactarLotes} onPress={handleCompactarLotes}>
+              <Ionicons name="contract-outline" size={18} color={colors.text.secondary} />
+              <Text style={styles.btnCompactarLotesText}>Compactar lotes</Text>
+            </Pressable>
+          )}
         </View>
 
         {/* Historial de movimientos */}
@@ -210,15 +296,8 @@ export function DetalleProductoScreen() {
         </Pressable>
       </ScrollView>
 
-      {/* Sheet de cantidad (sumar / restar) */}
-      <CantidadMotivoSheet
-        visible={cantidadSheet}
-        unidad={producto.unidad}
-        modo={cantidadModo}
-        maxCantidad={cantidadModo === 'restar' ? producto.cantidad : undefined}
-        onConfirm={confirmarCantidad}
-        onCancelar={() => setCantidadSheet(false)}
-      />
+      {/* Flujo de cantidad (+ / -) compartido con la lista de la despensa */}
+      <ModalesControlCantidad control={control} />
 
       {/* Modal de motivo de eliminación */}
       <Modal
@@ -278,6 +357,30 @@ export function DetalleProductoScreen() {
                 <Text style={styles.modalBtnConfirmarText}>Eliminar</Text>
               </Pressable>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de alta/edición de lote */}
+      <Modal
+        visible={modalLote}
+        transparent
+        statusBarTranslucent
+        animationType="slide"
+        onRequestClose={() => setModalLote(false)}
+      >
+        <View style={styles.modalContainer}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setModalLote(false)} />
+          <View style={styles.modalSheet}>
+            <Text style={styles.modalTitulo}>{loteEditando ? 'Editar lote' : 'Nueva compra'}</Text>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <FormNuevoLote
+                loteInicial={loteEditando ?? undefined}
+                onGuardar={handleGuardarLote}
+                onCancelar={() => setModalLote(false)}
+                isLoading={guardandoLote}
+              />
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -432,6 +535,43 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   historialTitulo: { ...typography.label, color: colors.text.secondary, marginBottom: spacing.xs },
+  lotesCard: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    gap: spacing.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  lotesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  lotesTitulo: { ...typography.label, color: colors.text.secondary },
+  btnNuevaCompra: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+  },
+  btnNuevaCompraText: { ...typography.label, color: colors.primary },
+  btnCompactarLotes: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+  },
+  btnCompactarLotesText: { ...typography.caption, color: colors.text.secondary },
   btnEliminar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -456,6 +596,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.sm,
     paddingBottom: spacing.xxxl,
+    maxHeight: '85%',
   },
   modalTitulo: {
     ...typography.heading2,

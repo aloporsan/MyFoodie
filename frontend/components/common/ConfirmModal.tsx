@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
   botonEnFila: { flex: 1 },
   botonCancelar: { backgroundColor: colors.grayLight },
   botonDestructivo: { backgroundColor: colors.error },
-  botonTexto: { ...typography.button, color: colors.white },
+  botonTexto: { ...typography.button, color: colors.white, textAlign: 'center' },
   botonTextoCancelar: { color: colors.text.secondary },
   botonTextoDestructivo: { color: colors.white },
 });

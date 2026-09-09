@@ -44,6 +44,7 @@ public class NotificacionService {
     private static final String TIPO_PRODUCTO_CADUCA_PRONTO = "producto_caduca_pronto";
     private static final String TIPO_PRODUCTO_SIN_STOCK = "producto_sin_stock";
     private static final String TIPO_CARRITO_ACTUALIZADO = "carrito_actualizado";
+    private static final String TIPO_CONTENIDO_RETIRADO = "contenido_retirado";
     private static final String REFERENCIA_PRODUCTO = "producto";
 
     private static final Map<String, java.util.function.Predicate<PreferenciasNotificacion>> PREFERENCIA_POR_TIPO = Map.ofEntries(
@@ -231,6 +232,8 @@ public class NotificacionService {
             case TIPO_PRODUCTO_CADUCA_PRONTO -> nombreProducto(referenciaId, referenciaType) + " caduca pronto";
             case TIPO_PRODUCTO_SIN_STOCK -> nombreProducto(referenciaId, referenciaType) + " sin stock";
             case TIPO_CARRITO_ACTUALIZADO -> "Tu carrito tiene novedades";
+            case TIPO_CONTENIDO_RETIRADO -> "RECETA".equals(referenciaType)
+                    ? "Tu receta ha sido retirada" : "Tu comentario ha sido retirado";
             default -> "Nueva notificación";
         };
     }
@@ -249,6 +252,8 @@ public class NotificacionService {
             case TIPO_PRODUCTO_CADUCA_PRONTO -> "Tu producto " + nombreProducto + " caduca en menos de 3 días";
             case TIPO_PRODUCTO_SIN_STOCK -> "Te has quedado sin " + nombreProducto;
             case TIPO_CARRITO_ACTUALIZADO -> "El carrito inteligente tiene nuevas recomendaciones";
+            case TIPO_CONTENIDO_RETIRADO -> ("RECETA".equals(referenciaType) ? "Tu receta" : "Tu comentario")
+                    + " se ha retirado automáticamente tras superar el número de reportes permitido";
             default -> "";
         };
     }

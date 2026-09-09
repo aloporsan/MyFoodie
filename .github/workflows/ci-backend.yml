@@ -44,18 +44,28 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Verificar estilo de código con Checkstyle
-        # Requiere configurar el plugin maven-checkstyle-plugin en pom.xml
-        run: mvn checkstyle:check --batch-mode
-        continue-on-error: true
-
-      - name: Ejecutar tests unitarios e integración
-        run: mvn test --batch-mode
+      - name: Ejecutar tests unitarios e integración (con cobertura JaCoCo)
+        # El perfil "coverage" activa el agente de jacoco (desactivado por defecto
+        # porque en local con poca RAM provoca compilaciones parciales)
+        run: mvn test -Pcoverage --batch-mode
         env:
-          # Apuntar al MongoDB del servicio de CI
-          SPRING_DATA_MONGODB_URI: mongodb://localhost:27017/myfoodie_test
+          # Apuntar al MongoDB del servicio de CI (Spring Boot 4: prefijo spring.mongodb.*)
+          SPRING_MONGODB_URI: mongodb://localhost:27017/myfoodie_test
           # Clave ficticia para que el EmailService arranque sin fallar
           RESEND_API_KEY: ci-dummy-key-not-used-in-tests
+
+      - name: Resumen de cobertura JaCoCo
+        if: always()
+        run: |
+          if [ -f target/site/jacoco/jacoco.csv ]; then
+            awk -F, 'NR>1 { im+=$4; ic+=$5; bm+=$6; bc+=$7 }
+              END {
+                printf "### Cobertura JaCoCo (backend)\n\n"
+                printf "| Métrica | Cubierto | Total | %% |\n|---|---|---|---|\n"
+                printf "| Instrucciones | %d | %d | %.1f%% |\n", ic, ic+im, 100*ic/(ic+im)
+                printf "| Ramas | %d | %d | %.1f%% |\n", bc, bc+bm, 100*bc/(bc+bm)
+              }' target/site/jacoco/jacoco.csv >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Compilar artefacto JAR (sin ejecutar tests)
         run: mvn package -DskipTests --batch-mode
@@ -65,5 +75,7 @@ jobs:
         if: always()
         with:
           name: resultados-tests-backend
-          path: backend/target/surefire-reports/
+          path: |
+            backend/target/surefire-reports/
+            backend/target/site/jacoco/
           retention-days: 7

@@ -35,7 +35,7 @@ public class RecetaController {
     public ResponseEntity<RecetaResponseDTO> obtener(
             @PathVariable String id,
             Principal principal) {
-        return ResponseEntity.ok(recetaService.obtenerReceta(id, getUsuarioId(principal)));
+        return ResponseEntity.ok(recetaService.obtenerRecetaDetalle(id, getUsuarioId(principal)));
     }
 
     @PutMapping("/{id}")
@@ -131,6 +131,14 @@ public class RecetaController {
     @GetMapping("/mis-recetas")
     public ResponseEntity<List<RecetaFeedDTO>> misRecetas(Principal principal) {
         return ResponseEntity.ok(recetaService.misRecetas(getUsuarioId(principal)));
+    }
+
+    @GetMapping("/usuario/{usuarioId}")
+    public ResponseEntity<List<RecetaFeedDTO>> recetasDeUsuario(
+            @PathVariable String usuarioId,
+            Principal principal) {
+        return ResponseEntity.ok(
+                recetaService.recetasPublicadasDeUsuario(usuarioId, getUsuarioId(principal)));
     }
 
     @GetMapping("/mis-borradores")

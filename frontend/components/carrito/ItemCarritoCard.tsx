@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { memo, useState } from 'react';
+import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -16,8 +16,9 @@ import { colors } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
 import { typography } from '@/theme/typography';
 
-const UMBRAL_SWIPE = 80;
+const UMBRAL_SWIPE = 100;
 const DURACION_SALIDA = 200;
+const ANCHO_PANTALLA = Dimensions.get('window').width;
 
 const PRIORIDAD_CONFIG: Record<PrioridadCarrito, { bg: string; text: string; label: string }> = {
   alta: { bg: colors.error, text: colors.white, label: 'Alta' },
@@ -34,7 +35,7 @@ interface Props {
   onRecuperar?: () => void;
 }
 
-export function ItemCarritoCard({
+function ItemCarritoCardBase({
   item, onAceptar, onRechazar, onNoVolver, onModificarCantidad, onRecuperar,
 }: Props) {
   const [modalCantidadVisible, setModalCantidadVisible] = useState(false);
@@ -47,22 +48,27 @@ export function ItemCarritoCard({
 
   const translateX = useSharedValue(0);
 
-  const animarSalida = (direccion: 1 | -1) => {
-    translateX.value = withTiming(direccion * 500, { duration: DURACION_SALIDA }, () => {
-      translateX.value = 0;
-    });
+  // Igual que el swipe del feed: la tarjeta sigue al dedo 1:1 y, al soltar pasado el umbral,
+  // se desliza hasta salir de la pantalla; solo entonces se dispara la acción (aceptar /
+  // rechazar), para que se vea salir del todo antes de desmontarse.
+  const animarSalida = (direccion: 1 | -1, alTerminar?: () => void) => {
+    translateX.value = withTiming(
+      direccion * ANCHO_PANTALLA,
+      { duration: DURACION_SALIDA },
+      (finished) => {
+        if (finished && alTerminar) runOnJS(alTerminar)();
+      },
+    );
   };
 
   const handleAceptar = () => {
     if (esAceptado) return;
-    animarSalida(1);
-    onAceptar?.();
+    animarSalida(1, onAceptar);
   };
 
   const handleRechazar = () => {
     if (esRechazado) return;
-    animarSalida(-1);
-    onRechazar?.();
+    animarSalida(-1, onRechazar);
   };
 
   // activeOffsetX deja pasar el gesto vertical al ScrollView/FlatList mientras no
@@ -261,6 +267,12 @@ export function ItemCarritoCard({
     </GestureDetector>
   );
 }
+
+// Memo por identidad del item: al aceptar/rechazar uno se re-renderiza toda la lista, y
+// repintar las tarjetas cuyo item no cambió es lo que se nota como tirón en móviles con
+// poca RAM. Los callbacks se ignoran a propósito: son flechas nuevas en cada render pero
+// cierran sobre un item.id estable y sobre funciones estables del store.
+export const ItemCarritoCard = memo(ItemCarritoCardBase, (prev, next) => prev.item === next.item);
 
 const styles = StyleSheet.create({
   wrapper: {

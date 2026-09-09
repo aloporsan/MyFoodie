@@ -1,0 +1,857 @@
+{
+  "info": {
+    "name": "MyFoodie — Lotes y Matching (Fase 3 Bloque 3)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",           "value": "http://localhost:8080" },
+    { "key": "token",             "value": "" },
+    { "key": "tokenOtro",         "value": "" },
+    { "key": "testEmail",         "value": "" },
+    { "key": "testEmailOtro",     "value": "" },
+    { "key": "productoOtroId",    "value": "" },
+    { "key": "productoLecheId",   "value": "" },
+    { "key": "recetaId",          "value": "" },
+    { "key": "productoYogurId",   "value": "" },
+    { "key": "loteYogurAId",      "value": "" },
+    { "key": "loteYogurBId",      "value": "" },
+    { "key": "productoCompotaId", "value": "" },
+    { "key": "productoPureId",    "value": "" },
+    { "key": "productoSalId",     "value": "" },
+    { "key": "itemCompotaId",     "value": "" }
+  ],
+  "item": [
+    {
+      "name": "🔧 Setup",
+      "item": [
+        {
+          "name": "Registrar usuario principal",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const ts = Date.now();",
+                  "pm.collectionVariables.set('testEmail', 'lotes_' + ts + '@test.com');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.collectionVariables.set('token', json.token);",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Tiene token', () => pm.expect(json.token).to.not.be.empty);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Usuario Lotes\",\n  \"nombreUsuario\": \"lotes_principal_{{$timestamp}}\",\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Registrar usuario otro (para casos de error y receta del feed)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const ts = Date.now();",
+                  "pm.collectionVariables.set('testEmailOtro', 'lotes_otro_' + ts + '@test.com');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.collectionVariables.set('tokenOtro', json.token);",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Usuario Otro\",\n  \"nombreUsuario\": \"lotes_otro_{{$timestamp}}\",\n  \"email\": \"{{testEmailOtro}}\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Otro: añadir producto propio (para test 404 de lotes)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('productoOtroId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenOtro}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Producto de otro usuario\",\n  \"cantidad\": 1,\n  \"unidad\": \"unidades\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "✅ Matching Recetas",
+      "item": [
+        {
+          "name": "1. Principal: añadir 'Leche' a la despensa",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('productoLecheId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Leche\",\n  \"cantidad\": 2,\n  \"unidad\": \"litros\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "2. Otro: crear receta 'Tarta de leche'",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('recetaId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenOtro}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"titulo\": \"Tarta de leche\",\n  \"descripcion\": \"Usada para probar matching en el feed\",\n  \"tiempoEstimado\": 30,\n  \"dificultad\": \"fácil\",\n  \"categoria\": \"postre\",\n  \"etiquetas\": [\"dulce\"]\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas", "host": ["{{baseUrl}}"], "path": ["api", "recetas"] }
+          }
+        },
+        {
+          "name": "3. Otro: añadir ingrediente 'leche entera'",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenOtro}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"leche entera\",\n  \"cantidad\": 1,\n  \"unidad\": \"litros\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaId}}/ingredientes", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaId}}", "ingredientes"] }
+          }
+        },
+        {
+          "name": "4. Otro: añadir paso",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenOtro}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"descripcion\": \"Mezclar la leche con el resto de ingredientes\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaId}}/pasos", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaId}}", "pasos"] }
+          }
+        },
+        {
+          "name": "5. Otro: publicar receta",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenOtro}}" }],
+            "url": { "raw": "{{baseUrl}}/api/recetas/{{recetaId}}/publicar", "host": ["{{baseUrl}}"], "path": ["api", "recetas", "{{recetaId}}", "publicar"] }
+          }
+        },
+        {
+          "name": "6. Principal: GET feed → coincidenciaDespensa detecta 'leche entera' ~ 'Leche' vía matching",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const recetaId = pm.collectionVariables.get('recetaId');",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('El feed devuelve el campo coincidenciaDespensa en cada receta', () => {",
+                  "  pm.expect(json.recetas).to.be.an('array').that.is.not.empty;",
+                  "  json.recetas.forEach(r => pm.expect(r).to.have.property('coincidenciaDespensa'));",
+                  "});",
+                  "pm.test(\"La receta 'Tarta de leche' detecta 'leche entera' como disponible vía matching (no comparación exacta)\", () => {",
+                  "  const receta = json.recetas.find(r => r.id === recetaId);",
+                  "  pm.expect(receta, 'La receta debe aparecer en el feed').to.not.be.undefined;",
+                  "  pm.expect(receta.ingredientesDisponibles).to.eql(1);",
+                  "  pm.expect(receta.ingredientesFaltantes).to.eql(0);",
+                  "  pm.expect(receta.coincidenciaDespensa).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/feed?pagina=0&tamaño=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "feed"],
+              "query": [{ "key": "pagina", "value": "0" }, { "key": "tamaño", "value": "50" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "✅ Matching Carrito",
+      "item": [
+        {
+          "name": "1. POST item 'Compota de manzana casera' (nuevo) → accion: creado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test(\"accion === 'creado'\", () => pm.expect(json.accion).to.eql('creado'));",
+                  "pm.collectionVariables.set('itemCompotaId', json.item.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Compota de manzana casera\",\n  \"cantidad\": 1,\n  \"unidad\": \"unidades\",\n  \"categoria\": \"conservas\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/carrito/items", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "items"] }
+          }
+        },
+        {
+          "name": "2. POST item 'Compota de manzana casera' (idéntico) → accion: actualizado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test(\"accion === 'actualizado'\", () => pm.expect(json.accion).to.eql('actualizado'));",
+                  "pm.test('Suma la cantidad sobre el item existente (1 + 1 = 2)', () => {",
+                  "  pm.expect(json.item.id).to.eql(pm.collectionVariables.get('itemCompotaId'));",
+                  "  pm.expect(json.item.cantidad).to.eql(2);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Compota de manzana casera\",\n  \"cantidad\": 1,\n  \"unidad\": \"unidades\",\n  \"categoria\": \"conservas\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/carrito/items", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "items"] }
+          }
+        },
+        {
+          "name": "3. POST item 'Pure de manzana casero' (similar, puntuación ~0.71) → accion: sugerencia",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test(\"accion === 'sugerencia'\", () => pm.expect(json.accion).to.eql('sugerencia'));",
+                  "pm.test('itemExistente apunta a Compota de manzana casera', () => {",
+                  "  pm.expect(json.itemExistente).to.not.be.null;",
+                  "  pm.expect(json.itemExistente.id).to.eql(pm.collectionVariables.get('itemCompotaId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Pure de manzana casero\",\n  \"cantidad\": 1,\n  \"unidad\": \"unidades\",\n  \"categoria\": \"conservas\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/carrito/items", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "items"] }
+          }
+        },
+        {
+          "name": "4. POST item 'Detergente en polvo' (sin relación) → accion: creado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test(\"accion === 'creado'\", () => pm.expect(json.accion).to.eql('creado'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Detergente en polvo\",\n  \"cantidad\": 1,\n  \"unidad\": \"unidades\",\n  \"categoria\": \"limpieza\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/carrito/items", "host": ["{{baseUrl}}"], "path": ["api", "carrito", "items"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "✅ Lotes — Happy Path",
+      "item": [
+        {
+          "name": "1. Crear producto 'Yogur' (aún sin lotes)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('tieneLotes es false al crearlo sin lotes', () => pm.expect(json.tieneLotes).to.eql(false));",
+                  "pm.collectionVariables.set('productoYogurId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Yogur\",\n  \"cantidad\": 1,\n  \"unidad\": \"unidades\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "2. POST lote A (caduca 2026-03-01, cantidad 4) → 201",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Lote creado con cantidad y fecha correctas', () => {",
+                  "  pm.expect(json.cantidad).to.eql(4);",
+                  "  pm.expect(json.fechaCaducidad).to.eql('2026-03-01');",
+                  "});",
+                  "pm.collectionVariables.set('loteYogurAId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"cantidad\": 4,\n  \"unidad\": \"unidades\",\n  \"fechaCaducidad\": \"2026-03-01\",\n  \"fechaCompra\": \"2026-02-01\",\n  \"origen\": \"manual\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoYogurId}}/lotes", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoYogurId}}", "lotes"] }
+          }
+        },
+        {
+          "name": "3. POST lote B (caduca antes: 2026-01-15, cantidad 2) → 201",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('loteYogurBId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"cantidad\": 2,\n  \"unidad\": \"unidades\",\n  \"fechaCaducidad\": \"2026-01-15\",\n  \"fechaCompra\": \"2026-01-01\",\n  \"origen\": \"manual\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoYogurId}}/lotes", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoYogurId}}", "lotes"] }
+          }
+        },
+        {
+          "name": "4. GET lotes → array ordenado FIFO (lote B primero, más próximo a caducar)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Devuelve los 2 lotes ordenados por fecha de caducidad ascendente', () => {",
+                  "  pm.expect(json).to.be.an('array').with.lengthOf(2);",
+                  "  pm.expect(json[0].id).to.eql(pm.collectionVariables.get('loteYogurBId'));",
+                  "  pm.expect(json[1].id).to.eql(pm.collectionVariables.get('loteYogurAId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoYogurId}}/lotes", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoYogurId}}", "lotes"] }
+          }
+        },
+        {
+          "name": "5. GET producto → cantidad y fechaCaducidad como agregado de lotes (6 uds, 2026-01-15)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('tieneLotes true y agregado correcto (4 + 2 = 6, fecha mínima)', () => {",
+                  "  pm.expect(json.tieneLotes).to.eql(true);",
+                  "  pm.expect(json.cantidad).to.eql(6);",
+                  "  pm.expect(json.fechaCaducidad).to.eql('2026-01-15');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoYogurId}}", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoYogurId}}"] }
+          }
+        },
+        {
+          "name": "6. PUT lote A → cambia cantidad a 5",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Lote actualizado con la nueva cantidad', () => pm.expect(json.cantidad).to.eql(5));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"cantidad\": 5,\n  \"unidad\": \"unidades\",\n  \"fechaCaducidad\": \"2026-03-01\",\n  \"fechaCompra\": \"2026-02-01\",\n  \"origen\": \"manual\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoYogurId}}/lotes/{{loteYogurAId}}", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoYogurId}}", "lotes", "{{loteYogurAId}}"] }
+          }
+        },
+        {
+          "name": "7. DELETE lote B → 204 y recalcula el total (queda solo lote A: 5)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Status 204', () => pm.response.to.have.status(204));"] } }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoYogurId}}/lotes/{{loteYogurBId}}", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoYogurId}}", "lotes", "{{loteYogurBId}}"] }
+          }
+        },
+        {
+          "name": "8. GET producto tras eliminar lote B → cantidad 5, fecha del lote A (2026-03-01)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Total recalculado tras eliminar el lote', () => {",
+                  "  pm.expect(json.cantidad).to.eql(5);",
+                  "  pm.expect(json.fechaCaducidad).to.eql('2026-03-01');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoYogurId}}", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoYogurId}}"] }
+          }
+        },
+        {
+          "name": "9. PATCH cantidad (delta -5) sobre producto con lotes → consumo FIFO agota el lote A",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('FIFO aplicado: cantidad total en 0 y sin stock', () => {",
+                  "  pm.expect(json.cantidad).to.eql(0);",
+                  "  pm.expect(json.estado).to.eql('sin_stock');",
+                  "});",
+                  "pm.test('mostrarFechaCaducidad es false cuando el producto está sin stock', () => {",
+                  "  pm.expect(json.mostrarFechaCaducidad).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"delta\": -5,\n  \"motivo\": \"consumido\",\n  \"descripcion\": \"Consumido para probar FIFO\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoYogurId}}/cantidad", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoYogurId}}", "cantidad"] }
+          }
+        },
+        {
+          "name": "10. Crear producto 'Compota de manzana' con 2 lotes",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('productoCompotaId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Compota de manzana\",\n  \"cantidad\": 1,\n  \"unidad\": \"unidades\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "11. POST lote Compota A (caduca 2026-05-01, cantidad 3)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"cantidad\": 3,\n  \"unidad\": \"unidades\",\n  \"fechaCaducidad\": \"2026-05-01\",\n  \"fechaCompra\": \"2026-04-01\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoCompotaId}}/lotes", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoCompotaId}}", "lotes"] }
+          }
+        },
+        {
+          "name": "12. POST lote Compota B (caduca 2026-02-01, cantidad 2)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"cantidad\": 2,\n  \"unidad\": \"unidades\",\n  \"fechaCaducidad\": \"2026-02-01\",\n  \"fechaCompra\": \"2026-01-01\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoCompotaId}}/lotes", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoCompotaId}}", "lotes"] }
+          }
+        },
+        {
+          "name": "13. POST compactar MAS_TEMPRANA → un solo lote, cantidad sumada (5) y fecha más próxima (2026-02-01)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Lote resultante con cantidad sumada y fecha más próxima', () => {",
+                  "  pm.expect(json.cantidad).to.eql(5);",
+                  "  pm.expect(json.fechaCaducidad).to.eql('2026-02-01');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"criterioFecha\": \"MAS_TEMPRANA\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoCompotaId}}/lotes/compactar", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoCompotaId}}", "lotes", "compactar"] }
+          }
+        },
+        {
+          "name": "14. GET lotes de Compota → queda un único lote tras compactar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Solo queda 1 lote', () => pm.expect(json).to.be.an('array').with.lengthOf(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoCompotaId}}/lotes", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoCompotaId}}", "lotes"] }
+          }
+        },
+        {
+          "name": "15. Crear producto 'Puré de patata' con 2 lotes",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('productoPureId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Puré de patata\",\n  \"cantidad\": 1,\n  \"unidad\": \"unidades\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "16. POST lote Puré A (caduca 2026-06-01, cantidad 1)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"cantidad\": 1,\n  \"unidad\": \"unidades\",\n  \"fechaCaducidad\": \"2026-06-01\",\n  \"fechaCompra\": \"2026-05-01\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoPureId}}/lotes", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoPureId}}", "lotes"] }
+          }
+        },
+        {
+          "name": "17. POST lote Puré B (caduca 2026-08-01, cantidad 1)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"cantidad\": 1,\n  \"unidad\": \"unidades\",\n  \"fechaCaducidad\": \"2026-08-01\",\n  \"fechaCompra\": \"2026-05-01\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoPureId}}/lotes", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoPureId}}", "lotes"] }
+          }
+        },
+        {
+          "name": "18. POST compactar MAS_TARDIA → cantidad sumada (2) y fecha más lejana (2026-08-01)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Lote resultante con cantidad sumada y fecha más lejana', () => {",
+                  "  pm.expect(json.cantidad).to.eql(2);",
+                  "  pm.expect(json.fechaCaducidad).to.eql('2026-08-01');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"criterioFecha\": \"MAS_TARDIA\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoPureId}}/lotes/compactar", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoPureId}}", "lotes", "compactar"] }
+          }
+        },
+        {
+          "name": "19. Crear producto 'Sal' (sin lotes nunca)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('productoSalId', json.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Sal\",\n  \"cantidad\": 1,\n  \"unidad\": \"kg\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos"] }
+          }
+        },
+        {
+          "name": "20. POST compactar sobre producto sin lotes → 400",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Status 400', () => pm.response.to.have.status(400));"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"criterioFecha\": \"MAS_TEMPRANA\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoSalId}}/lotes/compactar", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoSalId}}", "lotes", "compactar"] }
+          }
+        },
+        {
+          "name": "21. POST compactar sobre producto inexistente → 404",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Status 404', () => pm.response.to.have.status(404));"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"criterioFecha\": \"MAS_TEMPRANA\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/000000000000000000000000/lotes/compactar", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "000000000000000000000000", "lotes", "compactar"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "❌ Error Cases",
+      "item": [
+        {
+          "name": "POST lotes en producto de otro usuario → 404 (búsqueda acotada por despensa del usuario)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Status 404', () => pm.response.to.have.status(404));"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type",  "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"cantidad\": 1,\n  \"unidad\": \"unidades\",\n  \"fechaCaducidad\": \"2026-01-01\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoOtroId}}/lotes", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoOtroId}}", "lotes"] }
+          }
+        },
+        {
+          "name": "GET lotes en producto de otro usuario → 404 (búsqueda acotada por despensa del usuario)",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Status 404', () => pm.response.to.have.status(404));"] } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoOtroId}}/lotes", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoOtroId}}", "lotes"] }
+          }
+        },
+        {
+          "name": "GET lotes sin token → 401",
+          "event": [
+            { "listen": "test", "script": { "exec": ["pm.test('Status 401', () => pm.response.to.have.status(401));"] } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/despensa/productos/{{productoYogurId}}/lotes", "host": ["{{baseUrl}}"], "path": ["api", "despensa", "productos", "{{productoYogurId}}", "lotes"] }
+          }
+        }
+      ]
+    }
+  ]
+}

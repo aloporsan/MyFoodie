@@ -46,11 +46,18 @@ jobs:
       - name: Verificar tipos con TypeScript (sin emitir ficheros)
         run: npx tsc --noEmit
 
-      - name: Ejecutar tests con Jest
-        # --passWithNoTests permite que el CI pase cuando aún no hay ficheros de test
-        run: npm test
+      - name: Ejecutar tests con Jest (con cobertura)
+        run: npm run test:coverage -- --ci
         env:
           CI: true
+
+      - name: Publicar cobertura del frontend como artefacto
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cobertura-frontend
+          path: frontend/coverage/
+          retention-days: 7
 
       - name: Verificar que el export de Expo no falla
         # Exporta solo la plataforma web para evitar necesitar SDKs nativos en CI

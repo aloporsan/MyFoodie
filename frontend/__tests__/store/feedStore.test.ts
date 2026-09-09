@@ -1,3 +1,4 @@
+import { FILTROS_RECETA_VACIOS } from '@/constants/filtrosReceta';
 import { feedService, RecetaFeed } from '@/services/feedService';
 import { useFeedStore } from '@/store/feedStore';
 
@@ -30,6 +31,7 @@ const mockReceta = (overrides: Partial<RecetaFeed> = {}): RecetaFeed => ({
 const estadoInicial = {
   recetas: [],
   fuente: 'para-ti' as const,
+  filtros: FILTROS_RECETA_VACIOS,
   pagina: 0,
   hayMas: false,
   isLoading: false,
@@ -251,6 +253,47 @@ it('cargarMas_guarda_el_error_si_falla_el_servicio', async () => {
 
   expect(useFeedStore.getState().error).toBe('Error de red');
   expect(useFeedStore.getState().isLoadingMas).toBe(false);
+});
+
+// -------------------------------------------------------------------------
+// aplicarFiltros — filtros multidimensionales (#37 ampliado)
+// -------------------------------------------------------------------------
+
+const filtrosDificultad = { ...FILTROS_RECETA_VACIOS, dificultades: ['Fácil'] };
+
+it('aplicarFiltros_guarda_los_filtros_y_recarga_pasandolos_al_servicio', async () => {
+  mockService.obtenerFeed.mockResolvedValue({ recetas: [], pagina: 0, totalPaginas: 0, hayMas: false });
+
+  await useFeedStore.getState().aplicarFiltros(filtrosDificultad);
+
+  expect(useFeedStore.getState().filtros).toEqual(filtrosDificultad);
+  expect(mockService.obtenerFeed).toHaveBeenCalledWith(0, 10, filtrosDificultad);
+});
+
+it('los_filtros_se_aplican_también_a_la_fuente_seguidos', async () => {
+  useFeedStore.setState({ ...estadoInicial, fuente: 'seguidos', filtros: filtrosDificultad });
+  mockService.obtenerRecetasSeguidos.mockResolvedValue({ recetas: [], pagina: 0, totalPaginas: 0, hayMas: false });
+
+  await useFeedStore.getState().cargarFeed('seguidos');
+
+  expect(mockService.obtenerRecetasSeguidos).toHaveBeenCalledWith(0, 10, filtrosDificultad);
+});
+
+it('los_filtros_persisten_al_cambiar_de_fuente', async () => {
+  useFeedStore.setState({ ...estadoInicial, filtros: filtrosDificultad });
+  mockService.obtenerRecetasSeguidos.mockResolvedValue({ recetas: [], pagina: 0, totalPaginas: 0, hayMas: false });
+
+  await useFeedStore.getState().cargarFeed('seguidos');
+
+  expect(useFeedStore.getState().filtros).toEqual(filtrosDificultad);
+});
+
+it('sin_filtros_activos_el_servicio_se_llama_sin_el_argumento_de_filtros', async () => {
+  mockService.obtenerFeed.mockResolvedValue({ recetas: [], pagina: 0, totalPaginas: 0, hayMas: false });
+
+  await useFeedStore.getState().cargarFeed();
+
+  expect(mockService.obtenerFeed).toHaveBeenCalledWith(0, 10);
 });
 
 // -------------------------------------------------------------------------
