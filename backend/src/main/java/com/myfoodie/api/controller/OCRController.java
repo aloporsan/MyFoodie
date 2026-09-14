@@ -5,7 +5,9 @@ import com.myfoodie.application.dto.ocr.ProductoConfirmadoOCRDTO;
 import com.myfoodie.application.dto.ocr.ProductoTicketDTO;
 import com.myfoodie.application.dto.ocr.ResultadoOCRDTO;
 import com.myfoodie.application.dto.ocr.ResumenConfirmacionOCRDTO;
+import com.myfoodie.application.dto.despensa.ProductoResponseDTO;
 import com.myfoodie.application.service.DespensaService;
+import com.myfoodie.application.service.FusionService;
 import com.myfoodie.application.service.OCRService;
 import com.myfoodie.domain.repository.UsuarioRepository;
 import com.myfoodie.exception.ApiException;
@@ -37,6 +39,7 @@ public class OCRController {
 
     private final OCRService ocrService;
     private final DespensaService despensaService;
+    private final FusionService fusionService;
     private final UsuarioRepository usuarioRepository;
 
     @PostMapping("/procesar")
@@ -80,7 +83,7 @@ public class OCRController {
                     actualizados++;
                 }
                 case "nuevo" -> {
-                    despensaService.añadirProductoConLote(usuarioId, new ProductoRequestDTO(
+                    ProductoResponseDTO creado = despensaService.añadirProductoConLote(usuarioId, new ProductoRequestDTO(
                             producto.nombre(),
                             producto.cantidad() != null ? producto.cantidad() : 0,
                             producto.unidad(),
@@ -88,6 +91,13 @@ public class OCRController {
                             producto.fechaCaducidad(),
                             LocalDate.now(),
                             producto.marca(), producto.notas(), producto.stockMinimo()), "ocr");
+                    // Si el OCR había propuesto este producto existente como posible coincidencia
+                    // y el usuario decidió crearlo como uno nuevo (lo rechazó o no lo confirmó),
+                    // no hay que volver a proponer esa misma fusión en el escáner general de
+                    // duplicados: ya se resolvió durante la revisión del ticket.
+                    if (producto.productoExistenteId() != null) {
+                        fusionService.ignorarSugerenciaFusion(usuarioId, creado.id(), producto.productoExistenteId());
+                    }
                     añadidos++;
                 }
                 case "ignorado" -> ignorados++;
