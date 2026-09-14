@@ -22,6 +22,7 @@ import java.util.Map;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -129,6 +130,42 @@ class OCRControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST /confirmar con 'nuevo' que rechaza una sugerencia no vuelve a proponer la "
+            + "misma fusión en GET /duplicados")
+    void POST_confirmar_nuevoConSugerenciaRechazada_noReapareceEnDuplicados() throws Exception {
+        String existenteId = añadirProductoYObtenerID("Leche Entera Pascual", 1, "litros");
+
+        // El usuario vio la sugerencia durante la revisión del ticket y decidió crearlo como
+        // un producto distinto: el backend recibe igualmente el id sugerido para poder
+        // recordar que esa fusión ya se rechazó.
+        String body = objectMapper.writeValueAsString(List.of(Map.of(
+                "nombre", "Leche Entera Pascual", "cantidad", 1, "unidad", "litros",
+                "accion", "nuevo", "productoExistenteId", existenteId)));
+
+        mockMvc.perform(post("/api/despensa/ocr/confirmar")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.añadidos").value(1));
+
+        mockMvc.perform(get("/api/despensa/productos/duplicados")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    private String añadirProductoYObtenerID(String nombre, double cantidad, String unidad) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/despensa/productos")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "nombre", nombre, "cantidad", cantidad, "unidad", unidad))))
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText();
     }
 
     private JsonNode registrar(String nombreUsuario, String email) throws Exception {
