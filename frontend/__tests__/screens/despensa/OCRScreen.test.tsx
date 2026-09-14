@@ -246,8 +246,11 @@ it('confirmar_una_sugerencia_rechazada_por_el_usuario_lo_trata_como_producto_nue
   fireEvent.press(getByText('Añadir a despensa'));
 
   await waitFor(() => expect(mockOcr.confirmarProductos).toHaveBeenCalled());
+  // Se sigue mandando el id del producto existente aunque se cree como "nuevo": el backend
+  // lo usa para registrar que esta fusión ya fue rechazada y no proponerla otra vez en el
+  // escáner general de duplicados de la despensa.
   expect(mockOcr.confirmarProductos).toHaveBeenCalledWith([
-    expect.objectContaining({ accion: 'nuevo', productoExistenteId: null }),
+    expect.objectContaining({ accion: 'nuevo', productoExistenteId: 'prod-1' }),
   ]);
 });
 
