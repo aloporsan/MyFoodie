@@ -65,12 +65,20 @@ export function Input({
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           placeholderTextColor={colors.grayMid}
+          {...props}
           value={secureTextEntry ? displayValue : (typeof value === 'string' ? value : undefined)}
           onChangeText={secureTextEntry ? handleSecureChange : onChangeText}
+          // El campo nunca usa el secureTextEntry nativo (el enmascarado lo gestionamos
+          // a mano arriba para poder mostrar el último carácter tecleado). Por eso hay que
+          // decirle al teclado explícitamente que esto es una contraseña: si no, el
+          // autocorrector/autocompletado de Android lo trata como texto normal y puede
+          // insertar caracteres de más que sí acaban en realValue (bug real, no solo visual).
           autoCorrect={secureTextEntry ? false : props.autoCorrect}
           autoCapitalize={secureTextEntry ? 'none' : props.autoCapitalize}
+          spellCheck={secureTextEntry ? false : props.spellCheck}
+          textContentType={secureTextEntry ? 'password' : props.textContentType}
+          importantForAutofill={secureTextEntry ? 'no' : props.importantForAutofill}
           secureTextEntry={false}
-          {...props}
         />
         {rightElement && (
           <View style={styles.rightElement}>{rightElement}</View>

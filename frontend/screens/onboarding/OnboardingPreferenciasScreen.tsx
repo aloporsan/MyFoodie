@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PreferenciaChip } from '@/components/perfil/PreferenciaChip';
 import { feedService } from '@/services/feedService';
+import { perfilService } from '@/services/perfilService';
 import { useAuthStore } from '@/store/authStore';
 import { borderRadius, colors, spacing, typography } from '@/theme';
 
@@ -34,6 +35,15 @@ const OPCIONES_TIEMPO: { label: string; valor: string }[] = [
 
 const TIPOS_DIETA = ['Ninguna', 'Vegetariana', 'Vegana', 'Sin gluten', 'Sin lactosa', 'Keto', 'Mediterránea'];
 
+// El onboarding solo pregunta un rango de tiempo, no minutos exactos: se traduce al campo
+// numérico que espera el modelo Preferencias. "Más de 1 hora"/"Varía" no implican un límite.
+const TIEMPO_A_MINUTOS: Record<string, number | null> = {
+  menos_30: 30,
+  '30_60': 60,
+  mas_1_hora: null,
+  varia: null,
+};
+
 export function OnboardingPreferenciasScreen() {
   const router = useRouter();
   const marcarOnboardingVisto = useAuthStore((s) => s.marcarOnboardingVisto);
@@ -56,9 +66,16 @@ export function OnboardingPreferenciasScreen() {
     setIsLoading(true);
     try {
       const tipos = tipoDieta !== 'Ninguna' ? [...tiposCocina, tipoDieta] : tiposCocina;
-      await feedService.inicializarPerfil(tipos, tiempoDisponible);
-    } catch {
-      // si falla la inicialización no bloqueamos el acceso a la app
+      // Dos llamadas independientes: inicializar el feed (personalización de recetas) y
+      // persistir de verdad las preferencias elegidas en el modelo Preferencias. Antes solo
+      // se hacía la primera, así que lo elegido en el onboarding nunca llegaba a guardarse.
+      await Promise.allSettled([
+        feedService.inicializarPerfil(tipos, tiempoDisponible),
+        perfilService.actualizarPreferencias({
+          tipoDieta: tipoDieta === 'Ninguna' ? null : tipoDieta,
+          tiempoCoccionMax: tiempoDisponible ? TIEMPO_A_MINUTOS[tiempoDisponible] : null,
+        }),
+      ]);
     } finally {
       setIsLoading(false);
       irAlDashboard();
