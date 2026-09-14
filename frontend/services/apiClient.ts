@@ -40,7 +40,11 @@ console.log(`[apiClient] baseURL resuelta: ${BASE_URL}`);
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,
-  timeout: 10000,
+  // Railway "duerme" el backend tras un rato de inactividad y tarda unos ~20s en
+  // despertar con la primera petición. Con 10s de timeout, esa primera petición
+  // abortaba con ECONNABORTED antes de que el servidor respondiera, lo que se veía
+  // como una pantalla que carga dos veces o que falla/retrocede sin motivo aparente.
+  timeout: 30000,
 });
 
 let _getToken: () => string | null = () => null;
