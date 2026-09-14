@@ -2,11 +2,13 @@ import React from 'react';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { OnboardingPreferenciasScreen } from '@/screens/onboarding/OnboardingPreferenciasScreen';
 import { feedService } from '@/services/feedService';
+import { perfilService } from '@/services/perfilService';
 import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'expo-router';
 
 jest.mock('expo-router', () => ({ useRouter: jest.fn() }));
 jest.mock('@/services/feedService', () => ({ feedService: { inicializarPerfil: jest.fn() } }));
+jest.mock('@/services/perfilService', () => ({ perfilService: { actualizarPreferencias: jest.fn() } }));
 jest.mock('@/store/authStore', () => ({ useAuthStore: jest.fn() }));
 jest.mock('react-native-safe-area-context', () => {
   const { View } = require('react-native');
@@ -16,10 +18,12 @@ jest.mock('react-native-safe-area-context', () => {
 const mockReplace = jest.fn();
 const mockMarcarOnboardingVisto = jest.fn();
 const mockInicializarPerfil = feedService.inicializarPerfil as jest.Mock;
+const mockActualizarPreferencias = perfilService.actualizarPreferencias as jest.Mock;
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockInicializarPerfil.mockResolvedValue(undefined);
+  mockActualizarPreferencias.mockResolvedValue({});
   (useRouter as jest.Mock).mockReturnValue({ replace: mockReplace });
   (useAuthStore as unknown as jest.Mock).mockImplementation((selector: any) =>
     selector({ marcarOnboardingVisto: mockMarcarOnboardingVisto })
@@ -62,6 +66,30 @@ it('empezar_añade_el_tipo_de_dieta_a_los_tipos_de_cocina_si_no_es_Ninguna', asy
   await waitFor(() => expect(mockInicializarPerfil).toHaveBeenCalledWith(
     ['Italiana', 'Keto'], null
   ));
+});
+
+it('empezar_persiste_tipo_de_dieta_y_tiempo_de_coccion_en_Preferencias', async () => {
+  const { getByText } = render(<OnboardingPreferenciasScreen />);
+
+  fireEvent.press(getByText('Keto'));
+  fireEvent.press(getByText('Menos de 30 min'));
+  fireEvent.press(getByText('Empezar'));
+
+  await waitFor(() => expect(mockActualizarPreferencias).toHaveBeenCalledWith({
+    tipoDieta: 'Keto',
+    tiempoCoccionMax: 30,
+  }));
+});
+
+it('empezar_con_dieta_Ninguna_y_tiempo_sin_seleccionar_manda_null', async () => {
+  const { getByText } = render(<OnboardingPreferenciasScreen />);
+
+  fireEvent.press(getByText('Empezar'));
+
+  await waitFor(() => expect(mockActualizarPreferencias).toHaveBeenCalledWith({
+    tipoDieta: null,
+    tiempoCoccionMax: null,
+  }));
 });
 
 it('empezar_marca_el_onboarding_como_visto_y_navega_al_dashboard', async () => {

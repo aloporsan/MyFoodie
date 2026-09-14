@@ -87,7 +87,10 @@ export function OCRScreen() {
     return {
       ...base,
       accion,
-      productoExistenteId: debeActualizar ? (resultado.productoExistente?.id ?? null) : null,
+      // Se manda aunque el producto se cree como "nuevo": si había una sugerencia de fusión
+      // que el usuario rechazó (o no confirmó), el backend la usa para no volver a proponer
+      // esa misma fusión en el escáner general de duplicados de la despensa.
+      productoExistenteId: resultado.productoExistente?.id ?? null,
       marca: accion === 'nuevo' ? (ajuste?.marca ?? null) : null,
       notas: accion === 'nuevo' ? (ajuste?.notas ?? null) : null,
       stockMinimo: accion === 'nuevo' ? (ajuste?.stockMinimo ?? null) : null,
