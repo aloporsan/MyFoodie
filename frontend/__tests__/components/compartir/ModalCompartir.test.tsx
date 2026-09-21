@@ -10,6 +10,9 @@ import { useToastStore } from '@/hooks/useToast';
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
 jest.mock('@/services/socialService');
 jest.mock('@/services/compartirService');
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
 
 const mockSocialService = socialService as jest.Mocked<typeof socialService>;
 const mockCompartirService = compartirService as jest.Mocked<typeof compartirService>;

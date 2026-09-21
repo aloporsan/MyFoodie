@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoadingScreen } from '@/components/common/LoadingScreen';
 import { RecetaCardCompacta } from '@/components/receta';
+import { showConfirm } from '@/hooks/useConfirm';
 import { useRecetaStore } from '@/store/recetaStore';
 import { borderRadius } from '@/theme/borderRadius';
 import { colors } from '@/theme/colors';
@@ -22,6 +23,7 @@ export function RecetasPublicadasScreen() {
   const router = useRouter();
   const recetas = useRecetaStore((s) => s.recetas);
   const cargarMisRecetas = useRecetaStore((s) => s.cargarMisRecetas);
+  const eliminarReceta = useRecetaStore((s) => s.eliminarReceta);
   const [refreshing, setRefreshing] = useState(false);
   const [cargandoInicial, setCargandoInicial] = useState(true);
 
@@ -33,6 +35,33 @@ export function RecetasPublicadasScreen() {
     setRefreshing(true);
     await cargarMisRecetas();
     setRefreshing(false);
+  };
+
+  // Misma acción y mismo modal de confirmación que se usan al eliminar desde dentro del
+  // detalle de receta (DetalleRecetaScreen): así se puede borrar directamente desde la lista
+  // sin tener que entrar a la receta primero.
+  const confirmarEliminar = (id: string, titulo: string) => {
+    showConfirm(
+      'Eliminar receta',
+      `¿Seguro que quieres eliminar "${titulo}"? Esta acción no se puede deshacer.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await eliminarReceta(id);
+            } catch {
+              showConfirm('Error', 'No se pudo eliminar la receta. Inténtalo de nuevo.', undefined, {
+                icon: 'alert-circle-outline',
+              });
+            }
+          },
+        },
+      ],
+      { icon: 'trash-outline' }
+    );
   };
 
   if (cargandoInicial) {
@@ -91,6 +120,14 @@ export function RecetasPublicadasScreen() {
             estadoBadge={item.estado === 'publicada' ? 'publicada' : 'borrador'}
             onPress={() => router.push({ pathname: '/receta/[id]', params: { id: item.id } })}
             onEditar={() => router.push(`/receta/editar?id=${item.id}`)}
+            swipe={{
+              izquierda: {
+                icono: 'trash-outline',
+                label: 'Eliminar',
+                color: colors.error,
+                onAction: () => confirmarEliminar(item.id, item.titulo),
+              },
+            }}
           />
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}

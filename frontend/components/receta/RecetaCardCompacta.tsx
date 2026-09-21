@@ -49,8 +49,9 @@ interface Props {
   estadoBadge?: 'publicada' | 'borrador';
   /** Botón "Editar" en un pie de la tarjeta (recetas publicadas). */
   onEditar?: () => void;
-  /** Acciones por deslizamiento izquierda/derecha (recetas guardadas). */
-  swipe?: { izquierda: SwipeAccion; derecha: SwipeAccion };
+  /** Acciones por deslizamiento izquierda/derecha (recetas guardadas, mis recetas). Cada lado
+   * es independiente: se puede pasar solo uno (p. ej. solo "Eliminar" a la izquierda). */
+  swipe?: { izquierda?: SwipeAccion; derecha?: SwipeAccion };
   testID?: string;
 }
 
@@ -197,9 +198,9 @@ function TarjetaDeslizable({
     })
     .onEnd((event) => {
       translateX.value = withSpring(0);
-      if (event.translationX > UMBRAL_SWIPE) {
+      if (swipe.derecha && event.translationX > UMBRAL_SWIPE) {
         runOnJS(swipe.derecha.onAction)();
-      } else if (event.translationX < -UMBRAL_SWIPE) {
+      } else if (swipe.izquierda && event.translationX < -UMBRAL_SWIPE) {
         runOnJS(swipe.izquierda.onAction)();
       }
     });
@@ -222,32 +223,44 @@ function TarjetaDeslizable({
         {children}
 
         <View style={styles.swipeHint}>
-          <Ionicons name="chevron-back" size={14} color={swipe.izquierda.color} />
-          <Text style={[styles.swipeHintTexto, { color: swipe.izquierda.color }]}>
-            {swipe.izquierda.label}
-          </Text>
-          <Text style={styles.swipeHintDivisor}>·</Text>
-          <Text style={[styles.swipeHintTexto, { color: swipe.derecha.color }]}>
-            {swipe.derecha.label}
-          </Text>
-          <Ionicons name="chevron-forward" size={14} color={swipe.derecha.color} />
+          {swipe.izquierda && (
+            <>
+              <Ionicons name="chevron-back" size={14} color={swipe.izquierda.color} />
+              <Text style={[styles.swipeHintTexto, { color: swipe.izquierda.color }]}>
+                {swipe.izquierda.label}
+              </Text>
+            </>
+          )}
+          {swipe.izquierda && swipe.derecha && <Text style={styles.swipeHintDivisor}>·</Text>}
+          {swipe.derecha && (
+            <>
+              <Text style={[styles.swipeHintTexto, { color: swipe.derecha.color }]}>
+                {swipe.derecha.label}
+              </Text>
+              <Ionicons name="chevron-forward" size={14} color={swipe.derecha.color} />
+            </>
+          )}
         </View>
 
-        <Animated.View
-          testID="overlay-swipe-derecha"
-          style={[styles.overlay, { backgroundColor: swipe.derecha.color + 'BF' }, overlayDerechaStyle]}
-          pointerEvents="none"
-        >
-          <Ionicons name={swipe.derecha.icono} size={36} color={colors.white} />
-        </Animated.View>
+        {swipe.derecha && (
+          <Animated.View
+            testID="overlay-swipe-derecha"
+            style={[styles.overlay, { backgroundColor: swipe.derecha.color + 'BF' }, overlayDerechaStyle]}
+            pointerEvents="none"
+          >
+            <Ionicons name={swipe.derecha.icono} size={36} color={colors.white} />
+          </Animated.View>
+        )}
 
-        <Animated.View
-          testID="overlay-swipe-izquierda"
-          style={[styles.overlay, { backgroundColor: swipe.izquierda.color + 'BF' }, overlayIzquierdaStyle]}
-          pointerEvents="none"
-        >
-          <Ionicons name={swipe.izquierda.icono} size={36} color={colors.white} />
-        </Animated.View>
+        {swipe.izquierda && (
+          <Animated.View
+            testID="overlay-swipe-izquierda"
+            style={[styles.overlay, { backgroundColor: swipe.izquierda.color + 'BF' }, overlayIzquierdaStyle]}
+            pointerEvents="none"
+          >
+            <Ionicons name={swipe.izquierda.icono} size={36} color={colors.white} />
+          </Animated.View>
+        )}
       </Animated.View>
     </GestureDetector>
   );
