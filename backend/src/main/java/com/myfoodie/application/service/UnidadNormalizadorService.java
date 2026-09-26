@@ -154,7 +154,7 @@ public class UnidadNormalizadorService {
         return Optional.empty();
     }
 
-    private double redondear(double valor) {
+    public double redondear(double valor) {
         return Math.round(valor * 100) / 100.0;
     }
 

@@ -1,6 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/hooks/useToast';
 import {
@@ -28,6 +39,7 @@ const TITULO_POR_TIPO: Record<TipoContenidoReporte, string> = {
 
 export function ReporteModal({ visible, tipoContenido, contenidoId, onClose }: Props) {
   const { showSuccess, showError } = useToast();
+  const insets = useSafeAreaInsets();
   const [motivo, setMotivo] = useState<MotivoReporte | null>(null);
   const [descripcion, setDescripcion] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -66,64 +78,72 @@ export function ReporteModal({ visible, tipoContenido, contenidoId, onClose }: P
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={cerrar}>
-      <View style={styles.container}>
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={cerrar} />
-        <View style={styles.sheet}>
-          <View style={styles.header}>
-            <Text style={styles.titulo}>{TITULO_POR_TIPO[tipoContenido]}</Text>
-            <Pressable onPress={cerrar} hitSlop={8} testID="btn-cerrar-reporte">
-              <Ionicons name="close" size={24} color={colors.text.primary} />
-            </Pressable>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View style={styles.container}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={cerrar} />
+          <View style={[styles.sheet, { paddingBottom: spacing.lg + insets.bottom }]}>
+            <View style={styles.header}>
+              <Text style={styles.titulo}>{TITULO_POR_TIPO[tipoContenido]}</Text>
+              <Pressable onPress={cerrar} hitSlop={8} testID="btn-cerrar-reporte">
+                <Ionicons name="close" size={24} color={colors.text.primary} />
+              </Pressable>
+            </View>
+
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <Text style={styles.seccion}>¿Cuál es el problema?</Text>
+              {MOTIVOS_REPORTE.map((opcion) => {
+                const seleccionado = motivo === opcion.valor;
+                return (
+                  <Pressable
+                    key={opcion.valor}
+                    style={styles.opcion}
+                    onPress={() => setMotivo(opcion.valor)}
+                    testID={`motivo-${opcion.valor}`}
+                  >
+                    <Ionicons
+                      name={seleccionado ? 'radio-button-on' : 'radio-button-off'}
+                      size={20}
+                      color={seleccionado ? colors.primary : colors.grayMid}
+                    />
+                    <Text style={styles.opcionTexto}>{opcion.etiqueta}</Text>
+                  </Pressable>
+                );
+              })}
+
+              {esOtro && (
+                <TextInput
+                  style={styles.input}
+                  value={descripcion}
+                  onChangeText={setDescripcion}
+                  placeholder="Cuéntanos qué ocurre"
+                  placeholderTextColor={colors.grayMid}
+                  multiline
+                  maxLength={REPORTE_DESCRIPCION_MAX_LENGTH}
+                  testID="input-descripcion-reporte"
+                />
+              )}
+            </ScrollView>
+
+            <Button
+              label="Enviar reporte"
+              onPress={enviar}
+              disabled={!puedeEnviar}
+              loading={enviando}
+            />
           </View>
-
-          <ScrollView keyboardShouldPersistTaps="handled">
-            <Text style={styles.seccion}>¿Cuál es el problema?</Text>
-            {MOTIVOS_REPORTE.map((opcion) => {
-              const seleccionado = motivo === opcion.valor;
-              return (
-                <Pressable
-                  key={opcion.valor}
-                  style={styles.opcion}
-                  onPress={() => setMotivo(opcion.valor)}
-                  testID={`motivo-${opcion.valor}`}
-                >
-                  <Ionicons
-                    name={seleccionado ? 'radio-button-on' : 'radio-button-off'}
-                    size={20}
-                    color={seleccionado ? colors.primary : colors.grayMid}
-                  />
-                  <Text style={styles.opcionTexto}>{opcion.etiqueta}</Text>
-                </Pressable>
-              );
-            })}
-
-            {esOtro && (
-              <TextInput
-                style={styles.input}
-                value={descripcion}
-                onChangeText={setDescripcion}
-                placeholder="Cuéntanos qué ocurre"
-                placeholderTextColor={colors.grayMid}
-                multiline
-                maxLength={REPORTE_DESCRIPCION_MAX_LENGTH}
-                testID="input-descripcion-reporte"
-              />
-            )}
-          </ScrollView>
-
-          <Button
-            label="Enviar reporte"
-            onPress={enviar}
-            disabled={!puedeEnviar}
-            loading={enviando}
-          />
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     justifyContent: 'flex-end',

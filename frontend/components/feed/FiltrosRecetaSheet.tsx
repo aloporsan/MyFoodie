@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   alternarValor,
   CATEGORIAS_RECETA,
@@ -27,6 +28,7 @@ interface Props {
 }
 
 export function FiltrosRecetaSheet({ visible, filtros, onAplicar, onCerrar, mostrarDespensa }: Props) {
+  const insets = useSafeAreaInsets();
   const [borrador, setBorrador] = useState<FiltrosReceta>(filtros);
 
   useEffect(() => {
@@ -44,7 +46,7 @@ export function FiltrosRecetaSheet({ visible, filtros, onAplicar, onCerrar, most
       <View style={styles.container}>
         <Pressable style={StyleSheet.absoluteFillObject} onPress={onCerrar} testID="filtros-overlay" />
 
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { paddingBottom: spacing.md + insets.bottom }]}>
           <View style={styles.handle} />
 
           <View style={styles.cabecera}>
