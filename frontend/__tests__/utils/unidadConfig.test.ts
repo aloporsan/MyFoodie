@@ -50,6 +50,23 @@ it('esUnidadSubjetiva_detecta_cucharada_y_taza_como_subjetivas', () => {
   expect(esUnidadSubjetiva('kg')).toBe(false);
 });
 
+// HOTFIX: solo se reconocían las formas en singular, así que "2 cucharadas" (como las guarda
+// el buscador de recetas y los datos de ejemplo, p. ej. "Pad thai de pollo") no se convertía
+// aquí aunque el backend sí la reconocía — ahora deben coincidir exactamente.
+it('esUnidadSubjetiva_detecta_tambien_los_plurales', () => {
+  for (const plural of ['cucharadas', 'cucharaditas', 'tazas', 'vasos', 'pizcas']) {
+    expect(esUnidadSubjetiva(plural)).toBe(true);
+  }
+});
+
+it('equivalenciaMetrica_convierte_2_cucharadas_de_salsa_de_soja_a_30_ml_sin_decimales_raros', () => {
+  expect(equivalenciaMetrica(2, 'cucharadas')).toBe('30 ml');
+});
+
+it('unidadDeCompra_reconoce_cucharadas_en_plural', () => {
+  expect(unidadDeCompra(2, 'cucharadas')).toEqual({ cantidad: 0.03, unidad: 'l' });
+});
+
 it('etiquetaUnidad_devuelve_la_etiqueta_legible_o_la_unidad_tal_cual', () => {
   expect(etiquetaUnidad('cucharada')).toBe('Cucharada(s)');
   expect(etiquetaUnidad('kg')).toBe('kg');

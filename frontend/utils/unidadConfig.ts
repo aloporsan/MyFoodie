@@ -14,12 +14,28 @@ export function etiquetaUnidad(unidad: string): string {
   return ETIQUETAS_UNIDAD[unidad] ?? unidad;
 }
 
+// Espejo de UnidadNormalizadorService.CONVERSIONES en el backend: tiene que reconocer
+// exactamente las mismas cadenas (incluidos los plurales) para que una unidad subjetiva se
+// detecte igual en el cliente que en el servidor. Antes solo tenía las formas en singular, así
+// que "2 cucharadas" (como las guardan el buscador de recetas y los datos de ejemplo) no se
+// reconocía como subjetiva aquí, aunque el backend sí la convertía correctamente al confirmar.
 const CONVERSIONES_SUBJETIVAS: Record<string, { factor: number; destino: 'ml' | 'g' }> = {
   cucharada: { factor: 15, destino: 'ml' },
+  cucharadas: { factor: 15, destino: 'ml' },
   cucharadita: { factor: 5, destino: 'ml' },
+  cucharaditas: { factor: 5, destino: 'ml' },
   taza: { factor: 250, destino: 'ml' },
+  tazas: { factor: 250, destino: 'ml' },
   vaso: { factor: 200, destino: 'ml' },
+  vasos: { factor: 200, destino: 'ml' },
+  dl: { factor: 100, destino: 'ml' },
+  cl: { factor: 10, destino: 'ml' },
   pizca: { factor: 0.5, destino: 'g' },
+  pizcas: { factor: 0.5, destino: 'g' },
+  pellizco: { factor: 1, destino: 'g' },
+  kilo: { factor: 1000, destino: 'g' },
+  kilogramo: { factor: 1000, destino: 'g' },
+  kilogramos: { factor: 1000, destino: 'g' },
 };
 
 export function esUnidadSubjetiva(unidad: string): boolean {

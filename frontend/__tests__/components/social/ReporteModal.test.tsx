@@ -5,6 +5,9 @@ import { reporteService } from '@/services/reporteService';
 import { useToastStore } from '@/hooks/useToast';
 
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
 jest.mock('@/services/reporteService', () => ({
   ...jest.requireActual('@/services/reporteService'),
   reporteService: { crearReporte: jest.fn() },

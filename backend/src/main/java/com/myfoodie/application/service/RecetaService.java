@@ -400,7 +400,10 @@ public class RecetaService {
                                                     List<Producto> productos) {
         UnidadConvertidaDTO normalizado = unidadNormalizadorService
                 .normalizarUnidades(ingrediente.getCantidad(), ingrediente.getUnidad());
-        double cantidadCalculada = normalizado.cantidadConvertida() * factor;
+        // Redondeado a 2 decimales: el factor de raciones (racionesElaboradas / numPersonas) no
+        // siempre es exacto en binario (p. ej. 1/3), así que sin esto una unidad subjetiva ya
+        // convertida a ml/g podía acabar en un decimal largo y feo (p. ej. 9.999999999999998).
+        double cantidadCalculada = unidadNormalizadorService.redondear(normalizado.cantidadConvertida() * factor);
         ProductoMatchResult match = buscarProductoCoincidente(productos, ingrediente.getNombre());
         Producto producto = match.producto();
         boolean enDespensa = producto != null;

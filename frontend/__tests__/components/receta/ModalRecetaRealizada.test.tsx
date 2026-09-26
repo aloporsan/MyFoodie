@@ -98,7 +98,7 @@ it('preview_muestra_ingredientes_en_verde_naranja_y_gris', async () => {
   expect(UNSAFE_getAllByProps({ name: 'help-circle-outline' })).toHaveLength(1);
 });
 
-it('boton_descontar_llama_al_servicio_y_muestra_toast', async () => {
+it('boton_descontar_llama_al_servicio_y_muestra_toast_al_cerrarse_el_modal', async () => {
   recetaService.descontarStock.mockResolvedValue({
     descontados: [mockConsumo()],
     noDisponibles: [],
@@ -106,16 +106,21 @@ it('boton_descontar_llama_al_servicio_y_muestra_toast', async () => {
   });
   const onClose = jest.fn();
 
-  const { getByText } = render(
+  const { getByText, rerender } = render(
     <ModalRecetaRealizada visible recetaId="receta-42" numPersonas={2} onClose={onClose} />
   );
 
   fireEvent.press(getByText('Descontar de despensa'));
 
   await waitFor(() => expect(recetaService.descontarStock).toHaveBeenCalledWith('receta-42', 2));
+  expect(onClose).toHaveBeenCalledTimes(1);
+
+  // El toast no se dispara mientras el modal sigue montado (su <Modal> nativo lo taparía) —
+  // solo al desmontarse, que es lo que hace el padre real al reaccionar a onClose.
+  expect(useToastStore.getState().visible).toBe(false);
+  rerender(<></>);
   expect(useToastStore.getState().tipo).toBe('success');
   expect(useToastStore.getState().mensaje).toBe('1 ingrediente descontado de tu despensa');
-  expect(onClose).toHaveBeenCalledTimes(1);
 });
 
 it('boton_descontar_con_coincidencias_parciales_no_cierra_y_muestra_las_preguntas_si_no', async () => {

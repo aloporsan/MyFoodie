@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useToast } from '@/hooks/useToast';
 import { despensaService } from '@/services/despensaService';
@@ -35,6 +35,23 @@ export function ModalRecetaRealizada({ visible, recetaId, numPersonas, onClose }
   const [fase, setFase] = useState<'form' | 'coincidencias'>('form');
   const [coincidencias, setCoincidencias] = useState<IngredienteConsumo[]>([]);
   const [procesandoCoincidencia, setProcesandoCoincidencia] = useState<string | null>(null);
+
+  // HOTFIX: el toast de "N ingredientes descontados" se disparaba mientras este <Modal>
+  // seguía en pantalla (cerrándose o pasando a la fase de coincidencias) y quedaba tapado —
+  // el <Modal> nativo se pinta en su propia ventana por encima de toda la app, así que un
+  // toast montado en la raíz (fuera del modal) nunca se ve mientras cualquier modal esté
+  // abierto, aunque su zIndex sea alto. Se guarda el mensaje pendiente y se lanza en el
+  // cleanup de este efecto, que corre justo cuando el padre deja de renderizar el modal.
+  const mensajeAlCerrarRef = useRef<{ tipo: 'success' | 'warning'; mensaje: string } | null>(null);
+  useEffect(() => {
+    return () => {
+      const pendiente = mensajeAlCerrarRef.current;
+      if (!pendiente) return;
+      if (pendiente.tipo === 'success') showSuccess(pendiente.mensaje);
+      else showWarning(pendiente.mensaje);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (visible) {
@@ -95,11 +112,15 @@ export function ModalRecetaRealizada({ visible, recetaId, numPersonas, onClose }
         const extra = totalNoDisponibles > 0
           ? ` (${totalNoDisponibles} no encontrado${totalNoDisponibles !== 1 ? 's' : ''} en la despensa)`
           : '';
-        showSuccess(
-          `${totalDescontados} ingrediente${totalDescontados !== 1 ? 's' : ''} descontado${totalDescontados !== 1 ? 's' : ''} de tu despensa${extra}`
-        );
+        mensajeAlCerrarRef.current = {
+          tipo: 'success',
+          mensaje: `${totalDescontados} ingrediente${totalDescontados !== 1 ? 's' : ''} descontado${totalDescontados !== 1 ? 's' : ''} de tu despensa${extra}`,
+        };
       } else if (totalCoincidencias === 0) {
-        showWarning('Ningún ingrediente estaba disponible en tu despensa');
+        mensajeAlCerrarRef.current = {
+          tipo: 'warning',
+          mensaje: 'Ningún ingrediente estaba disponible en tu despensa',
+        };
       }
 
       if (totalCoincidencias > 0) {

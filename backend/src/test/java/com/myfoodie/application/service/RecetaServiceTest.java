@@ -74,6 +74,8 @@ class RecetaServiceTest {
         lenient().when(unidadNormalizadorService.cantidadComparable(anyDouble(), any(), any()))
                 .thenAnswer(inv -> unidadesReal.cantidadComparable(
                         inv.getArgument(0), inv.getArgument(1), inv.getArgument(2)));
+        lenient().when(unidadNormalizadorService.redondear(anyDouble()))
+                .thenAnswer(inv -> unidadesReal.redondear(inv.getArgument(0)));
         lenient().when(matchingService.calcularSimilitud(anyString(), anyString())).thenAnswer(inv -> {
             String a = inv.getArgument(0);
             String b = inv.getArgument(1);
@@ -630,6 +632,27 @@ class RecetaServiceTest {
 
         assertThat(resultado.get(0).cantidadCalculada()).isEqualTo(400.0);
         assertThat(resultado.get(0).productoEnDespensa()).isFalse();
+    }
+
+    @Test
+    @DisplayName("marcarRecetaComoRealizada_redondea_cantidadCalculada_de_unidades_subjetivas_cuando_el_factor_no_es_exacto")
+    void marcarRecetaComoRealizada_redondeaCantidadCalculada_cuandoFactorNoEsExacto() {
+        Receta receta = receta("r1", "user-1");
+        receta.setNumPersonas(3);
+        when(recetaRepository.findById("r1")).thenReturn(Optional.of(receta));
+        when(recetaGuardadaRepository.existsByUsuarioIdAndRecetaId("user-1", "r1")).thenReturn(true);
+        when(despensaRepository.findByUsuarioId("user-1")).thenReturn(Optional.empty());
+        when(ingredienteRepository.findByRecetaId("r1"))
+                .thenReturn(List.of(ingrediente("ing-1", "r1", "Salsa de soja", 2, "cucharadas")));
+        when(unidadNormalizadorService.normalizarUnidades(2, "cucharadas"))
+                .thenReturn(new UnidadConvertidaDTO(30, "ml", true));
+
+        // factor = 1/3 = 0,333...; 2 cucharadas -> 30 ml normalizados -> 30 * 0,333... sin
+        // redondear da un decimal largo y feo (9.999999999999998), no 10.0 exacto.
+        List<IngredienteConsumoDTO> resultado = recetaService.marcarRecetaComoRealizada("user-1", "r1", 1);
+
+        assertThat(resultado.get(0).cantidadCalculada()).isEqualTo(10.0);
+        assertThat(resultado.get(0).unidad()).isEqualTo("ml");
     }
 
     // -------------------------------------------------------------------------
